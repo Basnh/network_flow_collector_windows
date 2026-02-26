@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-
+﻿#!/usr/bin/env python3
 import time
 import csv
 
@@ -37,7 +35,7 @@ except ImportError:
 import numpy as np
 
 class WindowsNetworkFlowCollector:
-    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=True):
+    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=True, capture_packets=False):
         # Add timestamp to output file if requested
         if add_timestamp and output_file:
             self.output_file = self.add_timestamp_to_filename(output_file)
@@ -48,6 +46,20 @@ class WindowsNetworkFlowCollector:
         self.interface = interface
         self.timeout = timeout
         self.promiscuous = promiscuous  # Enable promiscuous mode for network-wide capture
+        self.capture_packets = capture_packets  # Enable/disable per-packet Wireshark-style CSV
+        
+        # Packet-level CSV file (Wireshark-style)
+        if capture_packets and output_file:
+            base = output_file.rsplit('.', 1)
+            if add_timestamp:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.packet_csv_file = f"{base[0]}_packets_{ts}.csv" if len(base) > 1 else f"{base[0]}_packets_{ts}.csv"
+            else:
+                self.packet_csv_file = f"{base[0]}_packets.csv" if len(base) > 1 else f"{base[0]}_packets.csv"
+        else:
+            self.packet_csv_file = None
+        self.packet_no = 0  # Packet counter for packet CSV
+        
         self.flows = defaultdict(dict)
         self.flow_timeouts = defaultdict(float)
         self.packet_timestamps = defaultdict(list)
@@ -57,7 +69,7 @@ class WindowsNetworkFlowCollector:
         self.flow_packets = defaultdict(list)
         self.flow_bytes = defaultdict(lambda: {'fwd': 0, 'bwd': 0})
         self.flow_packet_lengths = defaultdict(lambda: {'fwd': [], 'bwd': []})
-        self.flow_flags = defaultdict(lambda: {'fwd': defaultdict(int), 'bwd': defaultdict(int)})
+        self.flow_flags = defaultdict(lambda: defaultdict(int))
         self.flow_iat = defaultdict(lambda: {'fwd': [], 'bwd': []})
         self.flow_last_packet_time = defaultdict(lambda: {'fwd': None, 'bwd': None})
         self.flow_header_lengths = defaultdict(lambda: {'fwd': [], 'bwd': []})
@@ -65,6 +77,12 @@ class WindowsNetworkFlowCollector:
         self.flow_active_times = defaultdict(list)
         self.flow_idle_times = defaultdict(list)
         self.flow_last_active_time = defaultdict(float)
+        
+        # Info string tracking (stores Wireshark-style Info of first packet per flow)
+        self.flow_info = defaultdict(str)
+        
+        # DPI content tracking (stores application-layer content of first packet per flow)
+        self.flow_content = defaultdict(str)
         
         # Debug and statistics
         self.packet_capture_count = 0
@@ -101,6 +119,10 @@ class WindowsNetworkFlowCollector:
         
         # Initialize CSV file
         self.init_csv_file()
+        
+        # Initialize packet-level CSV if enabled
+        if self.capture_packets:
+            self.init_packet_csv_file()
     
     def add_timestamp_to_filename(self, filename):
         """Add timestamp to filename before extension"""
@@ -276,12 +298,215 @@ class WindowsNetworkFlowCollector:
             'Subflow Fwd Packets', 'Subflow Fwd Bytes', 'Subflow Bwd Packets', 'Subflow Bwd Bytes',
             'Init_Win_bytes_forward', 'Init_Win_bytes_backward', 'act_data_pkt_fwd', 'min_seg_size_forward',
             'Active Mean', 'Active Std', 'Active Max', 'Active Min',
-            'Idle Mean', 'Idle Std', 'Idle Max', 'Idle Min'
+            'Idle Mean', 'Idle Std', 'Idle Max', 'Idle Min',
+            'Info', 'Payload Content'
         ]
         
         with open(self.output_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(headers)
+    
+    def init_packet_csv_file(self):
+        """Initialize Wireshark-style per-packet CSV file"""
+        headers = [
+            'No.', 'Time', 'Source', 'Src Port', 'Destination', 'Dst Port',
+            'Protocol', 'Length', 'TTL', 'Info'
+        ]
+        with open(self.packet_csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+        self.logger.info(f"Packet CSV initialized: {self.packet_csv_file}")
+    
+    def generate_packet_info(self, packet):
+        """Generate Wireshark-style Info string for a packet"""
+        try:
+            # ARP
+            if packet.haslayer('ARP'):
+                arp = packet['ARP']
+                if arp.op == 1:
+                    return f"Who has {arp.pdst}? Tell {arp.psrc}"
+                elif arp.op == 2:
+                    return f"{arp.hwsrc} is at {arp.psrc}"
+                return f"ARP op={arp.op}"
+            
+            # ICMP
+            if packet.haslayer(ICMP):
+                icmp = packet[ICMP]
+                icmp_types = {
+                    0: "Echo Reply",
+                    3: "Destination Unreachable",
+                    8: "Echo Request (ping)",
+                    11: "Time Exceeded",
+                    5: "Redirect",
+                }
+                type_str = icmp_types.get(icmp.type, f"Type={icmp.type}")
+                id_seq = ""
+                if hasattr(icmp, 'id') and hasattr(icmp, 'seq'):
+                    id_seq = f" id={icmp.id}, seq={icmp.seq}"
+                return f"ICMP {type_str}{id_seq}"
+            
+            # TCP
+            if packet.haslayer(TCP):
+                tcp = packet[TCP]
+                sport = tcp.sport
+                dport = tcp.dport
+                seq = tcp.seq
+                ack = tcp.ack
+                win = tcp.window
+                flags = tcp.flags
+                
+                flag_parts = []
+                if flags.S and flags.A:
+                    flag_parts.append("SYN, ACK")
+                elif flags.S:
+                    flag_parts.append("SYN")
+                elif flags.F and flags.A:
+                    flag_parts.append("FIN, ACK")
+                elif flags.F:
+                    flag_parts.append("FIN")
+                elif flags.R:
+                    flag_parts.append("RST")
+                elif flags.A:
+                    flag_parts.append("ACK")
+                if flags.P:
+                    flag_parts.append("PSH")
+                if flags.U:
+                    flag_parts.append("URG")
+                
+                flag_str = ", ".join(flag_parts) if flag_parts else "-"
+                
+                # Check for TLS (port 443 or 8443)
+                payload_len = len(packet[TCP].payload) if packet[TCP].payload else 0
+                if dport in (443, 8443, 993, 995, 465) or sport in (443, 8443, 993, 995, 465):
+                    if payload_len > 0:
+                        # Detect TLS record type
+                        try:
+                            raw = bytes(packet[TCP].payload)
+                            tls_types = {20: "Change Cipher Spec", 21: "Alert",
+                                         22: "Handshake", 23: "Application Data"}
+                            tls_type = tls_types.get(raw[0], None)
+                            if tls_type:
+                                return f"TLSv1.x {tls_type}, {sport} -> {dport} [{flag_str}] Seq={seq} Ack={ack} Win={win} Len={payload_len}"
+                        except Exception:
+                            pass
+                    return f"TLS {sport} -> {dport} [{flag_str}] Seq={seq} Ack={ack} Win={win} Len={payload_len}"
+                
+                # Check for HTTP
+                if dport == 80 or sport == 80:
+                    try:
+                        raw = bytes(packet[TCP].payload)
+                        first_line = raw.split(b'\r\n')[0].decode('utf-8', errors='replace')
+                        if first_line.startswith(('GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'HTTP')):
+                            return f"HTTP {first_line[:80]}"
+                    except Exception:
+                        pass
+                
+                return f"{sport} -> {dport} [{flag_str}] Seq={seq} Ack={ack} Win={win} Len={payload_len}"
+            
+            # UDP
+            if packet.haslayer(UDP):
+                udp = packet[UDP]
+                sport = udp.sport
+                dport = udp.dport
+                length = udp.len
+                
+                # DNS / MDNS (port 53 or 5353)
+                if dport in (53, 5353) or sport in (53, 5353):
+                    try:
+                        from scapy.layers.dns import DNS
+                        if packet.haslayer(DNS):
+                            dns = packet[DNS]
+                            proto = "MDNS" if dport == 5353 or sport == 5353 else "DNS"
+                            if dns.qr == 0:  # Query
+                                qname = dns.qd.qname.decode('utf-8', errors='replace') if dns.qd else "?"
+                                qtype = dns.qd.qtype if dns.qd else 0
+                                type_map = {1: "A", 12: "PTR", 15: "MX", 16: "TXT", 28: "AAAA", 33: "SRV"}
+                                qtype_str = type_map.get(qtype, str(qtype))
+                                return f"{proto} Standard query {hex(dns.id)} {qtype_str} {qname}"
+                            else:  # Response
+                                qname = dns.qd.qname.decode('utf-8', errors='replace') if dns.qd else "?"
+                                return f"{proto} Standard query response {hex(dns.id)} {qname}"
+                    except Exception:
+                        pass
+                    return f"DNS/MDNS {sport} -> {dport} Len={length}"
+                
+                # DHCP (port 67/68)
+                if dport in (67, 68) or sport in (67, 68):
+                    try:
+                        from scapy.layers.dhcp import DHCP, BOOTP
+                        if packet.haslayer(DHCP):
+                            msg_type_map = {1: "Discover", 2: "Offer", 3: "Request", 5: "ACK", 6: "NAK"}
+                            for opt in packet[DHCP].options:
+                                if isinstance(opt, tuple) and opt[0] == 'message-type':
+                                    return f"DHCP {msg_type_map.get(opt[1], str(opt[1]))} - Transaction ID {hex(packet[BOOTP].xid)}"
+                    except Exception:
+                        pass
+                    return f"DHCP {sport} -> {dport}"
+                
+                return f"UDP {sport} -> {dport} Len={length}"
+            
+            # Fallback: use Scapy's own summary
+            return packet.summary()
+        
+        except Exception:
+            return "-"
+    
+    def save_packet_to_csv(self, packet, pkt_time):
+        """Write a single packet as a row in the Wireshark-style CSV"""
+        if not self.packet_csv_file:
+            return
+        try:
+            self.packet_no += 1
+            
+            # Source / destination
+            src = dst = src_port = dst_port = proto_name = ""
+            ttl = 0
+            
+            if packet.haslayer(IP):
+                ip = packet[IP]
+                src = ip.src
+                dst = ip.dst
+                ttl = ip.ttl
+                if packet.haslayer(TCP):
+                    src_port = packet[TCP].sport
+                    dst_port = packet[TCP].dport
+                    # Determine TLS or TCP
+                    if dst_port in (443, 8443, 993, 995, 465) or src_port in (443, 8443, 993, 995, 465):
+                        proto_name = "TLSv1.2"
+                    else:
+                        proto_name = "TCP"
+                elif packet.haslayer(UDP):
+                    src_port = packet[UDP].sport
+                    dst_port = packet[UDP].dport
+                    if dst_port in (53, 5353) or src_port in (53, 5353):
+                        proto_name = "MDNS" if (dst_port == 5353 or src_port == 5353) else "DNS"
+                    elif dst_port in (67, 68) or src_port in (67, 68):
+                        proto_name = "DHCP"
+                    else:
+                        proto_name = "UDP"
+                elif packet.haslayer(ICMP):
+                    proto_name = "ICMP"
+                else:
+                    proto_name = f"IPv4({ip.proto})"
+            elif packet.haslayer('ARP'):
+                arp = packet['ARP']
+                src = arp.psrc
+                dst = arp.pdst
+                proto_name = "ARP"
+            else:
+                proto_name = packet.name if hasattr(packet, 'name') else "OTHER"
+            
+            info = self.generate_packet_info(packet)
+            length = len(packet)
+            fmt_time = datetime.fromtimestamp(pkt_time).strftime('%Y-%m-%d %H:%M:%S.%f')
+            
+            row = [self.packet_no, fmt_time, src, src_port, dst, dst_port, proto_name, length, ttl, info]
+            
+            with open(self.packet_csv_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(row)
+        except Exception as e:
+            self.logger.debug(f"Error saving packet {self.packet_no}: {e}")
     
     # Feature extraction methods (same as Linux version)
     def generate_flow_id(self, src_ip, src_port, dst_ip, dst_port, protocol):
@@ -369,9 +594,7 @@ class WindowsNetworkFlowCollector:
             # Skip all other IPv4 protocols (not TCP/UDP/ICMP)
             return None
         
-        # Use IP packet length (not including Layer 2 headers like Ethernet)
-        # This is standard practice in network flow analysis
-        packet_length = ip_layer.len  # IP total length field
+        packet_length = len(packet)
         
         return {
             'timestamp': timestamp,
@@ -383,7 +606,8 @@ class WindowsNetworkFlowCollector:
             'packet_length': packet_length,
             'header_length': header_length,
             'tcp_flags': tcp_flags,
-            'window_size': window_size
+            'window_size': window_size,
+            'raw_packet': packet  # Keep reference for Info generation
         }
     
 
@@ -434,6 +658,16 @@ class WindowsNetworkFlowCollector:
                 'last_timestamp': timestamp,
                 'packet_count': {'fwd': 0, 'bwd': 0}
             }
+            # Generate and store Wireshark-style Info for the first packet
+            try:
+                self.flow_info[flow_id] = self.generate_packet_info(features['raw_packet'])
+            except Exception:
+                self.flow_info[flow_id] = ''
+            # DPI: detect application-layer content of the first packet
+            try:
+                self.flow_content[flow_id] = self.detect_payload_content(features['raw_packet'])
+            except Exception:
+                self.flow_content[flow_id] = ''
             self.flow_last_active_time[flow_id] = timestamp
         
         # Update flow timeout
@@ -453,12 +687,12 @@ class WindowsNetworkFlowCollector:
         self.flow_header_lengths[flow_id][direction].append(header_length)
         
         # Update window sizes
-        if features['protocol'] == 6:  # TCP
-            self.flow_window_sizes[flow_id][direction].append(features.get('window_size', 0))
+        if features.get('window_size', 0) > 0:
+            self.flow_window_sizes[flow_id][direction].append(features['window_size'])
         
-        # Update flags by direction
+        # Update flags (aggregate by flow, not direction)
         for flag, value in features['tcp_flags'].items():
-            self.flow_flags[flow_id][direction][flag] += value
+            self.flow_flags[flow_id][flag] += value
         
         # Calculate IAT
         last_time = self.flow_last_packet_time[flow_id][direction]
@@ -467,13 +701,25 @@ class WindowsNetworkFlowCollector:
             self.flow_iat[flow_id][direction].append(iat)
         self.flow_last_packet_time[flow_id][direction] = timestamp
         
-        # Track active/idle times using packet timestamp consistently
+        # Update activity tracking
+        current_time = time.time()
         if flow_id in self.flow_last_active_time:
-            time_diff = timestamp - self.flow_last_active_time[flow_id]
-            if time_diff > 1.0:  # More than 1 second idle
-                self.flow_idle_times[flow_id].append(time_diff)
-            elif time_diff > 0:
-                self.flow_active_times[flow_id].append(time_diff)
+            idle_time = current_time - self.flow_last_active_time[flow_id]
+            if idle_time > 1.0:  # More than 1 second idle
+                self.flow_idle_times[flow_id].append(idle_time)
+        
+        self.flow_last_active_time[flow_id] = current_time
+        
+
+        
+        # Track active/idle times
+        if timestamp - self.flow_last_active_time[flow_id] > 1.0:
+            idle_time = timestamp - self.flow_last_active_time[flow_id]
+            self.flow_idle_times[flow_id].append(idle_time)
+        else:
+            active_time = timestamp - self.flow_last_active_time[flow_id]
+            if active_time > 0:
+                self.flow_active_times[flow_id].append(active_time)
         
         self.flow_last_active_time[flow_id] = timestamp
         self.flow_packets[flow_id].append(features)
@@ -494,6 +740,7 @@ class WindowsNetworkFlowCollector:
         }
     
     def calculate_flow_features(self, flow_id):
+        """Calculate all features for a flow (same logic as Linux version)"""
         flow = self.flows[flow_id]
         first_packet = flow['first_packet']
         
@@ -557,11 +804,10 @@ class WindowsNetworkFlowCollector:
         active_stats = self.calculate_stats(active_times)
         idle_stats = self.calculate_stats(idle_times)
         
-        # Flag counts (aggregate and direction-specific)
-        fwd_flags = self.flow_flags[flow_id]['fwd']
-        bwd_flags = self.flow_flags[flow_id]['bwd']
+        # Flag counts
+        flags = self.flow_flags[flow_id]
         
-        # Build feature vector with corrected flag calculations
+        # Build feature vector (same as Linux version)
         features = [
             flow_id, src_ip, src_port, dst_ip, dst_port, protocol,
             datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S'),
@@ -572,18 +818,18 @@ class WindowsNetworkFlowCollector:
             flow_iat_stats['max'], flow_iat_stats['min'], sum(fwd_iat), fwd_iat_stats['mean'],
             fwd_iat_stats['std'], fwd_iat_stats['max'], fwd_iat_stats['min'], sum(bwd_iat),
             bwd_iat_stats['mean'], bwd_iat_stats['std'], bwd_iat_stats['max'], bwd_iat_stats['min'],
-            fwd_flags.get('PSH', 0), bwd_flags.get('PSH', 0), fwd_flags.get('URG', 0), bwd_flags.get('URG', 0),
+            flags.get('fwd_PSH', 0), flags.get('bwd_PSH', 0), flags.get('fwd_URG', 0), flags.get('bwd_URG', 0),
             sum(fwd_headers) if fwd_headers else 0, sum(bwd_headers) if bwd_headers else 0,
             fwd_packets_per_sec, bwd_packets_per_sec, all_len_stats['min'], all_len_stats['max'],
             all_len_stats['mean'], all_len_stats['std'], all_len_stats['variance'],
-            fwd_flags.get('FIN', 0) + bwd_flags.get('FIN', 0),
-            fwd_flags.get('SYN', 0) + bwd_flags.get('SYN', 0),
-            fwd_flags.get('RST', 0) + bwd_flags.get('RST', 0),
-            fwd_flags.get('PSH', 0) + bwd_flags.get('PSH', 0),
-            fwd_flags.get('ACK', 0) + bwd_flags.get('ACK', 0),
-            fwd_flags.get('URG', 0) + bwd_flags.get('URG', 0),
-            fwd_flags.get('CWE', 0) + bwd_flags.get('CWE', 0),
-            fwd_flags.get('ECE', 0) + bwd_flags.get('ECE', 0),
+            flags.get('fwd_FIN', 0) + flags.get('bwd_FIN', 0),
+            flags.get('fwd_SYN', 0) + flags.get('bwd_SYN', 0),
+            flags.get('fwd_RST', 0) + flags.get('bwd_RST', 0),
+            flags.get('fwd_PSH', 0) + flags.get('bwd_PSH', 0),
+            flags.get('fwd_ACK', 0) + flags.get('bwd_ACK', 0),
+            flags.get('fwd_URG', 0) + flags.get('bwd_URG', 0),
+            flags.get('fwd_CWE', 0) + flags.get('bwd_CWE', 0),
+            flags.get('fwd_ECE', 0) + flags.get('bwd_ECE', 0),
             bwd_packets / max(fwd_packets, 1), total_bytes / max(total_packets, 1),
             fwd_bytes / max(fwd_packets, 1), bwd_bytes / max(bwd_packets, 1),
             sum(fwd_headers) if fwd_headers else 0, 0, 0, 0, 0, 0, 0,
@@ -631,9 +877,9 @@ class WindowsNetworkFlowCollector:
             bwd_length_mean = np.mean(bwd_lengths) if bwd_lengths else 0
             bwd_length_std = np.std(bwd_lengths) if len(bwd_lengths) > 1 else 0
             
-            # Total lengths - use flow_bytes as source of truth for consistency
-            fwd_total_length = self.flow_bytes[flow_id]['fwd']
-            bwd_total_length = self.flow_bytes[flow_id]['bwd']
+            # Total lengths
+            fwd_total_length = sum(fwd_lengths)
+            bwd_total_length = sum(bwd_lengths)
             total_length = fwd_total_length + bwd_total_length
             
             # Flow rates
@@ -674,21 +920,15 @@ class WindowsNetworkFlowCollector:
             packet_length_std = np.std(all_lengths) if len(all_lengths) > 1 else 0
             packet_length_variance = np.var(all_lengths) if len(all_lengths) > 1 else 0
             
-            # Flag counts (aggregate for total counts)
-            fin_flags = self.flow_flags[flow_id]['fwd']['FIN'] + self.flow_flags[flow_id]['bwd']['FIN']
-            syn_flags = self.flow_flags[flow_id]['fwd']['SYN'] + self.flow_flags[flow_id]['bwd']['SYN']
-            rst_flags = self.flow_flags[flow_id]['fwd']['RST'] + self.flow_flags[flow_id]['bwd']['RST']
-            psh_flags = self.flow_flags[flow_id]['fwd']['PSH'] + self.flow_flags[flow_id]['bwd']['PSH']
-            ack_flags = self.flow_flags[flow_id]['fwd']['ACK'] + self.flow_flags[flow_id]['bwd']['ACK']
-            urg_flags = self.flow_flags[flow_id]['fwd']['URG'] + self.flow_flags[flow_id]['bwd']['URG']
-            cwe_flags = self.flow_flags[flow_id]['fwd']['CWE'] + self.flow_flags[flow_id]['bwd']['CWE']
-            ece_flags = self.flow_flags[flow_id]['fwd']['ECE'] + self.flow_flags[flow_id]['bwd']['ECE']
-            
-            # Direction-specific flag counts
-            fwd_psh_flags = self.flow_flags[flow_id]['fwd']['PSH']
-            bwd_psh_flags = self.flow_flags[flow_id]['bwd']['PSH']
-            fwd_urg_flags = self.flow_flags[flow_id]['fwd']['URG']
-            bwd_urg_flags = self.flow_flags[flow_id]['bwd']['URG']
+            # Flag counts
+            fin_flags = self.flow_flags[flow_id]['FIN']
+            syn_flags = self.flow_flags[flow_id]['SYN']
+            rst_flags = self.flow_flags[flow_id]['RST']
+            psh_flags = self.flow_flags[flow_id]['PSH']
+            ack_flags = self.flow_flags[flow_id]['ACK']
+            urg_flags = self.flow_flags[flow_id]['URG']
+            cwe_flags = self.flow_flags[flow_id]['CWE']
+            ece_flags = self.flow_flags[flow_id]['ECE']
             
             # Header lengths
             fwd_headers = self.flow_header_lengths[flow_id]['fwd']
@@ -727,7 +967,12 @@ class WindowsNetworkFlowCollector:
             # Convert timestamp to ISO format
             iso_timestamp = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
             
-            # Create complete row data (full precision for AI training)
+            # Get stored Wireshark-style Info for this flow
+            flow_info_str = self.flow_info.get(flow_id, '')
+            # Get DPI Payload Content for this flow
+            flow_content_str = self.flow_content.get(flow_id, '')
+            
+            # Create complete row data
             row_data = [
                 flow_id, flow['src_ip'], flow['src_port'], flow['dst_ip'], flow['dst_port'], flow['protocol'],
                 iso_timestamp, flow_duration, fwd_packets, bwd_packets,
@@ -736,7 +981,7 @@ class WindowsNetworkFlowCollector:
                 flow_bytes_per_sec, flow_packets_per_sec, flow_iat_mean, flow_iat_std, flow_iat_max, flow_iat_min,
                 fwd_iat_total, fwd_iat_mean, fwd_iat_std, fwd_iat_max, fwd_iat_min,
                 bwd_iat_total, bwd_iat_mean, bwd_iat_std, bwd_iat_max, bwd_iat_min,
-                fwd_psh_flags, bwd_psh_flags, fwd_urg_flags, bwd_urg_flags, fwd_header_length, bwd_header_length,
+                psh_flags, psh_flags, urg_flags, urg_flags, fwd_header_length, bwd_header_length,
                 fwd_packets_per_sec, bwd_packets_per_sec, min_packet_length, max_packet_length, packet_length_mean,
                 packet_length_std, packet_length_variance,
                 fin_flags, syn_flags, rst_flags, psh_flags, ack_flags, urg_flags, cwe_flags, ece_flags,
@@ -745,7 +990,8 @@ class WindowsNetworkFlowCollector:
                 fwd_packets, fwd_total_length, bwd_packets, bwd_total_length,  # Subflow features (Bytes)
                 init_win_bytes_forward, init_win_bytes_backward, fwd_packets, min_packet_length,
                 active_mean, active_std, active_max, active_min,
-                idle_mean, idle_std, idle_max, idle_min
+                idle_mean, idle_std, idle_max, idle_min,
+                flow_info_str, flow_content_str
             ]
             
             # Write to CSV
@@ -758,39 +1004,214 @@ class WindowsNetworkFlowCollector:
         except Exception as e:
             self.logger.error(f"Error saving flow {flow_id}: {e}")
     
-    def save_flows(self):
-        """Save completed flows to CSV"""
-        current_time = time.time()
-        completed_flows = []
-        
-        for flow_id in list(self.flows.keys()):
-            if (current_time > self.flow_timeouts.get(flow_id, 0) or 
-                sum(self.flows[flow_id]['packet_count'].values()) >= 10):
+    def detect_payload_content(self, packet):
+        """Deep Packet Inspection: detect and extract application-layer content"""
+        try:
+            # --- HTTP (port 80, 8080, 8000) ---
+            if packet.haslayer(TCP):
+                tcp = packet[TCP]
+                sport = tcp.sport
+                dport = tcp.dport
                 
-                features = self.calculate_flow_features(flow_id)
-                completed_flows.append(features)
+                if dport in (80, 8080, 8000, 8888) or sport in (80, 8080, 8000, 8888):
+                    try:
+                        raw = bytes(tcp.payload)
+                        if not raw:
+                            return ''
+                        text = raw.decode('utf-8', errors='replace')
+                        first_line = text.split('\r\n')[0][:120]
+                        # HTTP Request
+                        if first_line.startswith(('GET ', 'POST ', 'PUT ', 'DELETE ',
+                                                   'HEAD ', 'PATCH ', 'OPTIONS ')):
+                            method, path = first_line.split(' ', 1)[:2]
+                            path = path.rsplit(' ', 1)[0]  # strip HTTP/1.x
+                            # Extract Host header
+                            host = ''
+                            for line in text.split('\r\n')[1:10]:
+                                if line.lower().startswith('host:'):
+                                    host = line.split(':', 1)[1].strip()
+                                    break
+                            return f"HTTP Request: {method} http://{host}{path}"
+                        # HTTP Response
+                        elif first_line.startswith('HTTP/'):
+                            status = first_line[:30]
+                            content_type = ''
+                            for line in text.split('\r\n')[1:15]:
+                                if line.lower().startswith('content-type:'):
+                                    content_type = line.split(':', 1)[1].strip()[:50]
+                                    break
+                            return f"HTTP Response: {status}" + (f" | {content_type}" if content_type else '')
+                    except Exception:
+                        pass
                 
-                # Clean up memory
-                del self.flows[flow_id]
-                del self.flow_bytes[flow_id]
-                del self.flow_packet_lengths[flow_id]
-                del self.flow_flags[flow_id]
-                del self.flow_iat[flow_id]
-                del self.flow_last_packet_time[flow_id]
-                del self.flow_header_lengths[flow_id]
-                del self.flow_window_sizes[flow_id]
-                del self.flow_active_times[flow_id]
-                del self.flow_idle_times[flow_id]
-                del self.flow_last_active_time[flow_id]
-        
-        # Write to CSV
-        if completed_flows:
-            with open(self.output_file, 'a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                for flow_features in completed_flows:
-                    writer.writerow(flow_features)
+                # --- TLS / HTTPS ---
+                if dport in (443, 8443, 993, 995, 465) or sport in (443, 8443, 993, 995, 465):
+                    try:
+                        raw = bytes(tcp.payload)
+                        if raw:
+                            record_types = {20: 'ChangeCipherSpec', 21: 'Alert',
+                                            22: 'Handshake', 23: 'ApplicationData'}
+                            handshake_types = {1: 'ClientHello', 2: 'ServerHello',
+                                               11: 'Certificate', 12: 'ServerKeyExchange',
+                                               14: 'ServerHelloDone', 16: 'ClientKeyExchange',
+                                               20: 'Finished'}
+                            rec = record_types.get(raw[0], None)
+                            if rec:
+                                if rec == 'Handshake' and len(raw) >= 6:
+                                    hs = handshake_types.get(raw[5], f'type={raw[5]}')
+                                    return f"TLS Handshake: {hs}"
+                                return f"TLS: {rec} (encrypted)"
+                    except Exception:
+                        pass
+                    return 'TLS: Encrypted application data'
+                
+                # --- FTP (port 21) ---
+                if dport == 21 or sport == 21:
+                    try:
+                        raw = bytes(tcp.payload)
+                        line = raw.decode('utf-8', errors='replace').split('\r\n')[0][:100]
+                        return f"FTP: {line}"
+                    except Exception:
+                        pass
+                
+                # --- SMTP (port 25, 587) ---
+                if dport in (25, 587) or sport in (25, 587):
+                    try:
+                        raw = bytes(tcp.payload)
+                        line = raw.decode('utf-8', errors='replace').split('\r\n')[0][:100]
+                        return f"SMTP: {line}"
+                    except Exception:
+                        pass
+                
+                # --- SSH (port 22) ---
+                if dport == 22 or sport == 22:
+                    try:
+                        raw = bytes(tcp.payload)
+                        if raw[:4] == b'SSH-':
+                            banner = raw.decode('utf-8', errors='replace').split('\r\n')[0][:60]
+                            return f"SSH Banner: {banner}"
+                    except Exception:
+                        pass
+                    return 'SSH: Encrypted session'
+                
+                # Generic TCP: show first printable bytes only if mostly readable
+                try:
+                    raw = bytes(tcp.payload)
+                    if raw:
+                        printable_chars = sum(1 for b in raw if 32 <= b < 127)
+                        ratio = printable_chars / len(raw)
+                        if ratio >= 0.40:  # At least 40% printable
+                            printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:80])
+                            printable = printable.strip('.')
+                            if printable:
+                                return f"TCP Raw: {printable[:80]}"
+                except Exception:
+                    pass
             
-            self.logger.info(f"Saved {len(completed_flows)} completed flows")
+            # --- DNS / MDNS ---
+            if packet.haslayer(UDP):
+                udp = packet[UDP]
+                if udp.dport in (53, 5353) or udp.sport in (53, 5353):
+                    try:
+                        from scapy.layers.dns import DNS
+                        if packet.haslayer(DNS):
+                            dns = packet[DNS]
+                            results = []
+                            if dns.qr == 0 and dns.qd:  # Query
+                                qname = dns.qd.qname.decode('utf-8', errors='replace').rstrip('.')
+                                results.append(f"DNS Query: {qname}")
+                            elif dns.qr == 1:  # Response
+                                if dns.an:
+                                    an = dns.an
+                                    while an:
+                                        name = an.rrname.decode('utf-8', errors='replace').rstrip('.')
+                                        if hasattr(an, 'rdata'):
+                                            rdata = str(an.rdata)
+                                            results.append(f"{name} -> {rdata}")
+                                        an = an.payload if hasattr(an, 'payload') and an.payload else None
+                                        if not hasattr(an, 'rrname'):
+                                            break
+                                if results:
+                                    return 'DNS Response: ' + '; '.join(results[:3])
+                                return 'DNS Response (empty)'
+                            return '; '.join(results) if results else ''
+                    except Exception:
+                        pass
+                
+                # --- SSDP / UPnP (port 1900) ---
+                if udp.dport == 1900 or udp.sport == 1900:
+                    try:
+                        raw = bytes(udp.payload)
+                        text = raw.decode('utf-8', errors='replace')
+                        first_line = text.split('\r\n')[0][:100]
+                        if first_line.startswith('M-SEARCH'):
+                            # Extract ST (Search Target)
+                            st = ''
+                            for line in text.split('\r\n')[1:10]:
+                                if line.upper().startswith('ST:'):
+                                    st = line.split(':', 1)[1].strip()[:60]
+                                    break
+                            return f"SSDP M-SEARCH | ST: {st}" if st else "SSDP M-SEARCH"
+                        elif first_line.startswith('NOTIFY'):
+                            nt = ''
+                            for line in text.split('\r\n')[1:10]:
+                                if line.upper().startswith('NT:'):
+                                    nt = line.split(':', 1)[1].strip()[:60]
+                                    break
+                            return f"SSDP NOTIFY | NT: {nt}" if nt else "SSDP NOTIFY"
+                        elif first_line.startswith('HTTP/'):
+                            return f"SSDP Response: {first_line[:80]}"
+                        return f"SSDP: {first_line[:80]}"
+                    except Exception:
+                        pass
+                
+                # --- DHCP ---
+                if udp.dport in (67, 68) or udp.sport in (67, 68):
+                    try:
+                        from scapy.layers.dhcp import DHCP, BOOTP
+                        if packet.haslayer(DHCP):
+                            msg_map = {1: 'Discover', 2: 'Offer', 3: 'Request',
+                                       4: 'Decline', 5: 'ACK', 6: 'NAK', 7: 'Release', 8: 'Inform'}
+                            for opt in packet[DHCP].options:
+                                if isinstance(opt, tuple) and opt[0] == 'message-type':
+                                    msg = msg_map.get(opt[1], str(opt[1]))
+                                    xid = hex(packet[BOOTP].xid)
+                                    client = packet[BOOTP].chaddr.hex()[:12] if packet[BOOTP].chaddr else ''
+                                    return f"DHCP {msg} | xid={xid} | client={client}"
+                    except Exception:
+                        pass
+                
+                # Generic UDP: only show if payload is mostly printable text
+                try:
+                    raw = bytes(udp.payload)
+                    if raw:
+                        printable_chars = sum(1 for b in raw if 32 <= b < 127)
+                        ratio = printable_chars / len(raw)
+                        if ratio >= 0.40:  # At least 40% printable
+                            printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:80])
+                            printable = printable.strip('.')
+                            if printable:
+                                return f"UDP Raw: {printable[:80]}"
+                except Exception:
+                    pass
+            
+            # --- ICMP ---
+            if packet.haslayer(ICMP):
+                icmp = packet[ICMP]
+                if icmp.type == 8:
+                    try:
+                        raw = bytes(icmp.payload)
+                        printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:40])
+                        return f"ICMP Ping data: {printable[:40]}"
+                    except Exception:
+                        pass
+                    return 'ICMP Echo Request'
+                elif icmp.type == 0:
+                    return 'ICMP Echo Reply'
+            
+            return ''
+        except Exception:
+            return ''
     
     def start_collection(self):
         """Start packet collection with promiscuous mode (Windows-specific)"""
@@ -850,7 +1271,7 @@ class WindowsNetworkFlowCollector:
             self.save_flows()
     
     def save_flows(self):
-        """Save all remaining flows with complete features"""
+        """Save all remaining flows with complete features, then clean up memory"""
         self.logger.info("Saving all remaining flows...")
         saved_count = 0
         
@@ -860,6 +1281,21 @@ class WindowsNetworkFlowCollector:
                 saved_count += 1
             except Exception as e:
                 self.logger.error(f"Error saving flow {flow_id}: {e}")
+            finally:
+                # Always clean up this flow from ALL tracking dicts after saving
+                # so it never gets saved a second time with empty Info
+                for store in [
+                    self.flows, self.flow_timeouts, self.flow_bytes,
+                    self.flow_packet_lengths, self.flow_flags, self.flow_iat,
+                    self.flow_last_packet_time, self.flow_header_lengths,
+                    self.flow_window_sizes, self.flow_active_times,
+                    self.flow_idle_times, self.flow_last_active_time,
+                    self.flow_packets, self.flow_info, self.flow_content
+                ]:
+                    try:
+                        del store[flow_id]
+                    except KeyError:
+                        pass
         
         self.logger.info(f"Saved {saved_count} flows to {self.output_file}")
     
@@ -923,4 +1359,6 @@ def main():
     collector.start_collection()
 
 if __name__ == "__main__":
+
     main()
+
