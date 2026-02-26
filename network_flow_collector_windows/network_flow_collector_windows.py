@@ -34,8 +34,18 @@ except ImportError:
 
 import numpy as np
 
+# Import agent client for security system integration
+try:
+    import sys
+    sys.path.append('../web application')
+    from security_agent_client import integrate_with_flow_collector
+    SECURITY_INTEGRATION_AVAILABLE = True
+except ImportError:
+    print("Security agent client not available - running standalone mode")
+    SECURITY_INTEGRATION_AVAILABLE = False
+
 class WindowsNetworkFlowCollector:
-    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=True, capture_packets=False):
+    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=True, capture_packets=False, hex_payload=True):
         # Add timestamp to output file if requested
         if add_timestamp and output_file:
             self.output_file = self.add_timestamp_to_filename(output_file)
@@ -47,6 +57,7 @@ class WindowsNetworkFlowCollector:
         self.timeout = timeout
         self.promiscuous = promiscuous  # Enable promiscuous mode for network-wide capture
         self.capture_packets = capture_packets  # Enable/disable per-packet Wireshark-style CSV
+        self.hex_payload = hex_payload  # Enable/disable hex dump format for payload content
         
         # Packet-level CSV file (Wireshark-style)
         if capture_packets and output_file:
@@ -665,7 +676,7 @@ class WindowsNetworkFlowCollector:
                 self.flow_info[flow_id] = ''
             # DPI: detect application-layer content of the first packet
             try:
-                self.flow_content[flow_id] = self.detect_payload_content(features['raw_packet'])
+                self.flow_content[flow_id] = self.detect_payload_content(features['raw_packet'], include_hex=self.hex_payload)
             except Exception:
                 self.flow_content[flow_id] = ''
             self.flow_last_active_time[flow_id] = timestamp
@@ -1004,214 +1015,66 @@ class WindowsNetworkFlowCollector:
         except Exception as e:
             self.logger.error(f"Error saving flow {flow_id}: {e}")
     
-    def detect_payload_content(self, packet):
-        """Deep Packet Inspection: detect and extract application-layer content"""
+    def format_hex_dump(self, data, max_bytes=64):
+        """Format raw bytes as hex dump exactly like in the screenshot"""
+        if not data:
+            return 'No payload data'
+        
+        # Limit data to max_bytes to avoid too long output
+        data = data[:max_bytes]
+        hex_pairs = []
+        ascii_chars = []
+        
+        for byte in data:
+            # Add hex representation (each byte as 2 hex digits)
+            hex_pairs.append(f'{byte:02x}')
+            
+            # Add ASCII representation (printable chars or '.')
+            if 32 <= byte <= 126:
+                ascii_chars.append(chr(byte))
+            else:
+                ascii_chars.append('.')
+        
+        # Join hex with spaces between each byte
+        hex_string = ' '.join(hex_pairs)
+        ascii_string = ''.join(ascii_chars)
+        
+        # Format exactly like in screenshot: "hex_string ascii_string"
+        return f"{hex_string} {ascii_string}"
+    
+    def detect_payload_content(self, packet, include_hex=True):
+        """Deep Packet Inspection: extract packet payload as hex dump format"""
         try:
-            # --- HTTP (port 80, 8080, 8000) ---
+            # --- TCP packets ---
             if packet.haslayer(TCP):
                 tcp = packet[TCP]
-                sport = tcp.sport
-                dport = tcp.dport
-                
-                if dport in (80, 8080, 8000, 8888) or sport in (80, 8080, 8000, 8888):
-                    try:
-                        raw = bytes(tcp.payload)
-                        if not raw:
-                            return ''
-                        text = raw.decode('utf-8', errors='replace')
-                        first_line = text.split('\r\n')[0][:120]
-                        # HTTP Request
-                        if first_line.startswith(('GET ', 'POST ', 'PUT ', 'DELETE ',
-                                                   'HEAD ', 'PATCH ', 'OPTIONS ')):
-                            method, path = first_line.split(' ', 1)[:2]
-                            path = path.rsplit(' ', 1)[0]  # strip HTTP/1.x
-                            # Extract Host header
-                            host = ''
-                            for line in text.split('\r\n')[1:10]:
-                                if line.lower().startswith('host:'):
-                                    host = line.split(':', 1)[1].strip()
-                                    break
-                            return f"HTTP Request: {method} http://{host}{path}"
-                        # HTTP Response
-                        elif first_line.startswith('HTTP/'):
-                            status = first_line[:30]
-                            content_type = ''
-                            for line in text.split('\r\n')[1:15]:
-                                if line.lower().startswith('content-type:'):
-                                    content_type = line.split(':', 1)[1].strip()[:50]
-                                    break
-                            return f"HTTP Response: {status}" + (f" | {content_type}" if content_type else '')
-                    except Exception:
-                        pass
-                
-                # --- TLS / HTTPS ---
-                if dport in (443, 8443, 993, 995, 465) or sport in (443, 8443, 993, 995, 465):
-                    try:
-                        raw = bytes(tcp.payload)
-                        if raw:
-                            record_types = {20: 'ChangeCipherSpec', 21: 'Alert',
-                                            22: 'Handshake', 23: 'ApplicationData'}
-                            handshake_types = {1: 'ClientHello', 2: 'ServerHello',
-                                               11: 'Certificate', 12: 'ServerKeyExchange',
-                                               14: 'ServerHelloDone', 16: 'ClientKeyExchange',
-                                               20: 'Finished'}
-                            rec = record_types.get(raw[0], None)
-                            if rec:
-                                if rec == 'Handshake' and len(raw) >= 6:
-                                    hs = handshake_types.get(raw[5], f'type={raw[5]}')
-                                    return f"TLS Handshake: {hs}"
-                                return f"TLS: {rec} (encrypted)"
-                    except Exception:
-                        pass
-                    return 'TLS: Encrypted application data'
-                
-                # --- FTP (port 21) ---
-                if dport == 21 or sport == 21:
-                    try:
-                        raw = bytes(tcp.payload)
-                        line = raw.decode('utf-8', errors='replace').split('\r\n')[0][:100]
-                        return f"FTP: {line}"
-                    except Exception:
-                        pass
-                
-                # --- SMTP (port 25, 587) ---
-                if dport in (25, 587) or sport in (25, 587):
-                    try:
-                        raw = bytes(tcp.payload)
-                        line = raw.decode('utf-8', errors='replace').split('\r\n')[0][:100]
-                        return f"SMTP: {line}"
-                    except Exception:
-                        pass
-                
-                # --- SSH (port 22) ---
-                if dport == 22 or sport == 22:
-                    try:
-                        raw = bytes(tcp.payload)
-                        if raw[:4] == b'SSH-':
-                            banner = raw.decode('utf-8', errors='replace').split('\r\n')[0][:60]
-                            return f"SSH Banner: {banner}"
-                    except Exception:
-                        pass
-                    return 'SSH: Encrypted session'
-                
-                # Generic TCP: show first printable bytes only if mostly readable
-                try:
-                    raw = bytes(tcp.payload)
-                    if raw:
-                        printable_chars = sum(1 for b in raw if 32 <= b < 127)
-                        ratio = printable_chars / len(raw)
-                        if ratio >= 0.40:  # At least 40% printable
-                            printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:80])
-                            printable = printable.strip('.')
-                            if printable:
-                                return f"TCP Raw: {printable[:80]}"
-                except Exception:
-                    pass
+                raw = bytes(tcp.payload) if tcp.payload else b''
+                if raw:
+                    hex_dump = self.format_hex_dump(raw, 32)  # Show first 32 bytes
+                    return f"TCP: {hex_dump}"
+                return 'TCP: No payload data'
             
-            # --- DNS / MDNS ---
-            if packet.haslayer(UDP):
+            # --- UDP packets ---
+            elif packet.haslayer(UDP):
                 udp = packet[UDP]
-                if udp.dport in (53, 5353) or udp.sport in (53, 5353):
-                    try:
-                        from scapy.layers.dns import DNS
-                        if packet.haslayer(DNS):
-                            dns = packet[DNS]
-                            results = []
-                            if dns.qr == 0 and dns.qd:  # Query
-                                qname = dns.qd.qname.decode('utf-8', errors='replace').rstrip('.')
-                                results.append(f"DNS Query: {qname}")
-                            elif dns.qr == 1:  # Response
-                                if dns.an:
-                                    an = dns.an
-                                    while an:
-                                        name = an.rrname.decode('utf-8', errors='replace').rstrip('.')
-                                        if hasattr(an, 'rdata'):
-                                            rdata = str(an.rdata)
-                                            results.append(f"{name} -> {rdata}")
-                                        an = an.payload if hasattr(an, 'payload') and an.payload else None
-                                        if not hasattr(an, 'rrname'):
-                                            break
-                                if results:
-                                    return 'DNS Response: ' + '; '.join(results[:3])
-                                return 'DNS Response (empty)'
-                            return '; '.join(results) if results else ''
-                    except Exception:
-                        pass
-                
-                # --- SSDP / UPnP (port 1900) ---
-                if udp.dport == 1900 or udp.sport == 1900:
-                    try:
-                        raw = bytes(udp.payload)
-                        text = raw.decode('utf-8', errors='replace')
-                        first_line = text.split('\r\n')[0][:100]
-                        if first_line.startswith('M-SEARCH'):
-                            # Extract ST (Search Target)
-                            st = ''
-                            for line in text.split('\r\n')[1:10]:
-                                if line.upper().startswith('ST:'):
-                                    st = line.split(':', 1)[1].strip()[:60]
-                                    break
-                            return f"SSDP M-SEARCH | ST: {st}" if st else "SSDP M-SEARCH"
-                        elif first_line.startswith('NOTIFY'):
-                            nt = ''
-                            for line in text.split('\r\n')[1:10]:
-                                if line.upper().startswith('NT:'):
-                                    nt = line.split(':', 1)[1].strip()[:60]
-                                    break
-                            return f"SSDP NOTIFY | NT: {nt}" if nt else "SSDP NOTIFY"
-                        elif first_line.startswith('HTTP/'):
-                            return f"SSDP Response: {first_line[:80]}"
-                        return f"SSDP: {first_line[:80]}"
-                    except Exception:
-                        pass
-                
-                # --- DHCP ---
-                if udp.dport in (67, 68) or udp.sport in (67, 68):
-                    try:
-                        from scapy.layers.dhcp import DHCP, BOOTP
-                        if packet.haslayer(DHCP):
-                            msg_map = {1: 'Discover', 2: 'Offer', 3: 'Request',
-                                       4: 'Decline', 5: 'ACK', 6: 'NAK', 7: 'Release', 8: 'Inform'}
-                            for opt in packet[DHCP].options:
-                                if isinstance(opt, tuple) and opt[0] == 'message-type':
-                                    msg = msg_map.get(opt[1], str(opt[1]))
-                                    xid = hex(packet[BOOTP].xid)
-                                    client = packet[BOOTP].chaddr.hex()[:12] if packet[BOOTP].chaddr else ''
-                                    return f"DHCP {msg} | xid={xid} | client={client}"
-                    except Exception:
-                        pass
-                
-                # Generic UDP: only show if payload is mostly printable text
-                try:
-                    raw = bytes(udp.payload)
-                    if raw:
-                        printable_chars = sum(1 for b in raw if 32 <= b < 127)
-                        ratio = printable_chars / len(raw)
-                        if ratio >= 0.40:  # At least 40% printable
-                            printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:80])
-                            printable = printable.strip('.')
-                            if printable:
-                                return f"UDP Raw: {printable[:80]}"
-                except Exception:
-                    pass
+                raw = bytes(udp.payload) if udp.payload else b''
+                if raw:
+                    hex_dump = self.format_hex_dump(raw, 32)  # Show first 32 bytes
+                    return f"UDP: {hex_dump}"
+                return 'UDP: No payload data'
             
-            # --- ICMP ---
-            if packet.haslayer(ICMP):
+            # --- ICMP packets ---
+            elif packet.haslayer(ICMP):
                 icmp = packet[ICMP]
-                if icmp.type == 8:
-                    try:
-                        raw = bytes(icmp.payload)
-                        printable = ''.join(chr(b) if 32 <= b < 127 else '.' for b in raw[:40])
-                        return f"ICMP Ping data: {printable[:40]}"
-                    except Exception:
-                        pass
-                    return 'ICMP Echo Request'
-                elif icmp.type == 0:
-                    return 'ICMP Echo Reply'
+                raw = bytes(icmp.payload) if icmp.payload else b''
+                if raw:
+                    hex_dump = self.format_hex_dump(raw, 16)  # Show first 16 bytes for ICMP
+                    return f"ICMP: {hex_dump}"
+                return 'ICMP: No payload data'
             
-            return ''
+            return 'No payload data'
         except Exception:
-            return ''
+            return 'Error reading payload'
     
     def start_collection(self):
         """Start packet collection with promiscuous mode (Windows-specific)"""
@@ -1338,8 +1201,20 @@ def main():
         interface=args.interface,
         timeout=args.timeout,
         add_timestamp=not args.no_timestamp,
-        promiscuous=not args.no_promiscuous
+        promiscuous=not args.no_promiscuous,
+        hex_payload=True  # Enable hex payload format for security analysis
     )
+    
+    # Integrate with security system if available
+    agent_client = None
+    if SECURITY_INTEGRATION_AVAILABLE:
+        try:
+            print("Integrating with security management system...")
+            agent_client = integrate_with_flow_collector(collector, "http://localhost:5000")
+            print("Security integration enabled!")
+        except Exception as e:
+            print(f"Security integration failed: {e}")
+            print("Continuing in standalone mode...")
     
     print(f"Starting Windows Network Flow Collection...")
     print(f"Output file: {collector.output_file}")
