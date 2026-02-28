@@ -30,6 +30,38 @@ def setup_database():
         
         with app.app_context():
             db.create_all()
+            
+            # Handle database migrations for schema changes
+            try:
+                with db.engine.connect() as conn:
+                    # Check agent table for isolated_until column
+                    result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
+                    agent_columns = [row[1] for row in result]  # Column names are in index 1
+                    
+                    if 'isolated_until' not in agent_columns:
+                        print("Adding missing 'isolated_until' column to agent table...")
+                        conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
+                        conn.commit()
+                        print("Successfully added 'isolated_until' column")
+                    else:
+                        print("Agent table 'isolated_until' column exists")
+                        
+                    # Check network_flow table for classification column
+                    result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
+                    flow_columns = [row[1] for row in result]  # Column names are in index 1
+                    
+                    if 'classification' not in flow_columns:
+                        print("Adding missing 'classification' column to network_flow table...")
+                        conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
+                        conn.commit()
+                        print("Successfully added 'classification' column")
+                    else:
+                        print("Network flow table 'classification' column exists")
+                        
+            except Exception as e:
+                print(f"Error during database migration: {e}")
+                return False
+                
             print("Database initialized successfully")
             return True
     except Exception as e:

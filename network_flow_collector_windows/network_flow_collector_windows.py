@@ -310,7 +310,7 @@ class WindowsNetworkFlowCollector:
             'Init_Win_bytes_forward', 'Init_Win_bytes_backward', 'act_data_pkt_fwd', 'min_seg_size_forward',
             'Active Mean', 'Active Std', 'Active Max', 'Active Min',
             'Idle Mean', 'Idle Std', 'Idle Max', 'Idle Min',
-            'Info', 'Payload Content'
+            'Info', 'Payload Content', 'Class'
         ]
         
         with open(self.output_file, 'w', newline='', encoding='utf-8') as f:
@@ -1002,7 +1002,7 @@ class WindowsNetworkFlowCollector:
                 init_win_bytes_forward, init_win_bytes_backward, fwd_packets, min_packet_length,
                 active_mean, active_std, active_max, active_min,
                 idle_mean, idle_std, idle_max, idle_min,
-                flow_info_str, flow_content_str
+                flow_info_str, flow_content_str, 'Benign'
             ]
             
             # Write to CSV

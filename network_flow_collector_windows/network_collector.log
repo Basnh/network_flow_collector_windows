@@ -13364,3 +13364,141 @@
 2026-02-26 18:36:24,939 - WARNING -   Consider longer capture time or check promiscuous mode
 2026-02-26 18:36:24,939 - INFO - Saving all remaining flows...
 2026-02-26 18:36:24,939 - INFO - Saved 0 flows to network_flows_20260226_183605.csv
+2026-02-28 11:59:12,791 - INFO - Checking Windows requirements...
+2026-02-28 11:59:12,818 - INFO - Npcap service is running
+2026-02-28 11:59:12,818 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-02-28 11:59:12,821 - INFO - Checking Windows requirements...
+2026-02-28 11:59:12,841 - INFO - Npcap service is running
+2026-02-28 11:59:12,841 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-02-28 11:59:12,850 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-02-28 11:59:12,850 - INFO - Server URL: http://localhost:5000
+2026-02-28 11:59:12,850 - INFO - Hostname: Dinosaur (172.16.7.68)
+2026-02-28 11:59:14,912 - ERROR - Failed to register agent: 500 - {"error":"Internal server error"}
+
+2026-02-28 11:59:14,918 - INFO - Security Agent Client started successfully
+2026-02-28 11:59:14,928 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-02-28 11:59:14,930 - INFO - Output file: network_flows_20260228_115912.csv
+2026-02-28 11:59:14,935 - INFO - Flow timeout: 120 seconds
+2026-02-28 11:59:14,935 - INFO - Promiscuous mode: Enabled
+2026-02-28 11:59:14,935 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-02-28 11:59:14,935 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-02-28 11:59:14,938 - INFO - Capturing on interface: Wi-Fi
+2026-02-28 11:59:15,118 - INFO - [DEBUG] Created new flow #1: 172.16.5.163:137 -> 172.16.255.255:137 (17)
+2026-02-28 11:59:15,367 - INFO - [DEBUG] Created new flow #2: 172.16.7.38:57621 -> 172.16.255.255:57621 (17)
+2026-02-28 11:59:15,432 - INFO - [DEBUG] Created new flow #3: 172.16.5.161:57621 -> 172.16.255.255:57621 (17)
+2026-02-28 11:59:15,857 - INFO - [DEBUG] Created new flow #4: 162.159.134.234:443 -> 172.16.7.68:55231 (6)
+2026-02-28 11:59:15,938 - INFO - [DEBUG] Created new flow #5: 172.16.5.24:62105 -> 239.255.255.250:1900 (17)
+2026-02-28 11:59:15,969 - INFO - [DEBUG] Created new flow #6: 172.16.7.68:55353 -> 216.239.36.223:443 (6)
+2026-02-28 11:59:15,984 - INFO - [DEBUG] Created new flow #7: 172.16.5.148:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 11:59:15,988 - INFO - [DEBUG] Created new flow #8: 172.16.5.24:62106 -> 239.255.255.250:1900 (17)
+2026-02-28 11:59:16,098 - INFO - [DEBUG] Created new flow #9: 172.16.5.33:60789 -> 239.255.255.250:1900 (17)
+2026-02-28 11:59:16,653 - INFO - [DEBUG] Created new flow #10: 172.16.5.83:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 11:59:16,791 - INFO - [DEBUG] Created new flow #11: 172.16.7.68:60873 -> 8.8.8.8:53 (17)
+2026-02-28 11:59:16,791 - INFO - [DEBUG] Created new flow #12: 172.16.7.68:56358 -> 8.8.8.8:53 (17)
+2026-02-28 11:59:16,807 - INFO - [DEBUG] Created new flow #13: 142.251.12.95:443 -> 172.16.7.68:51911 (17)
+2026-02-28 11:59:16,835 - INFO - [DEBUG] Created new flow #14: 172.16.7.68:50127 -> 8.8.4.4:443 (17)
+2026-02-28 11:59:16,939 - INFO - [DEBUG] Created new flow #15: 172.16.7.68:59495 -> 35.186.224.24:443 (17)
+2026-02-28 11:59:16,962 - ERROR - Failed to register agent: 500 - {"error":"Internal server error"}
+
+2026-02-28 11:59:16,962 - WARNING - Agent registration failed, retrying in 30 seconds
+2026-02-28 11:59:17,678 - INFO - [DEBUG] Created new flow #16: 172.16.8.140:61139 -> 239.255.255.250:1900 (17)
+2026-02-28 11:59:17,914 - INFO - [DEBUG] Created new flow #17: 172.16.5.93:62483 -> 172.16.255.255:1947 (17)
+2026-02-28 11:59:17,978 - INFO - [DEBUG] Created new flow #18: 104.18.16.5:443 -> 172.16.7.68:55334 (6)
+2026-02-28 11:59:18,009 - INFO - [DEBUG] Created new flow #19: 172.16.7.86:56406 -> 239.255.255.250:1900 (17)
+2026-02-28 11:59:18,023 - INFO - [DEBUG] Created new flow #20: 0.0.0.0:68 -> 255.255.255.255:67 (17)
+2026-02-28 11:59:18,048 - INFO - [DEBUG] Created new flow #21: 172.16.7.68:55471 -> 34.54.84.110:443 (6)
+2026-02-28 11:59:18,604 - INFO - [DEBUG] Created new flow #22: 172.16.5.104:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 11:59:18,790 - INFO - [DEBUG] Created new flow #23: 172.16.7.68:63592 -> 172.217.194.113:443 (17)
+2026-02-28 11:59:19,094 - INFO - Received shutdown signal. Saving data...
+2026-02-28 11:59:19,094 - INFO - Saving all remaining flows...
+2026-02-28 11:59:19,096 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.163:137 -> 172.16.255.255:137 (17) - 6 packets
+2026-02-28 11:59:19,098 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.38:57621 -> 172.16.255.255:57621 (17) - 1 packets
+2026-02-28 11:59:19,098 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.161:57621 -> 172.16.255.255:57621 (17) - 1 packets
+2026-02-28 11:59:19,102 - INFO - [SAVE] Complete IPv4 Flow: 162.159.134.234:443 -> 172.16.7.68:55231 (6) - 25 packets
+2026-02-28 11:59:19,103 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.24:62105 -> 239.255.255.250:1900 (17) - 4 packets
+2026-02-28 11:59:19,103 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:55353 -> 216.239.36.223:443 (6) - 2 packets
+2026-02-28 11:59:19,105 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.148:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 11:59:19,108 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.24:62106 -> 239.255.255.250:1900 (17) - 4 packets
+2026-02-28 11:59:19,108 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.33:60789 -> 239.255.255.250:1900 (17) - 3 packets
+2026-02-28 11:59:19,112 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.83:5353 -> 224.0.0.251:5353 (17) - 5 packets
+2026-02-28 11:59:19,113 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:60873 -> 8.8.8.8:53 (17) - 2 packets
+2026-02-28 11:59:19,113 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:56358 -> 8.8.8.8:53 (17) - 2 packets
+2026-02-28 11:59:19,113 - INFO - [SAVE] Complete IPv4 Flow: 142.251.12.95:443 -> 172.16.7.68:51911 (17) - 2 packets
+2026-02-28 11:59:19,113 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:50127 -> 8.8.4.4:443 (17) - 20 packets
+2026-02-28 11:59:19,113 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:59495 -> 35.186.224.24:443 (17) - 17 packets
+2026-02-28 11:59:19,118 - INFO - [SAVE] Complete IPv4 Flow: 172.16.8.140:61139 -> 239.255.255.250:1900 (17) - 1 packets
+2026-02-28 11:59:19,118 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.93:62483 -> 172.16.255.255:1947 (17) - 1 packets
+2026-02-28 11:59:19,118 - INFO - [SAVE] Complete IPv4 Flow: 104.18.16.5:443 -> 172.16.7.68:55334 (6) - 2 packets
+2026-02-28 11:59:19,118 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.86:56406 -> 239.255.255.250:1900 (17) - 2 packets
+2026-02-28 11:59:19,118 - INFO - [SAVE] Complete IPv4 Flow: 0.0.0.0:68 -> 255.255.255.255:67 (17) - 2 packets
+2026-02-28 11:59:19,123 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:55471 -> 34.54.84.110:443 (6) - 48 packets
+2026-02-28 11:59:19,125 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.104:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 11:59:19,125 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.68:63592 -> 172.217.194.113:443 (17) - 6 packets
+2026-02-28 11:59:19,128 - INFO - Saved 23 flows to network_flows_20260228_115912.csv
+2026-02-28 11:59:19,128 - INFO - [FINAL] Capture complete: 191 packets captured
+2026-02-28 11:59:19,128 - INFO - [FINAL] Total flows created: 0
+2026-02-28 11:59:19,128 - WARNING - [WARNING] Only 0 flows from 191 packets
+2026-02-28 11:59:19,128 - WARNING -   Consider longer capture time or check promiscuous mode
+2026-02-28 11:59:19,128 - INFO - Saving all remaining flows...
+2026-02-28 11:59:19,128 - INFO - Saved 0 flows to network_flows_20260228_115912.csv
+2026-02-28 12:03:06,555 - INFO - Checking Windows requirements...
+2026-02-28 12:03:06,579 - INFO - Npcap service is running
+2026-02-28 12:03:06,579 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-02-28 12:03:06,585 - INFO - Checking Windows requirements...
+2026-02-28 12:03:06,607 - INFO - Npcap service is running
+2026-02-28 12:03:06,607 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-02-28 12:03:06,619 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-02-28 12:03:06,619 - INFO - Server URL: http://localhost:5000
+2026-02-28 12:03:06,620 - INFO - Hostname: Dinosaur (172.16.7.68)
+2026-02-28 12:03:08,667 - ERROR - Failed to register agent: 500 - {"error":"Internal server error"}
+
+2026-02-28 12:03:08,675 - INFO - Security Agent Client started successfully
+2026-02-28 12:03:08,685 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-02-28 12:03:08,687 - INFO - Output file: network_flows_20260228_120306.csv
+2026-02-28 12:03:08,687 - INFO - Flow timeout: 120 seconds
+2026-02-28 12:03:08,688 - INFO - Promiscuous mode: Enabled
+2026-02-28 12:03:08,688 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-02-28 12:03:08,688 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-02-28 12:03:08,688 - INFO - Capturing on interface: Wi-Fi
+2026-02-28 12:03:08,778 - INFO - [DEBUG] Created new flow #1: 172.16.7.240:53464 -> 239.255.255.250:3702 (17)
+2026-02-28 12:03:08,912 - INFO - [DEBUG] Created new flow #2: 162.159.134.234:443 -> 172.16.7.68:55231 (6)
+2026-02-28 12:03:09,012 - INFO - [DEBUG] Created new flow #3: 104.18.16.5:443 -> 172.16.7.68:55334 (6)
+2026-02-28 12:03:09,056 - INFO - [DEBUG] Created new flow #4: 142.251.12.95:443 -> 172.16.7.68:51911 (17)
+2026-02-28 12:03:09,348 - INFO - [DEBUG] Created new flow #5: 172.16.5.97:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:09,417 - INFO - [DEBUG] Created new flow #6: 172.16.5.124:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:09,423 - INFO - [DEBUG] Created new flow #7: 172.16.5.145:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:09,452 - INFO - [DEBUG] Created new flow #8: 172.16.5.14:50606 -> 239.255.255.250:3702 (17)
+2026-02-28 12:03:09,452 - INFO - [DEBUG] Created new flow #9: 172.16.5.163:137 -> 172.16.255.255:137 (17)
+2026-02-28 12:03:09,742 - INFO - [DEBUG] Created new flow #10: 172.16.5.55:17500 -> 255.255.255.255:17500 (17)
+2026-02-28 12:03:09,748 - INFO - [DEBUG] Created new flow #11: 172.16.5.55:17500 -> 172.16.255.255:17500 (17)
+2026-02-28 12:03:09,774 - INFO - [DEBUG] Created new flow #12: 172.16.5.197:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:09,807 - INFO - [DEBUG] Created new flow #13: 172.16.5.248:138 -> 172.16.255.255:138 (17)
+2026-02-28 12:03:10,518 - INFO - [DEBUG] Created new flow #14: 172.16.8.189:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:10,668 - INFO - [DEBUG] Created new flow #15: 172.16.8.93:5353 -> 224.0.0.251:5353 (17)
+2026-02-28 12:03:10,731 - ERROR - Failed to register agent: 500 - {"error":"Internal server error"}
+
+2026-02-28 12:03:10,731 - WARNING - Agent registration failed, retrying in 30 seconds
+2026-02-28 12:03:10,756 - INFO - Received shutdown signal. Saving data...
+2026-02-28 12:03:10,756 - INFO - Saving all remaining flows...
+2026-02-28 12:03:10,757 - INFO - [SAVE] Complete IPv4 Flow: 172.16.7.240:53464 -> 239.255.255.250:3702 (17) - 2 packets
+2026-02-28 12:03:10,757 - INFO - [SAVE] Complete IPv4 Flow: 162.159.134.234:443 -> 172.16.7.68:55231 (6) - 4 packets
+2026-02-28 12:03:10,759 - INFO - [SAVE] Complete IPv4 Flow: 104.18.16.5:443 -> 172.16.7.68:55334 (6) - 2 packets
+2026-02-28 12:03:10,762 - INFO - [SAVE] Complete IPv4 Flow: 142.251.12.95:443 -> 172.16.7.68:51911 (17) - 2 packets
+2026-02-28 12:03:10,762 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.97:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,762 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.124:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,762 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.145:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,767 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.14:50606 -> 239.255.255.250:3702 (17) - 4 packets
+2026-02-28 12:03:10,767 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.163:137 -> 172.16.255.255:137 (17) - 2 packets
+2026-02-28 12:03:10,770 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.55:17500 -> 255.255.255.255:17500 (17) - 12 packets
+2026-02-28 12:03:10,770 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.55:17500 -> 172.16.255.255:17500 (17) - 4 packets
+2026-02-28 12:03:10,770 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.197:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,773 - INFO - [SAVE] Complete IPv4 Flow: 172.16.5.248:138 -> 172.16.255.255:138 (17) - 1 packets
+2026-02-28 12:03:10,773 - INFO - [SAVE] Complete IPv4 Flow: 172.16.8.189:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,774 - INFO - [SAVE] Complete IPv4 Flow: 172.16.8.93:5353 -> 224.0.0.251:5353 (17) - 1 packets
+2026-02-28 12:03:10,774 - INFO - Saved 15 flows to network_flows_20260228_120306.csv
+2026-02-28 12:03:10,774 - INFO - [FINAL] Capture complete: 52 packets captured
+2026-02-28 12:03:10,774 - INFO - [FINAL] Total flows created: 0
+2026-02-28 12:03:10,774 - WARNING - [WARNING] Only 0 flows from 52 packets
+2026-02-28 12:03:10,774 - WARNING -   Consider longer capture time or check promiscuous mode
+2026-02-28 12:03:10,774 - INFO - Saving all remaining flows...
+2026-02-28 12:03:10,777 - INFO - Saved 0 flows to network_flows_20260228_120306.csv

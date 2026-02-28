@@ -33,10 +33,19 @@ db = SQLAlchemy(app)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Template context processor to make datetime available in templates
+# Template context processor to make utility functions available in templates
 @app.context_processor
 def inject_datetime():
-    return {'datetime': datetime}
+    return {
+        'datetime': datetime,
+        'min': min,
+        'max': max,
+        'len': len,
+        'abs': abs,
+        'round': round,
+        'int': int,
+        'str': str
+    }
 
 # ==================== DATABASE MODELS ====================
 
@@ -47,10 +56,11 @@ class Agent(db.Model):
     hostname = db.Column(db.String(200), nullable=False)
     ip_address = db.Column(db.String(50), nullable=False)
     os_info = db.Column(db.Text)
-    status = db.Column(db.String(20), default='active')  # active, isolated, offline
+    status = db.Column(db.String(20), default='active')  # active, disconnected, isolated
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     threat_level = db.Column(db.String(20), default='low')  # low, medium, high, critical
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    isolated_until = db.Column(db.DateTime, nullable=True) # For timed isolation
     
     # Relationships
     flows = db.relationship('NetworkFlow', backref='agent', lazy=True, cascade='all, delete-orphan')
@@ -69,6 +79,7 @@ class NetworkFlow(db.Model):
     payload_content = db.Column(db.Text)  # Hex dump content
     threat_score = db.Column(db.Float, default=0.0)
     is_malicious = db.Column(db.Boolean, default=False)
+    classification = db.Column(db.String(20), default='Benign') # Benign, Trojan
     timestamp = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -347,6 +358,7 @@ def submit_flow():
                 threat_score, payload_threats = threat_detector.predict_threat(flow)
                 flow.threat_score = threat_score
                 flow.is_malicious = threat_score > 0.7
+                flow.classification = 'Trojan' if flow.is_malicious else 'Benign'
                 
                 db.session.add(flow)
                 
@@ -409,11 +421,24 @@ def get_agent_status(agent_id):
         .filter(SecurityAlert.created_at > datetime.utcnow() - timedelta(hours=1))\
         .filter_by(is_resolved=False).count()
     
+    # Check for isolation expiry
+    if agent.status == 'isolated' and agent.isolated_until:
+        if datetime.utcnow() > agent.isolated_until:
+            logger.info(f"Isolation for agent {agent_id} expired. Triggering restoration.")
+            agent.status = 'active'
+            agent.isolated_until = None
+            db.session.commit()
+    
     instructions = []
     if agent.status == 'isolated':
         instructions.append("NETWORK_ISOLATED")
     elif recent_alerts > 10:
         instructions.append("INCREASE_MONITORING")
+    else:
+        # If agent was isolated but status is now active (restored), send instruction
+        # We can use a simple check or more complex session-based instruction queue
+        # For now, let's assume the agent polls and switches based on status
+        pass
     
     return jsonify({
         'agent_id': agent_id,
@@ -426,93 +451,66 @@ def get_agent_status(agent_id):
 
 # ==================== NETWORK ISOLATION ====================
 
-def isolate_agent_network(agent_id, reason):
-    """Isolate agent from network"""
+def isolate_agent_network(agent_id, reason, duration_minutes=None):
+    """Isolate agent from network by setting status in database"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
             return False
-        
-        # Windows firewall isolation command
-        isolation_commands = [
-            f'netsh advfirewall firewall add rule name="Isolate_{agent_id}" dir=in action=block remoteip=any',
-            f'netsh advfirewall firewall add rule name="Isolate_{agent_id}_out" dir=out action=block remoteip=any'
-        ]
-        
-        success = True
-        for cmd in isolation_commands:
-            try:
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                if result.returncode != 0:
-                    logger.error(f"Isolation command failed: {cmd} - {result.stderr}")
-                    success = False
-                else:
-                    logger.info(f"Isolation command executed: {cmd}")
-            except Exception as cmd_error:
-                logger.error(f"Error executing isolation command: {cmd_error}")
-                success = False
+            
+        # Calculate expiry if duration provided
+        isolated_until = None
+        if duration_minutes and duration_minutes > 0:
+            isolated_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
         
         # Update agent status
-        agent.status = 'isolated' if success else 'active'
+        agent.status = 'isolated'
+        agent.isolated_until = isolated_until
         
         # Log isolation action
         isolation_action = IsolationAction(
             agent_id=agent_id,
             action_type='isolate',
-            reason=reason,
-            success=success
+            reason=f"{reason} (Duration: {duration_minutes if duration_minutes else 'Indefinite'})",
+            success=True
         )
         db.session.add(isolation_action)
         db.session.commit()
         
-        logger.info(f"Agent {agent_id} isolation {'successful' if success else 'failed'}: {reason}")
-        return success
+        logger.info(f"Agent {agent_id} flagged for isolation: {reason}")
+        return True
         
     except Exception as e:
-        logger.error(f"Error isolating agent {agent_id}: {e}")
+        logger.error(f"Error flagging agent {agent_id} for isolation: {e}")
         return False
 
 def restore_agent_network(agent_id, reason):
-    """Restore agent network access"""
+    """Restore agent network access by updating database status"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
             return False
         
-        # Remove firewall rules
-        restore_commands = [
-            f'netsh advfirewall firewall delete rule name="Isolate_{agent_id}"',
-            f'netsh advfirewall firewall delete rule name="Isolate_{agent_id}_out"'
-        ]
-        
-        success = True
-        for cmd in restore_commands:
-            try:
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                logger.info(f"Restore command executed: {cmd}")
-            except Exception as cmd_error:
-                logger.error(f"Error executing restore command: {cmd_error}")
-                success = False
-        
         # Update agent status
         agent.status = 'active'
         agent.threat_level = 'low'
+        agent.isolated_until = None
         
         # Log restoration action
         isolation_action = IsolationAction(
             agent_id=agent_id,
             action_type='restore',
             reason=reason,
-            success=success
+            success=True
         )
         db.session.add(isolation_action)
         db.session.commit()
         
-        logger.info(f"Agent {agent_id} network restored: {reason}")
-        return success
+        logger.info(f"Agent {agent_id} flag cleared: {reason}")
+        return True
         
     except Exception as e:
-        logger.error(f"Error restoring agent {agent_id}: {e}")
+        logger.error(f"Error clearing isolation flag for agent {agent_id}: {e}")
         return False
 
 # ==================== WEB INTERFACE ====================
@@ -575,8 +573,18 @@ def alerts_list():
 def isolate_agent_web(agent_id):
     """Isolate agent via web interface"""
     reason = request.form.get('reason', 'Manual isolation via web interface')
+    duration = request.form.get('duration', 'indefinite')
     
-    success = isolate_agent_network(agent_id, reason)
+    # Map duration string to minutes
+    duration_map = {
+        '1m': 1,
+        '1h': 60,
+        '1d': 1440,
+        'indefinite': None
+    }
+    duration_minutes = duration_map.get(duration)
+    
+    success = isolate_agent_network(agent_id, reason, duration_minutes)
     
     if success:
         flash(f'Agent {agent_id} has been isolated from the network.', 'success')
@@ -608,6 +616,153 @@ def resolve_alert(alert_id):
     
     flash('Alert marked as resolved.', 'success')
     return redirect(url_for('alerts_list'))
+
+# ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================
+
+@app.route('/api/dashboard/stats')
+def api_dashboard_stats():
+    """Get real-time dashboard statistics"""
+    try:
+        stats = {
+            'total_agents': Agent.query.count(),
+            'active_agents': Agent.query.filter_by(status='active').count(),
+            'isolated_agents': Agent.query.filter_by(status='isolated').count(),
+            'pending_alerts': SecurityAlert.query.filter_by(is_resolved=False).count(),
+            'critical_alerts': SecurityAlert.query.filter_by(
+                is_resolved=False, severity='critical'
+            ).count(),
+            'threat_flows_today': NetworkFlow.query.filter(
+                NetworkFlow.is_malicious == True,
+                NetworkFlow.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0)
+            ).count(),
+            'last_updated': datetime.utcnow().isoformat()
+        }
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard stats: {e}")
+        return jsonify({'error': 'Unable to fetch stats'}), 500
+
+@app.route('/api/agents/<agent_id>/status')
+def api_agent_status(agent_id):
+    """Get real-time agent status"""
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
+        
+        # Check if agent is recently seen (within last 2 minutes)
+        last_seen_threshold = datetime.utcnow() - timedelta(minutes=2)
+        is_online = agent.last_seen and agent.last_seen > last_seen_threshold
+        
+        current_status = 'online' if is_online else 'offline'
+        status_changed = current_status != agent.status
+        
+        # Update status if changed
+        if status_changed:
+            agent.status = current_status
+            db.session.commit()
+        
+        return jsonify({
+            'agent_id': agent.agent_id,
+            'hostname': agent.hostname,
+            'status': current_status,
+            'last_seen': agent.last_seen.strftime('%Y-%m-%d %H:%M:%S') if agent.last_seen else 'Never',
+            'threat_level': agent.threat_level,
+            'status_changed': status_changed
+        })
+    except Exception as e:
+        logger.error(f"Error fetching agent status: {e}")
+        return jsonify({'error': 'Unable to fetch agent status'}), 500
+
+@app.route('/api/activity/latest')
+def api_latest_activity():
+    """Get latest system activities"""
+    try:
+        activities = []
+        
+        # Recent alerts (last 10)
+        recent_alerts = SecurityAlert.query.filter(
+            SecurityAlert.created_at >= datetime.utcnow() - timedelta(hours=1)
+        ).order_by(SecurityAlert.created_at.desc()).limit(5).all()
+        
+        for alert in recent_alerts:
+            activities.append({
+                'type': 'alert',
+                'title': f'Security Alert: {alert.alert_type}',
+                'description': f'{alert.title} on {alert.agent.hostname}',
+                'time': alert.created_at.strftime('%H:%M:%S'),
+                'severity': alert.severity,
+                'timestamp': alert.created_at.isoformat()
+            })
+        
+        # Recent agent connections
+        recent_agents = Agent.query.filter(
+            Agent.last_seen >= datetime.utcnow() - timedelta(minutes=10)
+        ).order_by(Agent.last_seen.desc()).limit(5).all()
+        
+        for agent in recent_agents:
+            activities.append({
+                'type': 'connection',
+                'title': f'Agent Connected',
+                'description': f'{agent.hostname} ({agent.ip_address})',
+                'time': agent.last_seen.strftime('%H:%M:%S') if agent.last_seen else 'Unknown',
+                'severity': 'info',
+                'timestamp': agent.last_seen.isoformat() if agent.last_seen else ''
+            })
+        
+        # Sort by timestamp
+        activities.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return jsonify(activities[:10])  # Return max 10 activities
+        
+    except Exception as e:
+        logger.error(f"Error fetching latest activity: {e}")
+        return jsonify([])
+
+@app.route('/api/threats/summary')
+def api_threats_summary():
+    """Get threat summary for real-time updates"""
+    try:
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0)
+        hour_ago = now - timedelta(hours=1)
+        
+        summary = {
+            'threats_today': NetworkFlow.query.filter(
+                NetworkFlow.is_malicious == True,
+                NetworkFlow.created_at >= today_start
+            ).count(),
+            'threats_last_hour': NetworkFlow.query.filter(
+                NetworkFlow.is_malicious == True,
+                NetworkFlow.created_at >= hour_ago
+            ).count(),
+            'active_threats': SecurityAlert.query.filter_by(
+                is_resolved=False
+            ).count(),
+            'critical_threats': SecurityAlert.query.filter_by(
+                is_resolved=False,
+                severity='critical'
+            ).count(),
+            'threat_trend': 'increasing',  # This could be calculated based on historical data
+            'last_threat': None
+        }
+        
+        # Get last threat
+        last_threat_flow = NetworkFlow.query.filter_by(
+            is_malicious=True
+        ).order_by(NetworkFlow.created_at.desc()).first()
+        
+        if last_threat_flow:
+            summary['last_threat'] = {
+                'timestamp': last_threat_flow.created_at.isoformat(),
+                'source': last_threat_flow.src_ip,
+                'destination': last_threat_flow.dst_ip,
+                'agent': last_threat_flow.agent_id
+            }
+        
+        return jsonify(summary)
+        
+    except Exception as e:
+        logger.error(f"Error fetching threats summary: {e}")
+        return jsonify({'error': 'Unable to fetch threats summary'}), 500
 
 # ==================== BACKGROUND TASKS ====================
 
@@ -652,13 +807,49 @@ def cleanup_old_data():
         except Exception as e:
             logger.error(f"Error in cleanup: {e}")
 
+# ==================== DATABASE MIGRATION HELPER ====================
+
+def migrate_database():
+    """Handle database migrations for schema changes"""
+    try:
+        with db.engine.connect() as conn:
+            # Check agent table for isolated_until column
+            result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
+            agent_columns = [row[1] for row in result]  # Column names are in index 1
+            
+            if 'isolated_until' not in agent_columns:
+                logger.info("Adding missing 'isolated_until' column to agent table")
+                conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
+                conn.commit()
+                logger.info("Successfully added 'isolated_until' column")
+            else:
+                logger.info("Agent table 'isolated_until' column exists")
+                
+            # Check network_flow table for classification column
+            result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
+            flow_columns = [row[1] for row in result]  # Column names are in index 1
+            
+            if 'classification' not in flow_columns:
+                logger.info("Adding missing 'classification' column to network_flow table")
+                conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
+                conn.commit()
+                logger.info("Successfully added 'classification' column")
+            else:
+                logger.info("Network flow table 'classification' column exists")
+                
+    except Exception as e:
+        logger.error(f"Error during database migration: {e}")
+        raise e
+
 # ==================== APPLICATION STARTUP ====================
 
 if __name__ == '__main__':
     # Create database tables
     with app.app_context():
         db.create_all()
-        logger.info("Database initialized")
+        # Run database migrations
+        migrate_database()
+        logger.info("Database initialized and migrated")
     
     # Start background threads
     model_thread = threading.Thread(target=train_detection_model, daemon=True)

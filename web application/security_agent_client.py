@@ -179,10 +179,15 @@ class SecurityAgentClient:
                 
                 # Handle instructions
                 if 'NETWORK_ISOLATED' in instructions:
-                    self.logger.critical("NETWORK ISOLATION ACTIVE - Agent is isolated from network")
+                    self.execute_isolation()
+                else:
+                    self.execute_restoration()
                 
                 if 'INCREASE_MONITORING' in instructions:
                     self.logger.warning("Increasing monitoring frequency due to security concerns")
+                    self.upload_interval = 10 # Faster updates
+                else:
+                    self.upload_interval = 30 # Normal updates
                 
                 return status_data
             else:
@@ -192,6 +197,60 @@ class SecurityAgentClient:
         except Exception as e:
             self.logger.error(f"Error checking agent status: {e}")
             return None
+
+    def execute_isolation(self):
+        """Execute network isolation using Windows Firewall"""
+        try:
+            # Check if already isolated (we can use a flag or check if rule exists)
+            # For simplicity, we'll try to add rules; netsh will handle if they exist
+            
+            # Get server IP to allow communication
+            server_host = self.server_url.split('//')[-1].split(':')[0]
+            try:
+                server_ip = socket.gethostbyname(server_host)
+            except:
+                server_ip = None
+
+            # Isolation commands: Block all except management server
+            commands = [
+                # Block all inbound by default
+                f'netsh advfirewall firewall add rule name="Manager_Isolation_In" dir=in action=block remoteip=any',
+                # Block all outbound by default
+                f'netsh advfirewall firewall add rule name="Manager_Isolation_Out" dir=out action=block remoteip=any'
+            ]
+            
+            # Add allow rules for the server BEFORE the block rules or with higher priority
+            # In Windows Firewall, Block rules usually take precedence unless we use specific allow rules
+            # Actually, a better way is to allow the specific IP
+            if server_ip and server_ip != '127.0.0.1':
+                commands.insert(0, f'netsh advfirewall firewall add rule name="Manager_Allow_In" dir=in action=allow remoteip={server_ip}')
+                commands.insert(1, f'netsh advfirewall firewall add rule name="Manager_Allow_Out" dir=out action=allow remoteip={server_ip}')
+            
+            for cmd in commands:
+                subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            
+            self.logger.critical("NETWORK ISOLATION ENFORCED - Only management communication allowed")
+            
+        except Exception as e:
+            self.logger.error(f"Error enforcing isolation: {e}")
+
+    def execute_restoration(self):
+        """Remove network isolation rules"""
+        try:
+            commands = [
+                'netsh advfirewall firewall delete rule name="Manager_Isolation_In"',
+                'netsh advfirewall firewall delete rule name="Manager_Isolation_Out"',
+                'netsh advfirewall firewall delete rule name="Manager_Allow_In"',
+                'netsh advfirewall firewall delete rule name="Manager_Allow_Out"'
+            ]
+            
+            for cmd in commands:
+                subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                
+            self.logger.info("Network connectivity restored")
+            
+        except Exception as e:
+            self.logger.error(f"Error restoring connectivity: {e}")
     
     def upload_worker(self):
         """Background worker to upload flows periodically"""

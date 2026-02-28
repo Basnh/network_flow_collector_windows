@@ -3,265 +3,678 @@
 {% block title %}Dashboard - Network Security Management{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Security Dashboard</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary real-time-update">
-                <i class="fas fa-sync-alt"></i> Live Monitoring
-            </button>
-        </div>
+<!-- Page Loader -->
+<div class="page-loader" id="page-loader">
+    <div class="text-center">
+        <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
+        <p class="text-muted">Loading Security Dashboard...</p>
     </div>
 </div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Agents hiện có</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_agents }}</div>
+<div class="pt-4 pb-2 mb-4 fade-in">
+    <!-- Enhanced Hero Section -->
+    <div class="modern-hero position-relative mb-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 4rem 2rem; border-radius: 20px; color: white; overflow: hidden;">
+        <!-- Animated Background Pattern -->
+        <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10">
+            <div class="floating-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+            </div>
+        </div>
+        
+        <div class="row align-items-center position-relative">
+            <div class="col-lg-8">
+                <div class="hero-content">
+                    <div class="badge bg-light text-primary mb-3 px-3 py-2 rounded-pill">
+                        <i class="fas fa-shield-check me-1"></i> System Status: 
+                        <span class="fw-bold">{{ 'SECURE' if isolated_agents == 0 else 'MONITORING' }}</span>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-desktop fa-2x text-gray-300"></i>
+                    <h1 class="display-4 fw-bold mb-3 hero-title">
+                        Network Security <span class="text-warning">Command Center</span>
+                    </h1>
+                    <p class="lead mb-4 pb-2" style="font-size: 1.25rem; line-height: 1.6;">
+                        Real-time threat detection and network monitoring across <strong>{{ total_agents }}</strong> endpoints.
+                        <br>Powered by AI-driven security intelligence.
+                    </p>
+                    <div class="hero-actions d-flex flex-wrap gap-3">
+                        <a href="{{ url_for('agents_list') }}" class="btn btn-light btn-lg px-4 fw-bold shadow-lg rounded-pill">
+                            <i class="fas fa-rocket me-2"></i> Deploy New Agent
+                        </a>
+                        <button class="btn btn-outline-light btn-lg px-4 shadow-lg rounded-pill" onclick="refreshDashboard()">
+                            <i class="fas fa-sync-alt me-2"></i> Refresh Data
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Agents đang hoạt động</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_agents }}</div>
+            <div class="col-lg-4 text-center position-relative">
+                <!-- Security Status Visualization -->
+                <div class="security-radar position-relative">
+                    <div class="radar-circle active"></div>
+                    <div class="radar-circle"></div>
+                    <div class="radar-circle"></div>
+                    <div class="radar-center">
+                        <i class="fas fa-shield-alt fa-2x text-success"></i>
+                        <div class="small mt-2">{{ active_agents }} Active</div>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-check-circle fa-2x text-success"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-danger shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Agents đã cách ly</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ isolated_agents }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-ban fa-2x text-danger"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Alerts</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ recent_alerts|length }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Critical Agents & Recent Alerts -->
-<div class="row">
-    <!-- Critical Agents -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="fas fa-exclamation-circle"></i> Critical Threat Agents
-                </h6>
-            </div>
-            <div class="card-body">
-                {% if critical_agents %}
-                    {% for agent in critical_agents %}
-                    <div class="d-flex align-items-center threat-critical p-2 mb-2 rounded">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">
-                                <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" 
-                                   class="text-decoration-none text-danger">
-                                    {{ agent.hostname }}
-                                </a>
-                            </h6>
-                            <small class="text-muted">{{ agent.ip_address }} • {{ agent.agent_id[:8] }}...</small>
+                    <!-- Platform Icons -->
+                    <div class="platform-icons">
+                        <div class="platform-icon windows" title="Windows Support">
+                            <i class="fab fa-windows"></i>
                         </div>
-                        <div>
-                            <span class="badge badge-critical">{{ agent.threat_level.upper() }}</span>
-                            <span class="badge{% if agent.status == 'isolated' %} bg-danger{% else %} bg-warning text-dark{% endif %} ms-1">
-                                {{ agent.status.upper() }}
-                            </span>
+                        <div class="platform-icon linux" title="Linux Support">
+                            <i class="fab fa-linux"></i>
+                        </div>
+                        <div class="platform-icon cloud" title="Cloud Native">
+                            <i class="fas fa-cloud"></i>
                         </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
-                        <p class="text-muted">No critical threats detected</p>
-                    </div>
-                {% endif %}
+                </div>
             </div>
+        </div>
+        
+        <!-- Floating Status Badges -->
+        <div class="floating-badges">
+            <div class="floating-badge badge-1">
+                <i class="fas fa-eye"></i>
+                <span>Live Monitoring</span>
+            </div>
+            <div class="floating-badge badge-2">
+                <i class="fas fa-brain"></i>
+                <span>AI Detection</span>
+            </div>
+            <div class="floating-badge badge-3">
+                <i class="fas fa-globe"></i>
+                <span>Global Coverage</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Metrics Dashboard -->
+    <div class="metrics-dashboard mb-5">
+        <div class="row g-4">
+            <!-- Total Agents Card -->
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card gradient-card-1 position-relative">
+                    <div class="metric-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-label">Total Agents</div>
+                        <div class="metric-value animate-number" id="total-agents" data-target="{{ total_agents }}">0</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up"></i> +2 this week
+                        </div>
+                    </div>
+                    <div class="metric-chart">
+                        <div class="progress-ring">
+                            <svg class="progress-ring-svg" width="60" height="60">
+                                <circle class="progress-ring-circle-bg" cx="30" cy="30" r="25"></circle>
+                                <circle class="progress-ring-circle" cx="30" cy="30" r="25" style="--progress: 85;"></circle>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Agents Card -->
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card gradient-card-2 position-relative">
+                    <div class="metric-icon">
+                        <i class="fas fa-heartbeat"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-label">Active Agents</div>
+                        <div class="metric-value animate-number" id="active-agents" data-target="{{ active_agents }}">0</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-check-circle"></i> {{ ((active_agents / total_agents * 100)|round|int if total_agents > 0 else 0) }}% Online
+                        </div>
+                    </div>
+                    <div class="status-indicators">
+                        {% for i in range(min(5, active_agents)) %}
+                        <div class="status-dot online"></div>
+                        {% endfor %}
+                        {% for i in range(min(5, total_agents - active_agents)) %}
+                        <div class="status-dot offline"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Alerts Card -->
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card gradient-card-3 position-relative">
+                    <div class="metric-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-label">Security Alerts</div>
+                        <div class="metric-value animate-number" id="pending-alerts" data-target="{{ recent_alerts|length }}">0</div>
+                        <div class="metric-change {{ 'negative' if recent_alerts|length > 0 else 'neutral' }}">
+                            {% if recent_alerts|length > 0 %}
+                                <i class="fas fa-exclamation"></i> Action Required
+                            {% else %}
+                                <i class="fas fa-shield-check"></i> All Clear
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="alert-severity-bar">
+                        {% set critical_count = recent_alerts|selectattr('severity', 'equalto', 'critical')|list|length %}
+                        {% set high_count = recent_alerts|selectattr('severity', 'equalto', 'high')|list|length %}
+                        <div class="severity-segment critical" style="width: {{ (critical_count / (recent_alerts|length) * 100) if recent_alerts|length > 0 else 0 }}%;"></div>
+                        <div class="severity-segment high" style="width: {{ (high_count / (recent_alerts|length) * 100) if recent_alerts|length > 0 else 0 }}%;"></div>
+                        <div class="severity-segment medium" style="width: {{ ((recent_alerts|length - critical_count - high_count) / (recent_alerts|length) * 100) if recent_alerts|length > 0 else 0 }}%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threat Level Card -->
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card gradient-card-4 position-relative">
+                    <div class="metric-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-label">Threat Level</div>
+                        <div class="metric-value threat-level {{ 'low' if isolated_agents == 0 else ('high' if isolated_agents > 2 else 'medium') }}">
+                            {{ 'LOW' if isolated_agents == 0 else ('HIGH' if isolated_agents > 2 else 'MEDIUM') }}
+                        </div>
+                        <div class="metric-change neutral">
+                            <i class="fas fa-shield-check"></i> {{ isolated_agents }} Isolated
+                        </div>
+                    </div>
+                    <div class="threat-gauge">
+                        <div class="gauge-fill" style="--threat-level: {{ (isolated_agents / max(total_agents, 1) * 100) }}%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content with Activity Sidebar -->
+    <div class="row g-4 mb-5">
+        <!-- Main Dashboard Content -->
+        <div class="col-lg-8">
+            <!-- Real-time Threat Monitor -->
+            <div class="card enhanced-card mb-4">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 gradient-text">
+                        <i class="fas fa-shield-alt me-2"></i>Threat Detection Monitor
+                    </h5>
+                    <span class="badge bg-primary">Live</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4 text-center">
+                            <div class="h3 mb-1 text-danger" id="threats-today">{{ threat_flows|length }}</div>
+                            <small class="text-muted">Threats Today</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h3 mb-1 text-warning" id="threats-hour">-</div>
+                            <small class="text-muted">Last Hour</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h3 mb-1 text-info" id="active-threats">{{ recent_alerts|selectattr('is_resolved', 'equalto', False)|list|length }}</div>
+                            <small class="text-muted">Active Alerts</small>
+                        </div>
+                    </div>
+                    <div class="progress-modern mt-3">
+                        <div class="progress-bar" style="width: 75%"></div>
+                    </div>
+                    <small class="text-muted">System Health: 75% - Good</small>
+                </div>
+            </div>
+
+            <!-- Critical Agents Alert -->
             {% if critical_agents %}
-            <div class="card-footer text-center">
-                <a href="{{ url_for('agents_list') }}" class="btn btn-primary btn-sm">
-                    View All Agents <i class="fas fa-arrow-right"></i>
-                </a>
+            <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+                <div class="d-flex align-items-center">
+                    <div class="status-indicator status-offline me-3"></div>
+                    <div>
+                        <h6 class="alert-heading mb-1">Critical Agents Detected</h6>
+                        <p class="mb-2">{{ critical_agents|length }} agent(s) require immediate attention.</p>
+                        <a href="{{ url_for('agents_list') }}" class="btn btn-sm btn-outline-danger">View Details</a>
+                    </div>
+                </div>
             </div>
             {% endif %}
+
+        </div>
+
+        <!-- Activity Sidebar -->
+        <div class="col-lg-4 activity-sidebar">
+            <div class="card enhanced-card sticky-top" style="top: 20px;">
+                <div class="card-header bg-transparent border-0">
+                    <h6 class="mb-0 d-flex align-items-center">
+                        <i class="fas fa-pulse me-2 text-primary"></i>
+                        Live Activity Feed
+                        <span class="ms-auto">
+                            <div class="status-indicator status-online"></div>
+                        </span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="activity-feed" id="activity-feed">
+                        <!-- Real-time activities will be populated here -->
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">System Started</span>
+                                <small class="text-muted">{{ datetime.utcnow().strftime('%H:%M:%S') }}</small>
+                            </div>
+                            <p class="small mb-0 text-muted">Network Security Management System initialized</p>
+                        </div>
+                        {% for alert in recent_alerts[:3] %}
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">{{ alert.alert_type|title }}</span>
+                                <small class="text-muted">{{ alert.created_at.strftime('%H:%M:%S') }}</small>
+                            </div>
+                            <p class="small mb-0 text-muted">{{ alert.title }} on {{ alert.agent.hostname }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 text-center">
+                    <a href="{{ url_for('alerts_list') }}" class="btn btn-sm btn-outline-primary">
+                        View All Alerts <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Actions Panel -->
+            <div class="card enhanced-card mt-4">
+                <div class="card-header bg-transparent border-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2 text-warning"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" data-loading onclick="refreshDashboard()">
+                            <i class="fas fa-refresh me-2"></i>Refresh Data
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" data-loading>
+                            <i class="fas fa-shield-alt me-2"></i>Run Full Scan
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" data-loading>
+                            <i class="fas fa-download me-2"></i>Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Recent Security Alerts -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-warning">
-                <h6 class="m-0 font-weight-bold text-dark">
-                    <i class="fas fa-bell"></i> Recent Security Alerts
-                </h6>
-            </div>
-            <div class="card-body">
-                {% if recent_alerts %}
-                    {% for alert in recent_alerts %}
-                    <div class="d-flex align-items-start mb-3 p-2 border rounded">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">{{ alert.title }}</h6>
-                            <p class="mb-1 text-muted small">{{ alert.description[:100] }}{% if alert.description|length > 100 %}...{% endif %}</p>
-                            <small class="text-muted">
-                                <i class="fas fa-desktop"></i> {{ alert.agent.hostname }} • 
-                                <i class="fas fa-clock"></i> {{ alert.created_at.strftime('%Y-%m-%d %H:%M') }}
-                            </small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge 
-                                {% if alert.severity == 'critical' %}badge-critical
-                                {% elif alert.severity == 'high' %}badge-high
-                                {% elif alert.severity == 'medium' %}badge-medium
-                                {% else %}badge-low{% endif %}">
-                                {{ alert.severity.upper() }}
-                            </span>
-                            <br>
-                            <small class="text-muted">{{ alert.alert_type }}</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                        <p class="text-muted">No recent security alerts</p>
-                    </div>
-                {% endif %}
-            </div>
-            {% if recent_alerts %}
-            <div class="card-footer text-center">
-                <a href="{{ url_for('alerts_list') }}" class="btn btn-warning btn-sm">
-                    View All Alerts <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Recent Malicious Network Flows -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="fas fa-network-wired"></i> Recent Malicious Network Traffic
-                </h6>
-            </div>
-            <div class="card-body">
-                {% if threat_flows %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Agent</th>
-                                <th>Flow</th>
-                                <th>Threat Score</th>
-                                <th>Payload Sample</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for flow in threat_flows %}
-                            <tr class="threat-critical">
-                                <td>
-                                    <small>{{ flow.created_at.strftime('%m-%d %H:%M') }}</small>
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('agent_detail', agent_id=flow.agent_id) }}" 
-                                       class="text-decoration-none">
-                                        {{ flow.agent.hostname }}
-                                    </a>
-                                </td>
-                                <td>
-                                    <small>
-                                        <strong>{{ flow.src_ip }}:{{ flow.src_port }}</strong> 
-                                        <i class="fas fa-arrow-right text-muted"></i> 
-                                        <strong>{{ flow.dst_ip }}:{{ flow.dst_port }}</strong>
-                                        <br>
-                                        <span class="text-muted">{{ flow.protocol }}</span>
-                                    </small>
-                                </td>
-                                <td>
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar bg-danger" style="width: {{ (flow.threat_score * 100)|round }}%">
+    <!-- Comparison Table / Matrix -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-network-wired me-2 text-primary"></i> Malicious Traffic</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="color: var(--text-main);">
+                            <thead style="background-color: rgba(240, 246, 252, 0.02);">
+                                <tr>
+                                    <th class="border-0 px-4 py-3 small text-muted">AGENT</th>
+                                    <th class="border-0 px-4 py-3 small text-muted">FLOW PATH</th>
+                                    <th class="border-0 px-4 py-3 small text-muted text-center">THREAT</th>
+                                    <th class="border-0 px-4 py-3 small text-muted">PAYLOAD PREVIEW</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if threat_flows %}
+                                {% for flow in threat_flows %}
+                                <tr style="border-top: 1px solid var(--border-default);">
+                                    <td class="px-4 py-3">
+                                        <a href="{{ url_for('agent_detail', agent_id=flow.agent_id) }}"
+                                            class="text-decoration-none fw-bold" style="color: var(--accent-primary);">
+                                            {{ flow.agent.hostname }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <code class="text-muted">{{ flow.src_ip }}</code> <i
+                                            class="fas fa-arrow-right mx-2 opacity-50"></i> <code
+                                            class="text-muted">{{ flow.dst_ip }}</code>
+                                        <div class="small opacity-50 mt-1">{{ flow.protocol }} • Port {{ flow.dst_port
+                                            }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="badge"
+                                            style="background-color: rgba(218, 54, 51, 0.1); color: var(--status-danger); border: 1px solid var(--status-danger);">
                                             {{ (flow.threat_score * 100)|round }}%
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="hex-content small"
+                                            style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            {{ flow.payload_content or "No payload captured" }}
                                         </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    {% if flow.payload_content %}
-                                    <div class="hex-content">
-                                        {{ flow.payload_content[:80] }}{% if flow.payload_content|length > 80 %}...{% endif %}
-                                    </div>
-                                    {% else %}
-                                    <small class="text-muted">No payload</small>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="fas fa-shield-alt fa-3x mb-3 opacity-25"></i>
+                                        <p>No malicious activity detected in the last hour.</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
-                    <p class="text-muted">No malicious network traffic detected</p>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header border-0">
+                    <i class="fas fa-bolt me-2 text-warning"></i> Recent Alerts
                 </div>
-                {% endif %}
+                <div class="card-body p-0">
+                    {% if recent_alerts %}
+                    <div class="list-group list-group-flush">
+                        {% for alert in recent_alerts[:5] %}
+                        <div class="list-group-item bg-transparent border-0 px-4 py-3"
+                            style="border-bottom: 1px solid var(--border-default) !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold">{{ alert.title }}</h6>
+                                <span class="badge badge-{{ alert.severity }}">{{ alert.severity|upper }}</span>
+                            </div>
+                            <p class="small text-muted mb-2">{{ alert.description[:60] }}...</p>
+                            <div class="d-flex justify-content-between align-items-center small text-muted">
+                                <span><i class="fas fa-desktop me-1"></i> {{ alert.agent.hostname }}</span>
+                                <span>{{ alert.created_at.strftime('%H:%M') }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="p-3 text-center">
+                        <a href="{{ url_for('alerts_list') }}"
+                            class="btn btn-sm btn-link text-decoration-none text-muted">View all alerts <i
+                                class="fas fa-chevron-right ms-1"></i></a>
+                    </div>
+                    {% else %}
+                    <div
+                        class="h-100 d-flex flex-column align-items-center justify-content-center text-muted py-5 px-4 text-center">
+                        <i class="fas fa-check-circle fa-4x mb-3 opacity-25" style="color: var(--syntax-green);"></i>
+                        <h6>System Secured</h6>
+                        <p class="small">Monitoring agents for suspicious patterns.</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .list-group-item:hover {
+        background-color: var(--bg-hover) !important;
+    }
+
+    .btn-link:hover {
+        color: var(--accent-primary) !important;
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Auto-refresh dashboard every 15 seconds (faster than general refresh)
-    setInterval(function() {
-        location.reload();
-    }, 15000);
+    // Enhanced Dashboard JavaScript
+    class EnhancedDashboard {
+        constructor() {
+            this.initLoader();
+            this.initAnimations();
+            this.initNumberCounters();
+            this.initInteractiveElements();
+            this.setupRealTimeUpdates();
+        }
+
+        initLoader() {
+            // Hide page loader after content is loaded
+            setTimeout(() => {
+                const loader = document.getElementById('page-loader');
+                if (loader) {
+                    loader.classList.add('hide');
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }
+            }, 1000);
+        }
+
+        initAnimations() {
+            // Intersection Observer for scroll animations
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                        
+                        // Trigger number animation
+                        if (entry.target.classList.contains('animate-number')) {
+                            this.animateNumber(entry.target);
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all metric cards and numbers
+            document.querySelectorAll('.metric-card, .animate-number').forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                el.style.transition = 'all 0.6s ease';
+                observer.observe(el);
+            });
+        }
+
+        animateNumber(element) {
+            const target = parseInt(element.dataset.target) || parseInt(element.textContent);
+            const duration = 2000;
+            const step = target / (duration / 16);
+            let current = 0;
+
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        initInteractiveElements() {
+            // Add hover effects to metric cards
+            document.querySelectorAll('.metric-card').forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    const icon = card.querySelector('.metric-icon');
+                    if (icon) {
+                        icon.style.transform = 'scale(1.1) rotate(5deg)';
+                        icon.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                    }
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    const icon = card.querySelector('.metric-icon');
+                    if (icon) {
+                        icon.style.transform = 'scale(1) rotate(0deg)';
+                    }
+                });
+            });
+
+            // Platform icon interactions
+            document.querySelectorAll('.platform-icon').forEach(icon => {
+                icon.addEventListener('click', () => {
+                    icon.style.animation = 'pulse 0.6s ease';
+                    setTimeout(() => {
+                        icon.style.animation = '';
+                    }, 600);
+                });
+            });
+
+            // Hex content interactions
+            document.querySelectorAll('.hex-content').forEach(el => {
+                el.addEventListener('click', function () {
+                    this.style.whiteSpace = this.style.whiteSpace === 'nowrap' ? 'normal' : 'nowrap';
+                });
+            });
+        }
+
+        setupRealTimeUpdates() {
+            // Update dashboard data every 30 seconds
+            setInterval(() => {
+                this.fetchAndUpdateData();
+            }, 30000);
+        }
+
+        async fetchAndUpdateData() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.updateMetrics(data);
+                    
+                    if (window.securityDashboard) {
+                        window.securityDashboard.showNotification(
+                            'Dashboard updated', 
+                            'success', 
+                            '<i class="fas fa-sync-alt"></i>'
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update dashboard:', error);
+            }
+        }
+
+        updateMetrics(data) {
+            // Update metric values with animation
+            const metrics = {
+                'total-agents': data.total_agents,
+                'active-agents': data.active_agents,
+                'pending-alerts': data.pending_alerts
+            };
+
+            Object.entries(metrics).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element && parseInt(element.textContent) !== value) {
+                    element.dataset.target = value;
+                    this.animateNumber(element);
+                }
+            });
+
+            // Update progress rings and indicators
+            this.updateProgressElements(data);
+        }
+
+        updateProgressElements(data) {
+            // Update progress rings
+            const progressRing = document.querySelector('.progress-ring-circle');
+            if (progressRing && data.total_agents > 0) {
+                const percentage = (data.active_agents / data.total_agents) * 100;
+                progressRing.style.setProperty('--progress', percentage);
+            }
+
+            // Update status dots
+            const statusDots = document.querySelectorAll('.status-dot');
+            statusDots.forEach((dot, index) => {
+                if (index < data.active_agents) {
+                    dot.classList.add('online');
+                    dot.classList.remove('offline');
+                } else {
+                    dot.classList.add('offline');
+                    dot.classList.remove('online');
+                }
+            });
+        }
+
+        // Public method for manual refresh
+        refresh() {
+            this.fetchAndUpdateData();
+        }
+    }
+
+    // Global refresh function
+    function refreshDashboard() {
+        if (window.enhancedDashboard) {
+            window.enhancedDashboard.refresh();
+        }
+        if (window.securityDashboard) {
+            window.securityDashboard.fetchDashboardStats();
+            window.securityDashboard.showNotification('Dashboard refreshed', 'success', '<i class="fas fa-sync-alt"></i>');
+        }
+    }
+
+    // Initialize enhanced dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        window.enhancedDashboard = new EnhancedDashboard();
+        
+        // Add hero button effects
+        const heroActions = document.querySelectorAll('.hero-actions .btn');
+        heroActions.forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = 'translateY(-2px)';
+                btn.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
+                btn.style.transition = 'all 0.3s ease';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = 'translateY(0)';
+                btn.style.boxShadow = '';
+            });
+        });
+
+        // Particle effect for hero section
+        const hero = document.querySelector('.modern-hero');
+        if (hero) {
+            this.createFloatingParticles(hero);
+        }
+    });
+
+    // Floating particles effect
+    function createFloatingParticles(container) {
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.style.cssText = `
+                position: absolute;
+                width: 4px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                pointer-events: none;
+                animation: floatParticle ${15 + Math.random() * 10}s infinite linear;
+                animation-delay: ${Math.random() * 15}s;
+                left: ${Math.random() * 100}%;
+                top: 100%;
+            `;
+            container.appendChild(particle);
+        }
+    }
+
+    // Add particle animation CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes floatParticle {
+            from {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0;
+            }
+            10%, 90% {
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
 </script>
 {% endblock %}

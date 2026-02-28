@@ -1,0 +1,85 @@
+<!-- Isolation Modal -->
+<div class="modal fade" id="isolateModal{{ agent.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+            style="background-color: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-main);">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title">Isolate Agent</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('isolate_agent_web', agent_id=agent.agent_id) }}">
+                <div class="modal-body">
+                    <p>Are you sure you want to isolate <strong class="text-primary">{{ agent.hostname }}</strong>?</p>
+                    <div class="p-3 mb-3 rounded"
+                        style="background-color: rgba(218, 54, 51, 0.1); border: 1px solid rgba(218, 54, 51, 0.2);">
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            This will block all network traffic for this agent immediately.
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">ISOLATION DURATION</label>
+                        <select name="duration" class="form-select mb-3"
+                            style="background-color: var(--bg-deep); border: 1px solid var(--border-default); color: var(--text-main);">
+                            <option value="1m">1 Minute (Testing)</option>
+                            <option value="1h">1 Hour</option>
+                            <option value="1d">1 Day</option>
+                            <option value="indefinite" selected>Indefinite</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">REASON FOR ISOLATION</label>
+                        <textarea name="reason" class="form-control" rows="3"
+                            style="background-color: var(--bg-deep); border: 1px solid var(--border-default); color: var(--text-main);"
+                            placeholder="Enter reason for network isolation...">Threat detected via web interface</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger px-4">
+                        <i class="fas fa-ban me-1"></i> Isolate Agent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Modal -->
+<div class="modal fade" id="restoreModal{{ agent.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+            style="background-color: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-main);">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title">Restore Agent Access</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('restore_agent_web', agent_id=agent.agent_id) }}">
+                <div class="modal-body">
+                    <p>Restore network access for <strong class="text-success">{{ agent.hostname }}</strong>?</p>
+                    <div class="p-3 mb-3 rounded"
+                        style="background-color: rgba(35, 134, 54, 0.1); border: 1px solid rgba(35, 134, 54, 0.2);">
+                        <small class="text-success">
+                            <i class="fas fa-info-circle me-1"></i>
+                            This will remove network isolation and restore full connectivity.
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">REASON FOR RESTORATION</label>
+                        <textarea name="reason" class="form-control" rows="3"
+                            style="background-color: var(--bg-deep); border: 1px solid var(--border-default); color: var(--text-main);"
+                            placeholder="Enter reason for restoration...">Threat resolved - restoring network access</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4">
+                        <i class="fas fa-undo me-1"></i> Restore Access
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
