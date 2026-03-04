@@ -57,28 +57,7 @@ body {
     color: var(--text-secondary) !important;
 }
 
-/* Theme Toggle Button */
-.theme-toggle {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1050;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-card);
-    border: 2px solid var(--border-color);
-    box-shadow: 0 4px 12px var(--shadow-color);
-    transition: all 0.3s ease;
-}
-
-.theme-toggle:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px var(--shadow-color);
-}
+/* Theme toggle removed per user request */
 
 /* Status Indicators with Animation */
 .status-indicator {
@@ -232,12 +211,7 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .theme-toggle {
-        top: 10px;
-        right: 10px;
-        width: 40px;
-        height: 40px;
-    }
+    /* Theme toggle removed - responsive styles no longer needed */
     
     .toast-container {
         top: 60px;

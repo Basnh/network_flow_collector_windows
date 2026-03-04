@@ -2,77 +2,91 @@
 
 class SecurityDashboard {
     constructor() {
-        this.init();
-        this.setupThemeToggle();
-        this.setupRealTimeUpdates();
-        this.setupNotifications();
-        this.setupAnimations();
+        try {
+            console.log('🛡️ Initializing Security Dashboard with error protection...');
+            
+            this.init();
+            // Removed theme toggle - this.setupThemeToggle();
+            this.setupRealTimeUpdates();
+            this.setupNotifications();
+            this.setupAnimations();
+            
+            console.log('✅ Security Dashboard initialized successfully');
+            
+        } catch (error) {
+            console.error('❌ Security Dashboard initialization failed:', error);
+            if (window.handleJavaScriptError) {
+                window.handleJavaScriptError(error, 'security-dashboard-init');
+            }
+        }
     }
 
     init() {
-        // Initialize theme from localStorage
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        
-        // Show loading complete
-        setTimeout(() => {
-            this.hideLoading();
-        }, 1000);
-    }
-
-    // Theme Toggle System
-    setupThemeToggle() {
-        // Create theme toggle button if not exists
-        if (!document.querySelector('.theme-toggle')) {
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'btn theme-toggle';
-            toggleBtn.innerHTML = '<i class="fas fa-moon" id="theme-icon"></i>';
-            toggleBtn.addEventListener('click', this.toggleTheme.bind(this));
-            document.body.appendChild(toggleBtn);
-        }
-
-        this.updateThemeIcon();
-    }
-
-    toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        this.updateThemeIcon();
-        
-        // Show notification
-        this.showNotification(
-            `Switched to ${newTheme} mode`, 
-            'success', 
-            `<i class="fas fa-${newTheme === 'dark' ? 'moon' : 'sun'}"></i>`
-        );
-    }
-
-    updateThemeIcon() {
-        const themeIcon = document.getElementById('theme-icon');
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        
-        if (themeIcon) {
-            themeIcon.className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        try {
+            // Initialize theme - keeping light theme as default
+            document.documentElement.setAttribute('data-theme', 'light');
+            
+            // Show loading complete
+            setTimeout(() => {
+                this.hideLoading();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Security Dashboard init failed:', error);
+            if (window.handleJavaScriptError) {
+                window.handleJavaScriptError(error, 'security-dashboard-setup');
+            }
         }
     }
+
+    /* Theme toggle system removed per user request */
 
     // Real-time Updates
     setupRealTimeUpdates() {
-        // Update dashboard stats every 30 seconds
-        this.updateInterval = setInterval(() => {
-            this.fetchDashboardStats();
-        }, 30000);
+        try {
+            console.log('🔄 Setting up real-time updates...');
+            
+            // Use safe intervals if available
+            if (window.setSafeInterval) {
+                // Update dashboard stats every 30 seconds
+                this.updateInterval = window.setSafeInterval(() => {
+                    this.fetchDashboardStats();
+                }, 30000, 'enhanced-dashboard-stats');
 
-        // Update agent status every 10 seconds
-        this.agentStatusInterval = setInterval(() => {
-            this.updateAgentStatus();
-        }, 10000);
+                // Update agent status every 10 seconds
+                this.agentStatusInterval = window.setSafeInterval(() => {
+                    this.updateAgentStatus();
+                }, 10000, 'enhanced-agent-status');
+            } else {
+                // Fallback to regular intervals with error handling
+                this.updateInterval = setInterval(() => {
+                    try {
+                        this.fetchDashboardStats();
+                    } catch (error) {
+                        console.error('Dashboard stats update error:', error);
+                    }
+                }, 30000);
 
-        // Add real-time activity feed
-        this.setupActivityFeed();
+                this.agentStatusInterval = setInterval(() => {
+                    try {
+                        this.updateAgentStatus();
+                    } catch (error) {
+                        console.error('Agent status update error:', error);
+                    }
+                }, 10000);
+            }
+
+            // Add real-time activity feed
+            this.setupActivityFeed();
+            
+            console.log('✅ Real-time updates configured successfully');
+            
+        } catch (error) {
+            console.error('❌ Failed to setup real-time updates:', error);
+            if (window.handleJavaScriptError) {
+                window.handleJavaScriptError(error, 'enhanced-realtime-setup');
+            }
+        }
     }
 
     async fetchDashboardStats() {
@@ -81,39 +95,88 @@ class SecurityDashboard {
             if (response.ok) {
                 const data = await response.json();
                 this.updateStatsCards(data);
+            } else {
+                console.warn('Failed to fetch dashboard stats:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Error fetching stats:', error);
+            // Track error for global error recovery system
+            if (window.trackError) {
+                window.trackError(error, 'fetchDashboardStats');
+            }
         }
     }
 
     updateStatsCards(data) {
-        // Animate number changes
-        this.animateNumber('total-agents', data.total_agents);
-        this.animateNumber('active-agents', data.active_agents);
-        this.animateNumber('isolated-agents', data.isolated_agents);
-        
-        // Update threat level indicator
-        this.updateThreatLevel(data.threat_level);
+        try {
+            // Animate number changes with error protection
+            if (data.total_agents !== undefined) {
+                this.animateNumber('total-agents', data.total_agents);
+            }
+            if (data.active_agents !== undefined) {
+                this.animateNumber('active-agents', data.active_agents);
+            }
+            if (data.isolated_agents !== undefined) {
+                this.animateNumber('isolated-agents', data.isolated_agents);
+            }
+            
+            // Update threat level indicator
+            if (data.threat_level !== undefined) {
+                this.updateThreatLevel(data.threat_level);
+            }
+        } catch (error) {
+            console.error('Error updating stats cards:', error);
+            if (window.trackError) {
+                window.trackError(error, 'updateStatsCards');
+            }
+        }
     }
 
     animateNumber(elementId, newValue) {
-        const element = document.getElementById(elementId);
-        if (!element) return;
-
-        const currentValue = parseInt(element.textContent) || 0;
-        const increment = newValue > currentValue ? 1 : -1;
-        const step = Math.abs(newValue - currentValue) / 20;
-
-        let counter = currentValue;
-        const timer = setInterval(() => {
-            counter += increment * step;
-            if ((increment > 0 && counter >= newValue) || (increment < 0 && counter <= newValue)) {
-                counter = newValue;
-                clearInterval(timer);
+        try {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.warn(`Element with ID '${elementId}' not found for number animation`);
+                return;
             }
-            element.textContent = Math.floor(counter);
-        }, 50);
+
+            const currentValue = parseInt(element.textContent) || 0;
+            
+            // Skip animation if values are the same
+            if (currentValue === newValue) return;
+            
+            const increment = newValue > currentValue ? 1 : -1;
+            const step = Math.abs(newValue - currentValue) / 20;
+
+            let counter = currentValue;
+            const timer = setInterval(() => {
+                try {
+                    counter += increment * step;
+                    if ((increment > 0 && counter >= newValue) || (increment < 0 && counter <= newValue)) {
+                        counter = newValue;
+                        clearInterval(timer);
+                    }
+                    element.textContent = Math.floor(counter);
+                } catch (innerError) {
+                    console.error('Error during number animation step:', innerError);
+                    clearInterval(timer);
+                    element.textContent = newValue; // Fallback to final value
+                }
+            }, 50);
+        } catch (error) {
+            console.error(`Error animating number for element '${elementId}':`, error);
+            if (window.trackError) {
+                window.trackError(error, `animateNumber-${elementId}`);
+            }
+            
+            // Fallback: just set the value directly
+            try {
+                const element = document.getElementById(elementId);
+                if (element) element.textContent = newValue;
+            } catch (fallbackError) {
+                console.error('Fallback animation also failed:', fallbackError);
+            }
+        }
     }
 
     // Notifications System
@@ -155,12 +218,35 @@ class SecurityDashboard {
 
     // Activity Feed
     setupActivityFeed() {
-        // Create activity feed if not exists
-        const sidebar = document.querySelector('.activity-sidebar');
-        if (sidebar) {
-            this.activityInterval = setInterval(() => {
-                this.fetchLatestActivity();
-            }, 15000);
+        try {
+            // Create activity feed if not exists
+            const sidebar = document.querySelector('.activity-sidebar');
+            if (sidebar) {
+                // Use safe interval if available
+                if (window.setSafeInterval) {
+                    this.activityInterval = window.setSafeInterval(() => {
+                        try {
+                            this.fetchLatestActivity();
+                        } catch (error) {
+                            console.error('Error in activity feed update:', error);
+                            if (window.trackError) window.trackError(error);
+                        }
+                    }, 15000, 'enhanced-activity-feed');
+                } else {
+                    this.activityInterval = setInterval(() => {
+                        try {
+                            this.fetchLatestActivity();
+                        } catch (error) {
+                            console.error('Error in activity feed update:', error);
+                        }
+                    }, 15000);
+                }
+            }
+        } catch (error) {
+            console.error('Error setting up activity feed:', error);
+            if (window.trackError) {
+                window.trackError(error, 'setupActivityFeed');
+            }
         }
     }
 
@@ -170,9 +256,15 @@ class SecurityDashboard {
             if (response.ok) {
                 const activities = await response.json();
                 this.updateActivityFeed(activities);
+            } else {
+                console.warn('Failed to fetch activity:', response.status, response.statusText);
             }
         } catch (error) {
             console.error('Error fetching activity:', error);
+            // Track error for global error recovery system
+            if (window.trackError) {
+                window.trackError(error, 'fetchLatestActivity');
+            }
         }
     }
 
@@ -255,19 +347,31 @@ class SecurityDashboard {
 
     // Agent Status Updates
     async updateAgentStatus() {
-        const agentCards = document.querySelectorAll('[data-agent-id]');
-        agentCards.forEach(async (card) => {
-            const agentId = card.dataset.agentId;
-            try {
-                const response = await fetch(`/api/agents/${agentId}/status`);
-                if (response.ok) {
-                    const data = await response.json();
-                    this.updateAgentCard(card, data);
+        try {
+            const agentCards = document.querySelectorAll('[data-agent-id]');
+            for (const card of agentCards) {
+                const agentId = card.dataset.agentId;
+                try {
+                    const response = await fetch(`/api/agents/${agentId}/status`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.updateAgentCard(card, data);
+                    } else {
+                        console.warn(`Failed to fetch agent ${agentId} status:`, response.status);
+                    }
+                } catch (error) {
+                    console.error(`Error updating agent ${agentId}:`, error);
+                    if (window.trackError) {
+                        window.trackError(error, `updateAgent-${agentId}`);
+                    }
                 }
-            } catch (error) {
-                console.error(`Error updating agent ${agentId}:`, error);
             }
-        });
+        } catch (error) {
+            console.error('Error in updateAgentStatus:', error);
+            if (window.trackError) {
+                window.trackError(error, 'updateAgentStatus');
+            }
+        }
     }
 
     updateAgentCard(card, data) {
@@ -298,10 +402,43 @@ class SecurityDashboard {
     }
 
     cleanup() {
-        // Clear intervals when page unloads
-        if (this.updateInterval) clearInterval(this.updateInterval);
-        if (this.agentStatusInterval) clearInterval(this.agentStatusInterval);
-        if (this.activityInterval) clearInterval(this.activityInterval);
+        try {
+            console.log('🧹 Cleaning up SecurityDashboard intervals...');
+            
+            // Clear intervals using safe cleanup if available
+            if (window.clearSafeInterval) {
+                if (this.updateInterval) {
+                    window.clearSafeInterval(this.updateInterval);
+                    this.updateInterval = null;
+                }
+                if (this.agentStatusInterval) {
+                    window.clearSafeInterval(this.agentStatusInterval);
+                    this.agentStatusInterval = null;
+                }
+                if (this.activityInterval) {
+                    window.clearSafeInterval(this.activityInterval);
+                    this.activityInterval = null;
+                }
+            } else {
+                // Fallback to regular clearInterval
+                if (this.updateInterval) {
+                    clearInterval(this.updateInterval);
+                    this.updateInterval = null;
+                }
+                if (this.agentStatusInterval) {
+                    clearInterval(this.agentStatusInterval);
+                    this.agentStatusInterval = null;
+                }
+                if (this.activityInterval) {
+                    clearInterval(this.activityInterval);
+                    this.activityInterval = null;
+                }
+            }
+            
+            console.log('✅ SecurityDashboard cleanup completed');
+        } catch (error) {
+            console.error('❌ Error during cleanup:', error);
+        }
     }
 }
 
@@ -321,74 +458,114 @@ class AlertSoundSystem {
     }
 
     playAlert(type = 'warning') {
-        if (!this.audioContext) return;
+        try {
+            if (!this.audioContext) return;
 
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
 
-        oscillator.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
 
-        // Different frequencies for different alert types
-        const frequencies = {
-            success: 800,
-            warning: 600,
-            error: 400,
-            critical: 300
-        };
+            // Different frequencies for different alert types
+            const frequencies = {
+                success: 800,
+                warning: 600,
+                error: 400,
+                critical: 300
+            };
 
-        oscillator.frequency.setValueAtTime(frequencies[type] || 600, this.audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+            oscillator.frequency.setValueAtTime(frequencies[type] || 600, this.audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
 
-        oscillator.start(this.audioContext.currentTime);
-        oscillator.stop(this.audioContext.currentTime + 0.5);
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.5);
+        } catch (error) {
+            console.error('Error playing alert sound:', error);
+            // Track error but don't crash the application
+            if (window.trackError) {
+                window.trackError(error, 'alertSoundPlay');
+            }
+        }
     }
 }
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.securityDashboard = new SecurityDashboard();
-    window.alertSounds = new AlertSoundSystem();
-    
-    // Add CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-        .animate-in {
-            animation: fadeInUp 0.6s ease-out;
+    try {
+        console.log('🚀 Initializing Enhanced Security Dashboard...');
+        
+        // Initialize security dashboard with error protection
+        window.securityDashboard = new SecurityDashboard();
+        console.log('✅ SecurityDashboard initialized');
+        
+        // Initialize alert sound system with error protection
+        window.alertSounds = new AlertSoundSystem();
+        console.log('✅ AlertSoundSystem initialized');
+        
+        // Add CSS animations with error protection
+        try {
+            const style = document.createElement('style');
+            style.textContent = `
+                .animate-in {
+                    animation: fadeInUp 0.6s ease-out;
+                }
+                
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                .page-loader {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: var(--bg-primary);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 9999;
+                    transition: opacity 0.3s ease;
+                }
+            `;
+            document.head.appendChild(style);
+            console.log('✅ CSS animations added');
+        } catch (error) {
+            console.error('❌ Error adding CSS animations:', error);
+            if (window.trackError) window.trackError(error, 'css-animations');
         }
         
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        console.log('🎉 Enhanced Security Dashboard fully initialized');
+        
+    } catch (error) {
+        console.error('❌ Critical error initializing Enhanced Security Dashboard:', error);
+        if (window.trackError) {
+            window.trackError(error, 'enhanced-dashboard-init');
         }
         
-        .page-loader {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.3s ease;
+        // Show user-friendly error
+        if (window.showErrorOverlay) {
+            window.showErrorOverlay('Failed to initialize enhanced dashboard features. Please refresh the page.');
         }
-    `;
-    document.head.appendChild(style);
+    }
 });
 
-// Cleanup on page unload
+// Cleanup on page unload with error protection
 window.addEventListener('beforeunload', () => {
-    if (window.securityDashboard) {
-        window.securityDashboard.cleanup();
+    try {
+        if (window.securityDashboard) {
+            window.securityDashboard.cleanup();
+        }
+    } catch (error) {
+        console.error('Error during page unload cleanup:', error);
     }
 });

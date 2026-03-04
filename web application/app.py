@@ -719,6 +719,195 @@ def api_latest_activity():
 
 @app.route('/api/threats/summary')
 def api_threats_summary():
+    """Get threat summary for dashboard"""
+    try:
+        # Count threats by severity
+        threats_by_severity = {
+            'critical': SecurityAlert.query.filter_by(
+                is_resolved=False, severity='critical'
+            ).count(),
+            'high': SecurityAlert.query.filter_by(
+                is_resolved=False, severity='high'  
+            ).count(),
+            'medium': SecurityAlert.query.filter_by(
+                is_resolved=False, severity='medium'
+            ).count(),
+            'low': SecurityAlert.query.filter_by(
+                is_resolved=False, severity='low'
+            ).count()
+        }
+        
+        # Recent malicious flows
+        recent_threats = NetworkFlow.query.filter_by(is_malicious=True)\
+            .order_by(NetworkFlow.created_at.desc()).limit(5).all()
+        
+        threat_flows = []
+        for flow in recent_threats:
+            threat_flows.append({
+                'id': flow.id,
+                'src_ip': flow.src_ip,
+                'dst_ip': flow.dst_ip,
+                'protocol': flow.protocol,
+                'threat_score': flow.threat_score,
+                'timestamp': flow.timestamp.strftime('%H:%M:%S')
+            })
+        
+        return jsonify({
+            'threats_by_severity': threats_by_severity,
+            'recent_threats': threat_flows,
+            'total_threats': sum(threats_by_severity.values()),
+            'last_updated': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching threats summary: {e}")
+        return jsonify({'error': 'Unable to fetch threats summary'}), 500
+
+# ==================== REAL-TIME UPDATE API ENDPOINTS ====================
+
+@app.route('/api/alerts/recent')
+def api_recent_alerts():
+    """Get recent alerts for real-time updates (no page reload)"""
+    try:
+        alerts = SecurityAlert.query.filter_by(is_resolved=False)\
+            .order_by(SecurityAlert.created_at.desc()).limit(15).all()
+        
+        alerts_data = []
+        for alert in alerts:
+            alerts_data.append({
+                'id': alert.id,
+                'alert_type': alert.alert_type,
+                'severity': alert.severity,
+                'title': alert.title,
+                'description': alert.description,
+                'agent_id': alert.agent_id,
+                'flow_id': alert.flow_id,
+                'is_resolved': alert.is_resolved,
+                'created_at': alert.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'time_ago': get_time_ago(alert.created_at)
+            })
+        
+        return jsonify(alerts_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching recent alerts: {e}")
+        return jsonify([])
+
+@app.route('/api/agents/status')
+def api_agents_status():
+    """Get all agents status for real-time updates"""
+    try:
+        agents = Agent.query.all()
+        agents_data = []
+        
+        for agent in agents:
+            # Check if agent is online (seen within last 2 minutes)
+            last_seen_threshold = datetime.utcnow() - timedelta(minutes=2)
+            is_online = agent.last_seen and agent.last_seen > last_seen_threshold
+            
+            agents_data.append({
+                'id': agent.id,
+                'agent_id': agent.agent_id,
+                'hostname': agent.hostname,
+                'ip_address': agent.ip_address,
+                'status': 'active' if is_online else 'disconnected',
+                'threat_level': agent.threat_level,
+                'last_seen': agent.last_seen.strftime('%Y-%m-%d %H:%M:%S') if agent.last_seen else None
+            })
+        
+        return jsonify(agents_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching agents status: {e}")
+        return jsonify([])
+
+@app.route('/api/dashboard/metrics')
+def api_dashboard_metrics():
+    """Enhanced dashboard metrics for smooth updates"""
+    try:
+        # Get current time for relative calculations
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Calculate comprehensive metrics
+        total_agents = Agent.query.count()
+        active_agents = Agent.query.filter(
+            Agent.last_seen >= now - timedelta(minutes=2)
+        ).count()
+        
+        # Alert metrics
+        all_alerts = SecurityAlert.query.filter_by(is_resolved=False).count()
+        critical_alerts = SecurityAlert.query.filter_by(
+            is_resolved=False, severity='critical'
+        ).count()
+        
+        # Flow metrics
+        total_flows_today = NetworkFlow.query.filter(
+            NetworkFlow.created_at >= today_start
+        ).count()
+        
+        threat_flows = NetworkFlow.query.filter_by(is_malicious=True).filter(
+            NetworkFlow.created_at >= today_start
+        ).count()
+        
+        # Network activity (last hour)
+        recent_activity = NetworkFlow.query.filter(
+            NetworkFlow.created_at >= now - timedelta(hours=1)
+        ).count()
+        
+        metrics = {
+            'agents': {
+                'total': total_agents,
+                'active': active_agents,
+                'offline': total_agents - active_agents,
+                'percentage': round((active_agents / total_agents * 100) if total_agents > 0 else 0, 1)
+            },
+            'alerts': {
+                'total': all_alerts,
+                'critical': critical_alerts,
+                'recent_alerts_count': all_alerts
+            },
+            'flows': {
+                'total_today': total_flows_today,
+                'threats': threat_flows,
+                'recent_activity': recent_activity,
+                'threat_percentage': round((threat_flows / total_flows_today * 100) if total_flows_today > 0 else 0, 1)
+            },
+            'system': {
+                'uptime': '24h 15m',  # Mock data - replace with actual system uptime
+                'cpu_usage': 65,      # Mock data - replace with actual CPU
+                'memory_usage': 78,   # Mock data - replace with actual memory
+                'disk_usage': 42      # Mock data - replace with actual disk
+            },
+            'last_updated': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'timestamp': now.isoformat()
+        }
+        
+        return jsonify(metrics)
+        
+    except Exception as e:
+        logger.error(f"Error fetching dashboard metrics: {e}")
+        return jsonify({'error': 'Unable to fetch metrics'}), 500
+
+def get_time_ago(timestamp):
+    """Calculate human-readable time ago"""
+    now = datetime.utcnow()
+    diff = now - timestamp
+    
+    seconds = diff.total_seconds()
+    
+    if seconds < 60:
+        return "Just now"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        return f"{minutes}m ago"
+    elif seconds < 86400:
+        hours = int(seconds // 3600)
+        return f"{hours}h ago"
+    else:
+        days = int(seconds // 86400)
+        return f"{days}d ago"
+def api_threats_summary():
     """Get threat summary for real-time updates"""
     try:
         now = datetime.utcnow()

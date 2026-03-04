@@ -13,13 +13,17 @@
     <!-- AOS (Animate On Scroll) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom Animations -->
     <link href="{{ url_for('static', filename='css/animations.css') }}" rel="stylesheet">
     <!-- Enhanced Theme System -->
     <link href="{{ url_for('static', filename='css/theme.css') }}" rel="stylesheet">
     <!-- Dashboard Enhanced Styles -->
     <link href="{{ url_for('static', filename='css/dashboard-enhanced.css') }}" rel="stylesheet">
+    <!-- Cybersecurity Dashboard Styles -->
+    <link href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}" rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
 
     <style>
         :root {
@@ -64,7 +68,23 @@
             overflow-x: hidden;
         }
 
-        /* Glassmorphism sidebar & navbar */
+        /* Full screen container */
+        .full-screen-container {
+            width: 100vw;
+            height: calc(100vh - 61px);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .full-screen-container main {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Glassmorphism navbar */
         .navbar {
             background: rgba(255, 255, 255, 0.8) !important;
             backdrop-filter: blur(12px);
@@ -87,49 +107,34 @@
             color: var(--accent-primary);
         }
 
+        /* Navigation Links Styling */
+        .navbar-nav .nav-link {
+            color: var(--text-main) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            margin: 0 0.25rem;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-nav .nav-link:hover {
+            background-color: var(--bg-hover);
+            color: var(--accent-primary) !important;
+            transform: translateY(-1px);
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 0.9rem;
+        }
+
         .table {
             color: var(--text-main) !important;
         }
 
         .table thead {
             background-color: var(--bg-deep) !important;
-        }
-
-        .sidebar {
-            background: var(--bg-surface);
-            border-right: 1px solid var(--border-default);
-            height: calc(100vh - 61px);
-            position: sticky;
-            top: 61px;
-            padding-top: 1.5rem;
-            z-index: 100;
-        }
-
-        .sidebar .nav-link {
-            color: var(--text-muted);
-            border-radius: 6px;
-            margin: 4px 12px;
-            padding: 10px 16px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar .nav-link:hover {
-            background-color: var(--bg-hover);
-            color: var(--text-main);
-        }
-
-        .sidebar .nav-link.active {
-            background-color: var(--bg-hover);
-            color: var(--accent-primary);
-            border-left: 3px solid var(--accent-primary);
-        }
-
-        .sidebar .nav-link i {
-            width: 20px;
-            text-align: center;
         }
 
         /* Developer Premium Cards */
@@ -236,15 +241,89 @@
         .fade-in {
             animation: fadeIn 0.4s ease-out forwards;
         }
+        
+        /* Enhanced Page Loader */
+        .page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        
+        .page-loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(56, 189, 248, 0.2);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Error Recovery Overlay */
+        .error-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 18, 32, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(8px);
+        }
+        
+        .error-content {
+            text-align: center;
+            color: var(--text-primary);
+            max-width: 400px;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-default);
+        }
+        
+        .error-content i {
+            font-size: 3rem;
+            color: var(--status-warning);
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
-    <!-- Page Loader -->
-    <div class="page-loader">
+    <!-- Enhanced Page Loader with Auto-Hide -->
+    <div class="page-loader" id="pageLoader">
         <div class="d-flex flex-column align-items-center">
             <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
             <h5 class="gradient-text">Loading Security Dashboard...</h5>
+        </div>
+    </div>
+    
+    <!-- Error Recovery Overlay -->
+    <div class="error-overlay" id="errorOverlay" style="display: none;">
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4>Connection Issue Detected</h4>
+            <p>Reconnecting to security dashboard...</p>
+            <button class="btn btn-primary" onclick="forceReload()">Reload Dashboard</button>
         </div>
     </div>
 
@@ -255,65 +334,46 @@
                 <i class="fas fa-shield-alt"></i> Project Luận Văn
             </a>
 
+            <!-- Navigation Links -->
             <div class="navbar-nav ms-auto">
-                <span class="navbar-text">
-                    <i class="fas fa-clock"></i> <span id="current-time"></span>
-                </span>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                </a>
+                <a class="nav-link" href="{{ url_for('agents_list') }}">
+                    <i class="fas fa-desktop me-1"></i> Agents
+                </a>
+                <a class="nav-link" href="{{ url_for('alerts_list') }}">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Alerts
+                </a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
-                                href="{{ url_for('dashboard') }}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'agents_list' %}active{% endif %}"
-                                href="{{ url_for('agents_list') }}">
-                                <i class="fas fa-desktop"></i> Agents
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'alerts_list' %}active{% endif %}"
-                                href="{{ url_for('alerts_list') }}">
-                                <i class="fas fa-exclamation-triangle"></i> Alerts
-                            </a>
-                        </li>
-                    </ul>
+    <div class="full-screen-container">
+        <!-- Main content -->
+        <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; width: calc(100% - 40px);">
+                {% for category, message in messages %}
+                <div
+                    class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
+                {% endfor %}
             </div>
+            {% endif %}
+            {% endwith %}
 
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <div class="mt-3">
-                    {% for category, message in messages %}
-                    <div
-                        class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                {% endwith %}
-
-                {% block content %}{% endblock %}
-            </main>
-        </div>
+            {% block content %}{% endblock %}
+        </main>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- AOS (Animate On Scroll) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
     <!-- Custom Dashboard Effects -->
@@ -454,6 +514,190 @@
     </script>
 
     {% block scripts %}{% endblock %}
+    
+    <!-- Enhanced Page Stability & Error Recovery -->
+    <script>
+        // Global error tracking and recovery system
+        let errorCount = 0;
+        let isRecovering = false;
+        let intervalIds = [];
+        
+        // Page loader management
+        function hidePageLoader() {
+            const loader = document.getElementById('pageLoader');
+            if (loader) {
+                setTimeout(() => {
+                    loader.classList.add('hidden');
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                    }, 500);
+                }, 300);
+            }
+        }
+        
+        // Enhanced error recovery system
+        function showErrorOverlay() {
+            const overlay = document.getElementById('errorOverlay');
+            if (overlay && !isRecovering) {
+                isRecovering = true;
+                overlay.style.display = 'flex';
+                console.log('🚨 Error overlay activated - Recovery mode');
+                
+                // Auto-hide after 5 seconds if no manual action
+                setTimeout(() => {
+                    if (isRecovering) {
+                        attemptRecovery();
+                    }
+                }, 5000);
+            }
+        }
+        
+        function hideErrorOverlay() {
+            const overlay = document.getElementById('errorOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                isRecovering = false;
+                errorCount = 0;
+            }
+        }
+        
+        function attemptRecovery() {
+            console.log('🔄 Attempting automatic recovery...');
+            
+            // Clear all intervals to prevent conflicts
+            intervalIds.forEach(id => clearInterval(id));
+            intervalIds = [];
+            
+            // Reset dashboard state
+            if (window.dashboard && typeof window.dashboard.realTimeUpdates !== 'undefined') {
+                window.dashboard.realTimeUpdates = false;
+                setTimeout(() => {
+                    window.dashboard.realTimeUpdates = true;
+                    console.log('✅ Dashboard recovery successful');
+                }, 1000);
+            }
+            
+            hideErrorOverlay();
+        }
+        
+        function forceReload() {
+            console.log('🔄 Force reloading dashboard...');
+            window.location.reload();
+        }
+        
+        // Safe interval management
+        function setSafeInterval(func, delay, context = 'dashboard') {
+            try {
+                const id = setInterval(() => {
+                    try {
+                        func();
+                    } catch (error) {
+                        console.error(`Interval error in ${context}:`, error);
+                        handleJavaScriptError(error, context);
+                    }
+                }, delay);
+                
+                intervalIds.push(id);
+                return id;
+            } catch (error) {
+                console.error('Failed to set interval:', error);
+                return null;
+            }
+        }
+        
+        // Enhanced error handling
+        function handleJavaScriptError(error, context = 'unknown') {
+            errorCount++;
+            console.error(`JS Error #${errorCount} in ${context}:`, error);
+            
+            // Show error overlay if too many errors
+            if (errorCount >= 3 && !isRecovering) {
+                showErrorOverlay();
+                return;
+            }
+            
+            // Try to recover from minor errors
+            if (errorCount < 3) {
+                console.log(`🔧 Minor error detected, attempting self-recovery (${errorCount}/3)`);
+                
+                // Reset error count after 30 seconds if no new errors
+                setTimeout(() => {
+                    if (errorCount > 0) {
+                        errorCount = Math.max(0, errorCount - 1);
+                    }
+                }, 30000);
+            }
+        }
+        
+        // Global error handlers
+        window.addEventListener('error', function(event) {
+            handleJavaScriptError(event.error, 'global');
+        });
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            handleJavaScriptError(event.reason, 'promise');
+        });
+        
+        // Page visibility handling (prevents issues when tab is inactive)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Pause intensive operations when tab is hidden
+                if (window.dashboard) {
+                    window.dashboard.realTimeUpdates = false;
+                }
+            } else {
+                // Resume when tab becomes visible
+                setTimeout(() => {
+                    if (window.dashboard) {
+                        window.dashboard.realTimeUpdates = true;
+                    }
+                }, 500);
+            }
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            // Clear all intervals
+            intervalIds.forEach(id => clearInterval(id));
+            
+            // Stop dashboard updates
+            if (window.dashboard) {
+                window.dashboard.realTimeUpdates = false;
+            }
+        });
+        
+        // Page load completion
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM loaded, initializing stability system...');
+            
+            // Hide loader after DOM is ready
+            hidePageLoader();
+            
+            // Additional safety check
+            setTimeout(() => {
+                if (document.getElementById('pageLoader') && 
+                    !document.getElementById('pageLoader').classList.contains('hidden')) {
+                    hidePageLoader();
+                }
+            }, 2000);
+        });
+        
+        // Complete page load
+        window.addEventListener('load', function() {
+            console.log('✅ Page fully loaded - Stability system active');
+            hidePageLoader();
+            
+            // Reset error count on successful load
+            errorCount = 0;
+            isRecovering = false;
+        });
+        
+        // Make functions globally available
+        window.setSafeInterval = setSafeInterval;
+        window.handleJavaScriptError = handleJavaScriptError;
+        window.attemptRecovery = attemptRecovery;
+        window.forceReload = forceReload;
+    </script>
 </body>
 
 </html>
