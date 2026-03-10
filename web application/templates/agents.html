@@ -1,121 +1,252 @@
 {% extends "base.html" %}
 
-{% block title %}Network Agents - Network Security Management{% endblock %}
+{% block title %}Windows Agents - Network Security Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="pt-4 pb-2 mb-4 fade-in">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h2 gradient-text">Network Agents</h1>
-        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshAgentsData()">
-            <i class="fas fa-sync-alt me-1"></i> Refresh
-        </button>
-    </div>
-
-    <!-- Agents Table -->
-    <div class="card shadow-sm">
-        <div class="card-header border-0 d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-desktop me-2 text-primary"></i> All Registered Agents ({{ agents|length }})</span>
+<!-- Cybersecurity Command Center Dashboard -->
+<div class="cybersec-dashboard">
+    
+    <!-- Top Status Bar -->
+    <div class="top-status-bar">
+        <div class="system-status">
+            <div class="status-item">
+                <div class="status-icon pulse-blue">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">TOTAL AGENTS</span>
+                    <span class="value">{{ agents|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-green">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">ACTIVE AGENTS</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'active')|list|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-red">
+                    <i class="fas fa-shield-virus"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">ISOLATED</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'isolated')|list|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-gray">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">OFFLINE</span>
+                    <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length }}</span>
+                </div>
+            </div>
         </div>
-        <div class="card-body p-0">
-            {% if agents %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0" style="color: var(--text-main);">
-                    <thead style="background-color: rgba(240, 246, 252, 0.02);">
-                        <tr>
-                            <th class="border-0 px-4 py-3 small text-muted">HOSTNAME</th>
-                            <th class="border-0 px-4 py-3 small text-muted">IP ADDRESS</th>
-                            <th class="border-0 px-4 py-3 small text-muted">STATUS</th>
-                            <th class="border-0 px-4 py-3 small text-muted">THREAT</th>
-                            <th class="border-0 px-4 py-3 small text-muted">LAST SEEN</th>
-                            <th class="border-0 px-4 py-3 small text-muted text-end">ACTIONS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for agent in agents %}
-                        <tr style="border-top: 1px solid var(--border-default);">
-                            <td class="px-4 py-3">
-                                <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
-                                    class="text-decoration-none fw-bold" style="color: var(--accent-primary);">
-                                    {{ agent.hostname }}
-                                </a>
-                                <div class="small text-muted mt-1">ID: {{ agent.agent_id[:8] }}...</div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <code style="color: var(--syntax-blue);">{{ agent.ip_address }}</code>
-                            </td>
-                            <td class="px-4 py-3">
-                                {% if agent.status == 'active' %}
-                                <span class="badge"
-                                    style="background-color: rgba(35, 134, 54, 0.1); color: var(--syntax-green); border: 1px solid var(--status-success);">
-                                    <i class="fas fa-check-circle me-1"></i> ACTIVE
-                                </span>
-                                {% elif agent.status == 'isolated' %}
-                                <span class="badge"
-                                    style="background-color: rgba(218, 54, 51, 0.1); color: var(--status-danger); border: 1px solid var(--status-danger);">
-                                    <i class="fas fa-ban me-1"></i> ISOLATED
-                                </span>
-                                {% if agent.isolated_until %}
-                                <div class="small text-muted mt-1" style="font-size: 0.7em;">
-                                    <i class="fas fa-clock me-1"></i> Ends: {{ agent.isolated_until.strftime('%H:%M') }}
-                                </div>
-                                {% endif %}
-                                {% else %}
-                                <span class="badge"
-                                    style="background-color: rgba(72, 79, 88, 0.1); color: var(--text-muted); border: 1px solid var(--border-default);">
-                                    <i class="fas fa-question-circle me-1"></i> OFFLINE
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="badge badge-{{ agent.threat_level }}">{{ agent.threat_level|upper }}</span>
-                            </td>
-                            <td class="px-4 py-3 small text-muted">
-                                {% set time_diff = (datetime.utcnow() - agent.last_seen).total_seconds() %}
-                                {% if time_diff < 60 %} <span class="text-success"><i
-                                        class="fas fa-circle-notch fa-spin me-1"></i> Just now</span>
-                                    {% elif time_diff < 3600 %} {{ (time_diff/60)|int }}m ago {% else %} {{
-                                        agent.last_seen.strftime('%Y-%m-%d') }} {% endif %} </td>
-                            <td class="px-4 py-3 text-end">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
-                                        class="btn btn-outline-secondary" title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if agent.status != 'isolated' %}
-                                    <button class="btn btn-outline-danger" data-bs-toggle="modal"
-                                        data-bs-target="#isolateModal{{ agent.id }}" title="Isolate">
-                                        <i class="fas fa-shield-virus"></i>
-                                    </button>
-                                    {% else %}
-                                    <button class="btn btn-outline-success" data-bs-toggle="modal"
-                                        data-bs-target="#restoreModal{{ agent.id }}" title="Restore">
-                                        <i class="fas fa-undo"></i>
-                                    </button>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-
-                        <!-- Modals (Styling preserved but logic intact) -->
-                        {% include 'includes/agent_modals.html' ignore missing %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-5">
-                <i class="fas fa-desktop fa-4x text-muted mb-3 opacity-25"></i>
-                <h5 class="text-muted">No agents found</h5>
-                <p class="small text-muted">Register an agent to begin monitoring.</p>
-            </div>
-            {% endif %}
+        <div class="real-time-counter">
+            <button class="control-btn" onclick="refreshAgentsData()" title="Refresh Agents">
+                <i class="fas fa-sync-alt"></i>
+            </button>
         </div>
     </div>
+
+    <!-- Agents Section - Full Width -->
+    <div class="alerts-section-full">
+        <!-- Agents Table -->
+        <div class="threats-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-desktop"></i>
+                    Windows Collectors / Agents
+                    <span class="alerts-count">{{ agents|length }}</span>
+                </h3>
+                <div class="panel-controls">
+                    <!-- Filter Buttons -->
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">Tất cả</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="isolated">Isolated</button>
+                        <button class="filter-btn" data-filter="offline">Offline</button>
+                    </div>
+                    <button class="control-btn" onclick="refreshAgentsData()" title="Refresh Agents">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="threats-table-container">
+                    {% if agents %}
+                    <div class="agents-table">
+                        <div class="table-header">
+                            <div class="col-agent-id">
+                                <i class="fas fa-hashtag"></i>
+                                <span>Hostname / ID</span>
+                            </div>
+                            <div class="col-agent-ip">
+                                <i class="fas fa-network-wired"></i>
+                                <span>IP Address</span>
+                            </div>
+                            <div class="col-agent-status">
+                                <i class="fas fa-heartbeat"></i>
+                                <span>Status</span>
+                            </div>
+                            <div class="col-agent-threat">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Threat Level</span>
+                            </div>
+                            <div class="col-agent-time">
+                                <i class="fas fa-clock"></i>
+                                <span>Last Seen</span>
+                            </div>
+                            <div class="col-agent-actions">
+                                <i class="fas fa-cogs"></i>
+                                <span>Actions</span>
+                            </div>
+                        </div>
+                        <div class="table-body">
+                            {% for agent in agents %}
+                            <div class="agent-row status-{{ agent.status }} threat-{{ agent.threat_level }}" 
+                                 data-agent-id="{{ agent.agent_id }}" data-status="{{ agent.status }}">
+                                
+                                <div class="col-agent-id">
+                                    <div class="agent-info">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" 
+                                           class="agent-hostname">
+                                            <i class="fas fa-desktop"></i>
+                                            {{ agent.hostname }}
+                                        </a>
+                                        <span class="agent-id-short">ID: {{ agent.agent_id[:8] }}...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-agent-ip">
+                                    <code class="ip-address">{{ agent.ip_address }}</code>
+                                </div>
+                                
+                                <div class="col-agent-status">
+                                    <div class="status-container">
+                                        {% if agent.status == 'active' %}
+                                        <span class="status-badge active">
+                                            <i class="fas fa-check-circle"></i>
+                                            ACTIVE
+                                        </span>
+                                        {% elif agent.status == 'isolated' %}
+                                        <span class="status-badge isolated">
+                                            <i class="fas fa-ban"></i>
+                                            ISOLATED
+                                        </span>
+                                        {% if agent.isolated_until %}
+                                        <span class="status-time">Ends: {{ agent.isolated_until.strftime('%H:%M') }}</span>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="status-badge offline">
+                                            <i class="fas fa-power-off"></i>
+                                            OFFLINE
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-agent-threat">
+                                    <div class="threat-level-container">
+                                        <span class="severity-badge {{ agent.threat_level }}">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            {{ agent.threat_level|upper }}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-agent-time">
+                                    <div class="time-display">
+                                        {% set time_diff = (datetime.utcnow() - agent.last_seen).total_seconds() %}
+                                        {% if time_diff < 60 %}
+                                        <span class="time-main live">
+                                            <i class="fas fa-circle-notch fa-spin"></i>
+                                            Just now
+                                        </span>
+                                        {% elif time_diff < 3600 %}
+                                        <span class="time-main">{{ (time_diff/60)|int }}m ago</span>
+                                        {% else %}
+                                        <span class="time-main">{{ agent.last_seen.strftime('%H:%M:%S') }}</span>
+                                        <span class="time-date">{{ agent.last_seen.strftime('%d/%m/%Y') }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-agent-actions">
+                                    <div class="action-buttons">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" 
+                                           class="action-btn primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if agent.status != 'isolated' %}
+                                        <button class="action-btn danger" data-bs-toggle="modal"
+                                                data-bs-target="#isolateModal{{ agent.id }}" title="Isolate Agent">
+                                            <i class="fas fa-shield-virus"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="action-btn success" data-bs-toggle="modal"
+                                                data-bs-target="#restoreModal{{ agent.id }}" title="Restore Agent">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Modals -->
+                            {% include 'includes/agent_modals.html' ignore missing %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="no-threats">
+                        <div class="no-threats-content">
+                            <i class="fas fa-desktop"></i>
+                            <h4>No Agents Found</h4>
+                            <p>No Windows collectors are registered yet. Deploy an agent to begin monitoring network flows.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<style>
-    .table-hover tbody tr:hover {
-        background-color: rgba(240, 246, 252, 0.02) !important;
-    }
-</style>
+<script>
+function refreshAgentsData() {
+    location.reload();
+}
+
+// Filter functionality
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        const filter = this.dataset.filter;
+        const rows = document.querySelectorAll('.agent-row');
+        
+        rows.forEach(row => {
+            if (filter === 'all') {
+                row.style.display = 'grid';
+            } else {
+                const status = row.dataset.status;
+                row.style.display = status === filter ? 'grid' : 'none';
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}

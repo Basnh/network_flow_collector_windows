@@ -553,15 +553,26 @@ def agent_detail(agent_id):
     """Agent detail page"""
     agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
     
-    # Get agent flows
-    flows = NetworkFlow.query.filter_by(agent_id=agent_id)\
-        .order_by(NetworkFlow.created_at.desc()).limit(50).all()
+    # Get current page from query parameter, default to 1
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # 10 flows per page
+    
+    # Get agent flows with pagination
+    flows_pagination = NetworkFlow.query.filter_by(agent_id=agent_id)\
+        .order_by(NetworkFlow.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    flows = flows_pagination.items
     
     # Get agent alerts
     alerts = SecurityAlert.query.filter_by(agent_id=agent_id)\
         .order_by(SecurityAlert.created_at.desc()).limit(20).all()
     
-    return render_template('agent_detail.html', agent=agent, flows=flows, alerts=alerts)
+    return render_template('agent_detail.html', 
+                         agent=agent, 
+                         flows=flows, 
+                         flows_pagination=flows_pagination,
+                         alerts=alerts)
 
 @app.route('/alerts')
 def alerts_list():

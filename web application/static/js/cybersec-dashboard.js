@@ -1,8 +1,3 @@
-/* ========================================
-   NETWORK FLOW COLLECTOR - CYBERSECURITY DASHBOARD
-   Premium Interactive Command Center JavaScript
-======================================== */
-
 class CyberSecDashboard {
     constructor() {
         this.charts = {};

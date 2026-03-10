@@ -5,7 +5,8 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -18,7 +19,7 @@
 
 <!-- Cybersecurity Command Center Dashboard -->
 <div class="cybersec-dashboard">
-    
+
     <!-- Top Status Bar -->
     <div class="top-status-bar">
         <div class="system-status">
@@ -76,11 +77,14 @@
                     </div>
                     <div class="metric-label">Agents đang hoạt động</div>
                     <div class="metric-progress">
-                        <div class="progress-bar" style="width: {{ ((active_agents / total_agents * 100) if total_agents > 0 else 0) }}%"></div>
+                        {% set progress_percentage = ((active_agents / total_agents * 100) if total_agents > 0 else
+                        0)|round|int %}
+                        <div class="progress-bar" style="width: 0%;" data-progress="{{ progress_percentage }}"></div>
                     </div>
                     <div class="metric-status">
                         {% set online_dots = 5 if active_agents > 5 else active_agents %}
-                        {% set offline_dots = 5 if (total_agents - active_agents) > 5 else (total_agents - active_agents) %}
+                        {% set offline_dots = 5 if (total_agents - active_agents) > 5 else (total_agents -
+                        active_agents) %}
                         {% for i in range(online_dots) %}
                         <div class="status-indicator online"></div>
                         {% endfor %}
@@ -106,15 +110,18 @@
                     <div class="metric-label">Cảnh báo chưa giải quyết</div>
                     <div class="threat-breakdown">
                         <div class="threat-item critical">
-                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto', 'critical')|list|length }}</span>
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'critical')|list|length }}</span>
                             <span class="threat-type">Nghiêm trọng</span>
                         </div>
                         <div class="threat-item high">
-                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto', 'high')|list|length }}</span>
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'high')|list|length }}</span>
                             <span class="threat-type">Cao</span>
                         </div>
                         <div class="threat-item medium">
-                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto', 'medium')|list|length }}</span>
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'medium')|list|length }}</span>
                             <span class="threat-type">Trung bình</span>
                         </div>
                     </div>
@@ -216,13 +223,15 @@
                     </div>
                     <div class="table-body">
                         {% for flow in threat_flows[:10] %}
-                        <div class="flow-row {{ 'malicious' if flow.is_malicious else 'normal' }}" onclick="expandFlowDetails({{ flow.id }})">
+                        <div class="flow-row {{ 'malicious' if flow.is_malicious else 'normal' }}"
+                            data-flow-id="{{ flow.id }}">
                             <div class="col-src">{{ flow.src_ip[:12] }}</div>
                             <div class="col-dst">{{ flow.dst_ip[:12] }}</div>
                             <div class="col-proto">
                                 <span class="protocol-tag">{{ flow.protocol|upper }}</span>
                             </div>
-                            <div class="col-bytes">{{ (flow.payload_content|length if flow.payload_content else 0) }}</div>
+                            <div class="col-bytes">{{ (flow.payload_content|length if flow.payload_content else 0) }}
+                            </div>
                             <div class="col-risk">
                                 <div class="risk-indicator {{ 'high' if flow.is_malicious else 'low' }}"></div>
                             </div>
@@ -230,11 +239,11 @@
                         {% else %}
                         <!-- Demo flow data với Windows services -->
                         {% set demo_flows = [
-                            {'src': '192.168.1.100', 'dst': '8.8.8.8', 'proto': 'DNS', 'bytes': 512, 'risk': 'low'},
-                            {'src': '10.0.0.45', 'dst': '192.168.1.10', 'proto': 'RDP', 'bytes': 4096, 'risk': 'medium'},
-                            {'src': '172.16.0.25', 'dst': '172.16.0.1', 'proto': 'SMB', 'bytes': 2048, 'risk': 'low'},
-                            {'src': '192.168.1.200', 'dst': '1.1.1.1', 'proto': 'HTTPS', 'bytes': 1024, 'risk': 'low'},
-                            {'src': '10.0.0.89', 'dst': '10.0.0.5', 'proto': 'NetBIOS', 'bytes': 256, 'risk': 'high'}
+                        {'src': '192.168.1.100', 'dst': '8.8.8.8', 'proto': 'DNS', 'bytes': 512, 'risk': 'low'},
+                        {'src': '10.0.0.45', 'dst': '192.168.1.10', 'proto': 'RDP', 'bytes': 4096, 'risk': 'medium'},
+                        {'src': '172.16.0.25', 'dst': '172.16.0.1', 'proto': 'SMB', 'bytes': 2048, 'risk': 'low'},
+                        {'src': '192.168.1.200', 'dst': '1.1.1.1', 'proto': 'HTTPS', 'bytes': 1024, 'risk': 'low'},
+                        {'src': '10.0.0.89', 'dst': '10.0.0.5', 'proto': 'NetBIOS', 'bytes': 256, 'risk': 'high'}
                         ] %}
                         {% for flow in demo_flows %}
                         <div class="flow-row normal">
@@ -313,28 +322,30 @@
                         </div>
                         <div class="table-body">
                             {% for alert in recent_alerts[:10] %}
-                            <div class="threat-row severity-{{ alert.severity }} {{ 'resolved' if alert.is_resolved else 'active' }}" 
-                                 data-alert-id="{{ alert.id }}" data-severity="{{ alert.severity }}">
-                                
+                            <div class="threat-row severity-{{ alert.severity }} {{ 'resolved' if alert.is_resolved else 'active' }}"
+                                data-alert-id="{{ alert.id }}" data-severity="{{ alert.severity }}">
+
                                 <div class="col-time">
                                     <div class="time-display">
                                         <span class="time-main">{{ alert.created_at.strftime('%H:%M:%S') }}</span>
                                         <span class="time-date">{{ alert.created_at.strftime('%d/%m') }}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-type">
                                     <div class="threat-info">
                                         <span class="threat-badge {{ alert.alert_type.lower() }}">
-                                            <i class="fas fa-{{ 'virus' if alert.alert_type.lower() == 'trojan' else 'shield-virus' }}"></i>
+                                            <i
+                                                class="fas fa-{{ 'virus' if alert.alert_type.lower() == 'trojan' else 'shield-virus' }}"></i>
                                             {{ alert.alert_type|title }}
                                         </span>
                                         {% if alert.description %}
-                                        <span class="threat-desc">{{ alert.description[:50] }}{{ '...' if alert.description|length > 50 else '' }}</span>
+                                        <span class="threat-desc">{{ alert.description[:50] }}{{ '...' if
+                                            alert.description|length > 50 else '' }}</span>
                                         {% endif %}
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-source">
                                     <div class="source-info">
                                         <span class="source-agent">
@@ -346,11 +357,12 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-severity">
                                     <div class="severity-container">
                                         <span class="severity-badge {{ alert.severity }}">
-                                            <i class="fas fa-{{ 'exclamation-triangle' if alert.severity in ['critical', 'high'] else 'exclamation-circle' }}"></i>
+                                            <i
+                                                class="fas fa-{{ 'exclamation-triangle' if alert.severity in ['critical', 'high'] else 'exclamation-circle' }}"></i>
                                             {{ alert.severity|upper }}
                                         </span>
                                         <div class="severity-indicator">
@@ -358,31 +370,41 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-status">
                                     <div class="status-container">
                                         <span class="status-badge {{ 'resolved' if alert.is_resolved else 'active' }}">
-                                            <i class="fas fa-{{ 'check-circle' if alert.is_resolved else 'clock' }}"></i>
+                                            <i
+                                                class="fas fa-{{ 'check-circle' if alert.is_resolved else 'clock' }}"></i>
                                             {{ 'Đã giải quyết' if alert.is_resolved else 'Đang xử lý' }}
                                         </span>
-                                        <span class="status-time">{{ ((datetime.utcnow() - alert.created_at).total_seconds() / 3600)|round }}h ago</span>
+                                        <span class="status-time">{{ ((datetime.utcnow() -
+                                            alert.created_at).total_seconds() / 3600)|round }}h ago</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-actions">
                                     <div class="action-buttons">
                                         {% if not alert.is_resolved %}
-                                        <button class="action-btn primary" onclick="viewAlertDetails({{ alert.id }})" title="Chi tiết">
+                                        <button class="action-btn primary" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.viewAlertDetails(this.dataset.alertId)"
+                                            title="Chi tiết">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="action-btn success" onclick="resolveAlert({{ alert.id }})" title="Giải quyết">
+                                        <button class="action-btn success" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.resolveAlert(this.dataset.alertId)"
+                                            title="Giải quyết">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        <button class="action-btn warning" onclick="escalateAlert({{ alert.id }})" title="Nâng cấp">
+                                        <button class="action-btn warning" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.escalateAlert(this.dataset.alertId)"
+                                            title="Nâng cấp">
                                             <i class="fas fa-arrow-up"></i>
                                         </button>
                                         {% else %}
-                                        <button class="action-btn secondary" onclick="viewAlertDetails({{ alert.id }})" title="Xem chi tiết">
+                                        <button class="action-btn secondary" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.viewAlertDetails(this.dataset.alertId)"
+                                            title="Xem chi tiết">
                                             <i class="fas fa-history"></i>
                                         </button>
                                         {% endif %}
@@ -391,16 +413,22 @@
                                                 <i class="fas fa-ellipsis-v"></i>
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="#" onclick="exportAlert({{ alert.id }})">
-                                                    <i class="fas fa-download me-2"></i>Export
-                                                </a></li>
-                                                <li><a class="dropdown-item" href="#" onclick="shareAlert({{ alert.id }})">
-                                                    <i class="fas fa-share me-2"></i>Share
-                                                </a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteAlert({{ alert.id }})">
-                                                    <i class="fas fa-trash me-2"></i>Delete
-                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.exportAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-download me-2"></i>Export
+                                                    </a></li>
+                                                <li><a class="dropdown-item" href="#" data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.shareAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-share me-2"></i>Share
+                                                    </a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li><a class="dropdown-item text-danger" href="#"
+                                                        data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.deleteAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-trash me-2"></i>Delete
+                                                    </a></li>
                                             </ul>
                                         </div>
                                     </div>
@@ -421,7 +449,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Table Footer with Pagination and Actions -->
                 <div class="table-footer">
                     <div class="footer-info">
@@ -435,7 +463,8 @@
                             <i class="fas fa-list"></i> Xem tất cả ({{ recent_alerts|length }})
                         </button>
                         {% endif %}
-                        <button class="btn btn-primary btn-sm" onclick="location.href='{{ url_for('alerts_list') }}'">
+                        <button class="btn btn-primary btn-sm" data-url="{{ url_for('alerts_list') }}"
+                            onclick="window.location.href=this.dataset.url;">
                             <i class="fas fa-external-link-alt"></i> Trang quản lý Alerts
                         </button>
                     </div>
@@ -446,10 +475,10 @@
 
     <!-- Main Grid Layout với 2 cột cho các panels còn lại -->
     <div class="dashboard-grid-two-col">
-        
+
         <!-- Left Column -->
         <div class="left-column">
-            
+
             <!-- Windows Protocol Distribution -->
             <div class="protocol-panel minimized" id="protocolPanel">
                 <div class="panel-header" onclick="toggleProtocolPanel()">
@@ -503,7 +532,7 @@
                         {% set demo_countries = ['🇺🇸', '🇩🇪', '🇬🇧', '🇯🇵', '🇨🇦'] %}
                         {% set demo_packets = [15420, 12890, 9875, 7234, 5632] %}
                         {% set demo_risks = ['low', 'medium', 'low', 'high', 'low'] %}
-                        
+
                         {% for i in range(5) %}
                         <div class="source-item risk-{{ demo_risks[i] }}">
                             <div class="source-info">
@@ -514,8 +543,9 @@
                                 </div>
                             </div>
                             <div class="source-bar">
-                                <div class="source-fill risk-{{ demo_risks[i] }}" 
-                                     style="width: {{ (demo_packets[i] / demo_packets[0] * 100) }}%"></div>
+                                {% set source_width_calc = ((demo_packets[i] / demo_packets[0] * 100)|int) %}
+                                <div class="source-fill risk-{{ demo_risks[i] }}" style="width: 0%;"
+                                    data-progress="{{ source_width_calc }}"></div>
                             </div>
                             <div class="source-risk">
                                 <span class="risk-badge {{ demo_risks[i] }}">{{ demo_risks[i]|upper }}</span>
@@ -529,7 +559,7 @@
 
         <!-- Right Column -->
         <div class="right-column">
-            
+
             <!-- Network Flow Radar -->
             <div class="radar-panel">
                 <div class="panel-header">
@@ -552,24 +582,24 @@
                             <div class="radar-circle circle-2"></div>
                             <div class="radar-circle circle-3"></div>
                             <div class="radar-circle circle-4"></div>
-                            
+
                             <!-- Radar lines -->
                             <div class="radar-line horizontal"></div>
                             <div class="radar-line vertical"></div>
-                            
+
                             <!-- Radar sweep -->
                             <div class="radar-sweep"></div>
-                            
+
                             <!-- Network nodes -->
                             <div class="network-nodes">
                                 {% for agent in critical_agents[:12] %}
-                                <div class="network-node {{ agent.threat_level }}" 
-                                     style="--node-x: {{ (loop.index * 30) % 300 }}px; --node-y: {{ (loop.index * 40) % 280 }}px;">
+                                <div class="network-node {{ agent.threat_level }}"
+                                    style="--node-x: {{ (loop.index * 30) % 300 }}px; --node-y: {{ (loop.index * 40) % 280 }}px;">
                                     <div class="node-pulse"></div>
                                 </div>
                                 {% endfor %}
                             </div>
-                            
+
                             <!-- Direction labels -->
                             <div class="radar-label north">NORTH</div>
                             <div class="radar-label south">SOUTH</div>
@@ -602,10 +632,10 @@
 <script src="{{ url_for('static', filename='js/cybersec-dashboard.js') }}"></script>
 <script>
     // Enhanced dashboard initialization with error protection
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         try {
             console.log('📊 Starting dashboard initialization...');
-            
+
             // Check if CyberSecDashboard class is available
             if (typeof CyberSecDashboard !== 'undefined') {
                 window.dashboard = new CyberSecDashboard();
@@ -613,7 +643,7 @@
             } else {
                 throw new Error('CyberSecDashboard class not found');
             }
-            
+
             // Show live updates indicator with safety checks
             const updateIndicator = document.getElementById('updateIndicator');
             if (updateIndicator) {
@@ -622,7 +652,7 @@
                         updateIndicator.style.display = 'block';
                     }
                 }, 2000);
-                
+
                 // Auto-hide after 5 seconds
                 setTimeout(() => {
                     if (updateIndicator) {
@@ -635,31 +665,31 @@
                     }
                 }, 7000);
             }
-            
+
             // Add live update status to title with protection
             const currentTitle = document.title || 'Network Security Dashboard';
             document.title = '🟢 LIVE | ' + currentTitle.replace(/^🔴 LIVE \| |^🟢 LIVE \| /, '');
-            
+
             // Add connectivity indicator
-            window.addEventListener('online', function() {
+            window.addEventListener('online', function () {
                 document.title = document.title.replace('🔴', '🟢');
                 if (window.dashboard) {
                     window.dashboard.realTimeUpdates = true;
                 }
                 console.log('🌐 Connection restored');
             });
-            
-            window.addEventListener('offline', function() {
+
+            window.addEventListener('offline', function () {
                 document.title = document.title.replace('🟢', '🔴');
                 if (window.dashboard) {
                     window.dashboard.realTimeUpdates = false;
                 }
                 console.log('📡 Connection lost - Updates paused');
             });
-            
+
         } catch (error) {
             console.error('❌ Dashboard initialization failed:', error);
-            
+
             // Use global error handler if available
             if (window.handleJavaScriptError) {
                 window.handleJavaScriptError(error, 'dashboard-initialization');
@@ -676,21 +706,21 @@
             }
         }
     });
-    
+
     // Fullscreen Toggle Function
     function toggleFullScreen() {
         try {
             const dashboard = document.querySelector('.cybersec-dashboard');
             const fabButton = document.querySelector('.fab.primary i');
-            
+
             if (!dashboard) {
                 console.error('Dashboard element not found');
                 return;
             }
-            
+
             // Toggle fullscreen mode class
             dashboard.classList.toggle('fullscreen-mode');
-            
+
             // Update button icon
             if (dashboard.classList.contains('fullscreen-mode')) {
                 if (fabButton) {
@@ -703,7 +733,7 @@
                 }
                 console.log('📱 Centered mode activated');
             }
-            
+
             // Optional: Request browser fullscreen
             if (dashboard.classList.contains('fullscreen-mode')) {
                 if (document.documentElement.requestFullscreen) {
@@ -725,12 +755,12 @@
             }
         }
     }
-    
+
     // Handle browser fullscreen exit
-    document.addEventListener('fullscreenchange', function() {
+    document.addEventListener('fullscreenchange', function () {
         const dashboard = document.querySelector('.cybersec-dashboard');
         const fabButton = document.querySelector('.fab.primary i');
-        
+
         if (!document.fullscreenElement && dashboard) {
             dashboard.classList.remove('fullscreen-mode');
             if (fabButton) {
@@ -738,22 +768,22 @@
             }
         }
     });
-    
+
     // Toggle Protocol Panel
     function toggleProtocolPanel() {
         try {
             const panel = document.getElementById('protocolPanel');
             const toggleText = panel.querySelector('.toggle-text');
             const toggleIcon = panel.querySelector('.toggle-btn i');
-            
+
             if (!panel) {
                 console.error('Protocol panel not found');
                 return;
             }
-            
+
             // Toggle minimized class
             panel.classList.toggle('minimized');
-            
+
             // Update button text and icon
             if (panel.classList.contains('minimized')) {
                 if (toggleText) toggleText.textContent = 'Mở rộng';
@@ -769,7 +799,7 @@
             }
         }
     }
-    
+
     // Add CSS for fadeOut animation with safety check
     if (!document.querySelector('#fadeOutStyle')) {
         const style = document.createElement('style');
@@ -793,5 +823,17 @@
         `;
         document.head.appendChild(style);
     }
+
+    // Initialize data-progress elements
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(() => {
+            document.querySelectorAll('[data-progress]').forEach(el => {
+                const progress = el.getAttribute('data-progress');
+                if (progress && (el.style.width === '0%' || !el.style.width)) {
+                    el.style.width = progress + '%';
+                }
+            });
+        }, 800);
+    });
 </script>
 {% endblock %}
