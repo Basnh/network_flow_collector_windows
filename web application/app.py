@@ -7,6 +7,7 @@ Collects data from agents and detects trojans/malware
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+from pytz import timezone
 import json
 import sqlite3
 import threading
@@ -22,6 +23,9 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
+# Timezone settings
+UTC_PLUS_7 = timezone('Asia/Bangkok')  # UTC+7
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost/network_db'
@@ -33,11 +37,30 @@ db = SQLAlchemy(app)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Utility function to get current time in UTC+7
+def get_utc7_now():
+    """Get current datetime in UTC+7 timezone"""
+    from datetime import datetime
+    return datetime.now(UTC_PLUS_7).replace(tzinfo=None)
+
+# Convert UTC datetime to UTC+7
+def utc_to_utc7(dt):
+    """Convert UTC datetime to UTC+7"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Assume it's UTC if no timezone info
+        from pytz import UTC
+        dt = UTC.localize(dt)
+    return dt.astimezone(UTC_PLUS_7).replace(tzinfo=None)
+
 # Template context processor to make utility functions available in templates
 @app.context_processor
 def inject_datetime():
     return {
         'datetime': datetime,
+        'get_utc7_now': get_utc7_now,
+        'utc_to_utc7': utc_to_utc7,
         'min': min,
         'max': max,
         'len': len,
@@ -46,6 +69,15 @@ def inject_datetime():
         'int': int,
         'str': str
     }
+
+# Jinja2 filter for formatting datetime in UTC+7
+@app.template_filter('utc7_format')
+def utc7_format(dt, fmt='%H:%M:%S'):
+    """Format UTC datetime as UTC+7"""
+    if dt is None:
+        return ''
+    converted_dt = utc_to_utc7(dt)
+    return converted_dt.strftime(fmt)
 
 # ==================== DATABASE MODELS ====================
 
@@ -57,10 +89,12 @@ class Agent(db.Model):
     ip_address = db.Column(db.String(50), nullable=False)
     os_info = db.Column(db.Text)
     status = db.Column(db.String(20), default='active')  # active, disconnected, isolated
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime, default=get_utc7_now)
     threat_level = db.Column(db.String(20), default='low')  # low, medium, high, critical
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc7_now)
     isolated_until = db.Column(db.DateTime, nullable=True) # For timed isolation
+    pending_command = db.Column(db.Text, nullable=True)  # JSON string of pending network isolation command
+    network_adapter_name = db.Column(db.String(100), nullable=True)  # Name of network adapter to isolate
     
     # Relationships
     flows = db.relationship('NetworkFlow', backref='agent', lazy=True, cascade='all, delete-orphan')
@@ -81,7 +115,7 @@ class NetworkFlow(db.Model):
     is_malicious = db.Column(db.Boolean, default=False)
     classification = db.Column(db.String(20), default='Benign') # Benign, Trojan
     timestamp = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc7_now)
 
 class SecurityAlert(db.Model):
     """Security alerts for detected threats"""
@@ -94,7 +128,7 @@ class SecurityAlert(db.Model):
     flow_id = db.Column(db.String(200))
     payload_signature = db.Column(db.Text)
     is_resolved = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc7_now)
 
 class IsolationAction(db.Model):
     """Network isolation actions"""
@@ -102,7 +136,7 @@ class IsolationAction(db.Model):
     agent_id = db.Column(db.String(100), nullable=False)
     action_type = db.Column(db.String(50), nullable=False)  # isolate, restore
     reason = db.Column(db.Text)
-    executed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    executed_at = db.Column(db.DateTime, default=get_utc7_now)
     success = db.Column(db.Boolean, default=False)
 
 # ==================== THREAT DETECTION ENGINE ====================
@@ -295,7 +329,7 @@ def register_agent():
             agent.hostname = hostname
             agent.ip_address = ip_address
             agent.os_info = os_info
-            agent.last_seen = datetime.utcnow()
+            agent.last_seen = get_utc7_now()
             agent.status = 'active'
         else:
             # Create new agent
@@ -334,7 +368,7 @@ def submit_flow():
         if not agent:
             return jsonify({'error': 'Agent not registered'}), 404
         
-        agent.last_seen = datetime.utcnow()
+        agent.last_seen = get_utc7_now()
         
         # Process each flow
         threats_detected = 0
@@ -351,7 +385,7 @@ def submit_flow():
                     dst_port=flow_data.get('dst_port', 0),
                     protocol=flow_data.get('protocol', ''),
                     payload_content=flow_data.get('payload_content', ''),
-                    timestamp=datetime.fromisoformat(flow_data.get('timestamp', datetime.utcnow().isoformat()))
+                    timestamp=datetime.fromisoformat(flow_data.get('timestamp', get_utc7_now().isoformat()))
                 )
                 
                 # Threat analysis
@@ -418,12 +452,12 @@ def get_agent_status(agent_id):
     
     # Check if agent should be isolated
     recent_alerts = SecurityAlert.query.filter_by(agent_id=agent_id)\
-        .filter(SecurityAlert.created_at > datetime.utcnow() - timedelta(hours=1))\
+        .filter(SecurityAlert.created_at > get_utc7_now() - timedelta(hours=1))\
         .filter_by(is_resolved=False).count()
     
     # Check for isolation expiry
     if agent.status == 'isolated' and agent.isolated_until:
-        if datetime.utcnow() > agent.isolated_until:
+        if get_utc7_now() > agent.isolated_until:
             logger.info(f"Isolation for agent {agent_id} expired. Triggering restoration.")
             agent.status = 'active'
             agent.isolated_until = None
@@ -449,10 +483,87 @@ def get_agent_status(agent_id):
         'recent_alerts': recent_alerts
     })
 
+@app.route('/api/agent/<agent_id>/pending_command', methods=['GET'])
+def get_pending_command(agent_id):
+    """Get pending command for agent (used for polling network isolation commands)"""
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'error': 'Agent not found'}), 404
+        
+        # Update last seen
+        agent.last_seen = get_utc7_now()
+        
+        if agent.pending_command:
+            # Return the pending command
+            command = json.loads(agent.pending_command)
+            response = {
+                'has_command': True,
+                'command': command
+            }
+            db.session.commit()
+            return jsonify(response), 200
+        else:
+            # No pending command
+            db.session.commit()
+            return jsonify({'has_command': False}), 200
+            
+    except Exception as e:
+        logger.error(f"Error retrieving pending command for agent {agent_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/agent/<agent_id>/command_result', methods=['POST'])
+def report_command_result(agent_id):
+    """Agent reports result of executing isolation/restoration command"""
+    try:
+        data = request.get_json()
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        
+        if not agent:
+            return jsonify({'error': 'Agent not found'}), 404
+        
+        # Update last seen
+        agent.last_seen = get_utc7_now()
+        
+        action = data.get('action', 'unknown')
+        success = data.get('success', False)
+        error_msg = data.get('error', '')
+        adapter_name = data.get('adapter_name', '')
+        
+        # Store adapter name for future use
+        if adapter_name:
+            agent.network_adapter_name = adapter_name
+        
+        if success:
+            # Clear pending command only if execution was successful
+            agent.pending_command = None
+            
+            if action == 'isolate':
+                agent.status = 'isolated'
+                logger.critical(f"✓ Agent {agent_id} SUCCESSFULLY ISOLATED - Network adapter disabled: {adapter_name}")
+            elif action == 'restore':
+                agent.status = 'active'
+                logger.info(f"✓ Agent {agent_id} SUCCESSFULLY RESTORED - Network adapter enabled: {adapter_name}")
+        else:
+            # Command failed - keep pending so agent can retry
+            logger.error(f"✗ Agent {agent_id} failed to execute {action} command: {error_msg}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'acknowledged': True,
+            'action': action,
+            'success': success
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing command result for agent {agent_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 # ==================== NETWORK ISOLATION ====================
 
 def isolate_agent_network(agent_id, reason, duration_minutes=None):
-    """Isolate agent from network by setting status in database"""
+    """Isolate agent from network by setting network adapter disable command"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
@@ -461,11 +572,19 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
         # Calculate expiry if duration provided
         isolated_until = None
         if duration_minutes and duration_minutes > 0:
-            isolated_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
+            isolated_until = get_utc7_now() + timedelta(minutes=duration_minutes)
         
-        # Update agent status
+        # Update agent status and set pending command
         agent.status = 'isolated'
         agent.isolated_until = isolated_until
+        
+        # Create isolation command for agent to execute (network adapter disable)
+        isolation_command = {
+            'action': 'isolate',
+            'reason': reason,
+            'timestamp': get_utc7_now().isoformat()
+        }
+        agent.pending_command = json.dumps(isolation_command)
         
         # Log isolation action
         isolation_action = IsolationAction(
@@ -477,24 +596,32 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
         db.session.add(isolation_action)
         db.session.commit()
         
-        logger.info(f"Agent {agent_id} flagged for isolation: {reason}")
+        logger.info(f"Agent {agent_id} isolation command queued: {reason}")
         return True
         
     except Exception as e:
-        logger.error(f"Error flagging agent {agent_id} for isolation: {e}")
+        logger.error(f"Error queuing isolation for agent {agent_id}: {e}")
         return False
 
 def restore_agent_network(agent_id, reason):
-    """Restore agent network access by updating database status"""
+    """Restore agent network access by queuing network adapter enable command"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
             return False
         
-        # Update agent status
+        # Update agent status and set pending command
         agent.status = 'active'
         agent.threat_level = 'low'
         agent.isolated_until = None
+        
+        # Create restoration command for agent to execute (network adapter enable)
+        restoration_command = {
+            'action': 'restore',
+            'reason': reason,
+            'timestamp': get_utc7_now().isoformat()
+        }
+        agent.pending_command = json.dumps(restoration_command)
         
         # Log restoration action
         isolation_action = IsolationAction(
@@ -506,11 +633,11 @@ def restore_agent_network(agent_id, reason):
         db.session.add(isolation_action)
         db.session.commit()
         
-        logger.info(f"Agent {agent_id} flag cleared: {reason}")
+        logger.info(f"Agent {agent_id} restoration command queued: {reason}")
         return True
         
     except Exception as e:
-        logger.error(f"Error clearing isolation flag for agent {agent_id}: {e}")
+        logger.error(f"Error queuing restoration for agent {agent_id}: {e}")
         return False
 
 # ==================== WEB INTERFACE ====================
@@ -644,9 +771,9 @@ def api_dashboard_stats():
             ).count(),
             'threat_flows_today': NetworkFlow.query.filter(
                 NetworkFlow.is_malicious == True,
-                NetworkFlow.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0)
+                NetworkFlow.created_at >= get_utc7_now().replace(hour=0, minute=0, second=0)
             ).count(),
-            'last_updated': datetime.utcnow().isoformat()
+            'last_updated': get_utc7_now().isoformat()
         }
         return jsonify(stats)
     except Exception as e:
@@ -660,7 +787,7 @@ def api_agent_status(agent_id):
         agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
         
         # Check if agent is recently seen (within last 2 minutes)
-        last_seen_threshold = datetime.utcnow() - timedelta(minutes=2)
+        last_seen_threshold = get_utc7_now() - timedelta(minutes=2)
         is_online = agent.last_seen and agent.last_seen > last_seen_threshold
         
         current_status = 'online' if is_online else 'offline'
@@ -691,7 +818,7 @@ def api_latest_activity():
         
         # Recent alerts (last 10)
         recent_alerts = SecurityAlert.query.filter(
-            SecurityAlert.created_at >= datetime.utcnow() - timedelta(hours=1)
+            SecurityAlert.created_at >= get_utc7_now() - timedelta(hours=1)
         ).order_by(SecurityAlert.created_at.desc()).limit(5).all()
         
         for alert in recent_alerts:
@@ -706,7 +833,7 @@ def api_latest_activity():
         
         # Recent agent connections
         recent_agents = Agent.query.filter(
-            Agent.last_seen >= datetime.utcnow() - timedelta(minutes=10)
+            Agent.last_seen >= get_utc7_now() - timedelta(minutes=10)
         ).order_by(Agent.last_seen.desc()).limit(5).all()
         
         for agent in recent_agents:
@@ -767,7 +894,7 @@ def api_threats_summary():
             'threats_by_severity': threats_by_severity,
             'recent_threats': threat_flows,
             'total_threats': sum(threats_by_severity.values()),
-            'last_updated': datetime.utcnow().isoformat()
+            'last_updated': get_utc7_now().isoformat()
         })
         
     except Exception as e:
@@ -813,7 +940,7 @@ def api_agents_status():
         
         for agent in agents:
             # Check if agent is online (seen within last 2 minutes)
-            last_seen_threshold = datetime.utcnow() - timedelta(minutes=2)
+            last_seen_threshold = get_utc7_now() - timedelta(minutes=2)
             is_online = agent.last_seen and agent.last_seen > last_seen_threshold
             
             agents_data.append({
@@ -837,7 +964,7 @@ def api_dashboard_metrics():
     """Enhanced dashboard metrics for smooth updates"""
     try:
         # Get current time for relative calculations
-        now = datetime.utcnow()
+        now = get_utc7_now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         
         # Calculate comprehensive metrics
@@ -902,7 +1029,7 @@ def api_dashboard_metrics():
 
 def get_time_ago(timestamp):
     """Calculate human-readable time ago"""
-    now = datetime.utcnow()
+    now = get_utc7_now()
     diff = now - timestamp
     
     seconds = diff.total_seconds()
@@ -921,7 +1048,7 @@ def get_time_ago(timestamp):
 def api_threats_summary():
     """Get threat summary for real-time updates"""
     try:
-        now = datetime.utcnow()
+        now = get_utc7_now()
         today_start = now.replace(hour=0, minute=0, second=0)
         hour_ago = now - timedelta(hours=1)
         
@@ -974,7 +1101,7 @@ def train_detection_model():
             
             # Get recent flows for training
             recent_flows = NetworkFlow.query.filter(
-                NetworkFlow.created_at > datetime.utcnow() - timedelta(days=7)
+                NetworkFlow.created_at > get_utc7_now() - timedelta(days=7)
             ).all()
             
             if len(recent_flows) > 100:
@@ -992,12 +1119,12 @@ def cleanup_old_data():
             
             # Delete old flows (older than 30 days)
             old_flows = NetworkFlow.query.filter(
-                NetworkFlow.created_at < datetime.utcnow() - timedelta(days=30)
+                NetworkFlow.created_at < get_utc7_now() - timedelta(days=30)
             ).delete()
             
             # Delete resolved old alerts (older than 7 days)
             old_alerts = SecurityAlert.query.filter(
-                SecurityAlert.created_at < datetime.utcnow() - timedelta(days=7),
+                SecurityAlert.created_at < get_utc7_now() - timedelta(days=7),
                 SecurityAlert.is_resolved == True
             ).delete()
             

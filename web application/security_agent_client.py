@@ -12,10 +12,19 @@ import logging
 import socket
 import platform
 import hashlib
+import subprocess
 import uuid
 from datetime import datetime, timedelta
+from pytz import timezone
 from collections import deque
 import os
+
+# UTC+7 timezone
+UTC_PLUS_7 = timezone('Asia/Bangkok')
+
+def get_utc7_now():
+    """Get current datetime in UTC+7 timezone"""
+    return datetime.now(UTC_PLUS_7).replace(tzinfo=None)
 
 class SecurityAgentClient:
     """Client to communicate with Security Management Server"""
@@ -113,7 +122,7 @@ class SecurityAgentClient:
                 'dst_port': int(flow_data.get('Destination Port', 0)) if flow_data.get('Destination Port') else 0,
                 'protocol': flow_data.get('Protocol', ''),
                 'payload_content': flow_data.get('Payload Content', ''),
-                'timestamp': flow_data.get('Timestamp', datetime.utcnow().isoformat())
+                'timestamp': flow_data.get('Timestamp', get_utc7_now().isoformat())
             }
             
             self.flow_queue.append(formatted_flow)
@@ -251,6 +260,141 @@ class SecurityAgentClient:
             
         except Exception as e:
             self.logger.error(f"Error restoring connectivity: {e}")
+
+    def get_network_adapters(self):
+        """Get list of active network adapters"""
+        try:
+            cmd = 'Get-NetAdapter -Physical | Select-Object -Property Name, InterfaceDescription, Status | ConvertTo-Json'
+            result = subprocess.run(
+                ['powershell', '-Command', cmd],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                try:
+                    adapters = json.loads(result.stdout)
+                    # Handle single adapter case (returns dict instead of list)
+                    if isinstance(adapters, dict):
+                        adapters = [adapters]
+                    return adapters
+                except:
+                    self.logger.warning(f"Failed to parse adapters: {result.stdout}")
+                    return []
+            else:
+                self.logger.error(f"Failed to get adapters: {result.stderr}")
+                return []
+        except Exception as e:
+            self.logger.error(f"Error getting network adapters: {e}")
+            return []
+
+    def disable_network_adapter(self, adapter_name=None):
+        """Disable network adapter - actual network isolation"""
+        try:
+            if not adapter_name:
+                # Get the first active adapter
+                adapters = self.get_network_adapters()
+                if adapters:
+                    adapter_name = adapters[0].get('Name') or adapters[0].get('name')
+                
+                if not adapter_name:
+                    self.logger.error("Could not find network adapter to disable")
+                    return False, None
+            
+            cmd = f'Disable-NetAdapter -Name "{adapter_name}" -Confirm:$false'
+            result = subprocess.run(
+                ['powershell', '-Command', cmd],
+                capture_output=True,
+                text=True,
+                shell=False
+            )
+            
+            if result.returncode == 0:
+                self.logger.critical(f"NETWORK ISOLATED - Adapter '{adapter_name}' DISABLED")
+                return True, adapter_name
+            else:
+                self.logger.error(f"Failed to disable adapter: {result.stderr}")
+                return False, adapter_name
+                
+        except Exception as e:
+            self.logger.error(f"Error disabling network adapter: {e}")
+            return False, None
+
+    def enable_network_adapter(self, adapter_name=None):
+        """Enable network adapter - restore connectivity"""
+        try:
+            if not adapter_name:
+                # Try to find disabled adapters
+                adapters = self.get_network_adapters()
+                if adapters:
+                    adapter_name = adapters[0].get('Name') or adapters[0].get('name')
+                
+                if not adapter_name:
+                    self.logger.error("Could not find network adapter to enable")
+                    return False, None
+            
+            cmd = f'Enable-NetAdapter -Name "{adapter_name}" -Confirm:$false'
+            result = subprocess.run(
+                ['powershell', '-Command', cmd],
+                capture_output=True,
+                text=True,
+                shell=False
+            )
+            
+            if result.returncode == 0:
+                self.logger.info(f"Network connectivity RESTORED - Adapter '{adapter_name}' ENABLED")
+                return True, adapter_name
+            else:
+                self.logger.error(f"Failed to enable adapter: {result.stderr}")
+                return False, adapter_name
+                
+        except Exception as e:
+            self.logger.error(f"Error enabling network adapter: {e}")
+            return False, None
+
+    def handle_isolation_command(self, command):
+        """Handle isolation commands from server"""
+        try:
+            action = command.get('action', '').lower()
+            adapter_name = command.get('adapter_name')
+            
+            if action == 'isolate':
+                success, used_adapter = self.disable_network_adapter(adapter_name)
+                return {
+                    'success': success,
+                    'action': 'isolate',
+                    'adapter_name': used_adapter,
+                    'error': '' if success else 'Failed to disable network adapter',
+                    'timestamp': get_utc7_now().isoformat()
+                }
+            elif action == 'restore':
+                success, used_adapter = self.enable_network_adapter(adapter_name)
+                return {
+                    'success': success,
+                    'action': 'restore',
+                    'adapter_name': used_adapter,
+                    'error': '' if success else 'Failed to enable network adapter',
+                    'timestamp': get_utc7_now().isoformat()
+                }
+            else:
+                self.logger.error(f"Unknown isolation command: {action}")
+                return {
+                    'success': False,
+                    'action': action,
+                    'error': 'Unknown command',
+                    'adapter_name': '',
+                    'timestamp': get_utc7_now().isoformat()
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error handling isolation command: {e}")
+            return {
+                'success': False,
+                'action': 'unknown',
+                'error': str(e),
+                'adapter_name': '',
+                'timestamp': get_utc7_now().isoformat()
+            }
     
     def upload_worker(self):
         """Background worker to upload flows periodically"""
@@ -286,17 +430,71 @@ class SecurityAgentClient:
                 time.sleep(30)
     
     def heartbeat_worker(self):
-        """Background worker to send heartbeat and check status"""
+        """Background worker to send heartbeat, check status, and poll for commands"""
         while self.is_running:
             try:
                 if self.registered:
+                    # Check agent status
                     self.check_agent_status()
+                    
+                    # Poll for pending commands (isolation/restoration)
+                    self.poll_and_execute_commands()
                 
                 time.sleep(60)  # Check every minute
                 
             except Exception as e:
                 self.logger.error(f"Error in heartbeat worker: {e}")
                 time.sleep(60)
+    
+    def poll_and_execute_commands(self):
+        """Poll server for pending commands and execute them"""
+        try:
+            response = requests.get(
+                f"{self.server_url}/api/agent/{self.agent_id}/pending_command",
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get('has_command'):
+                    command = data.get('command', {})
+                    self.logger.info(f"Received command from server: {command.get('action')}")
+                    
+                    # Execute the command
+                    result = self.handle_isolation_command(command)
+                    
+                    # Report result back to server
+                    self.report_command_result(result)
+                    
+        except Exception as e:
+            self.logger.error(f"Error polling for commands: {e}")
+    
+    def report_command_result(self, result):
+        """Report command execution result back to server"""
+        try:
+            data = {
+                'agent_id': self.agent_id,
+                'action': result.get('action'),
+                'success': result.get('success'),
+                'error': result.get('error', ''),
+                'adapter_name': result.get('adapter_name', ''),
+                'timestamp': result.get('timestamp')
+            }
+            
+            response = requests.post(
+                f"{self.server_url}/api/agent/{self.agent_id}/command_result",
+                json=data,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                self.logger.info(f"Command result reported to server: {result.get('action')} = {result.get('success')}")
+            else:
+                self.logger.error(f"Failed to report command result: {response.status_code}")
+                
+        except Exception as e:
+            self.logger.error(f"Error reporting command result: {e}")
     
     def start(self):
         """Start the security agent client"""
@@ -417,7 +615,7 @@ if __name__ == '__main__':
                 'dst_port': 80 if i % 2 else 443,
                 'protocol': 'TCP',
                 'payload_content': f'TCP: {i:04x} {i+1:04x} test payload data',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': get_utc7_now().isoformat()
             }
             agent.add_flow(test_flow)
             time.sleep(0.1)

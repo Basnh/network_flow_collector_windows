@@ -1643,10 +1643,15 @@ function hideUpdateIndicator(section) {
 }
 
 // Utility Functions
+// Offset for UTC+7 display (in milliseconds: 7 hours)
+const UTC_PLUS_7_OFFSET = 7 * 60 * 60 * 1000;
+
 function getTimeAgo(timestamp) {
     const now = new Date();
     const time = new Date(timestamp);
-    const diffMs = now - time;
+    // Adjust for UTC+7 offset since server sends UTC+7 times as if they were UTC
+    const adjustedTime = new Date(time.getTime() + UTC_PLUS_7_OFFSET);
+    const diffMs = now - adjustedTime;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.floor(diffMs / (1000 * 60));
     
@@ -1657,7 +1662,9 @@ function getTimeAgo(timestamp) {
 
 function formatTime(timestamp) {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
+    // Adjust for UTC+7 offset since server sends UTC+7 times as if they were UTC
+    const adjustedDate = new Date(date.getTime() + UTC_PLUS_7_OFFSET);
+    return adjustedDate.toLocaleTimeString('en-US', { 
         hour12: false, 
         hour: '2-digit', 
         minute: '2-digit', 
@@ -1667,7 +1674,9 @@ function formatTime(timestamp) {
 
 function formatDate(timestamp) {
     const date = new Date(timestamp);
-    return date.toLocaleDateString('en-GB', { 
+    // Adjust for UTC+7 offset since server sends UTC+7 times as if they were UTC
+    const adjustedDate = new Date(date.getTime() + UTC_PLUS_7_OFFSET);
+    return adjustedDate.toLocaleDateString('en-GB', { 
         day: '2-digit', 
         month: '2-digit' 
     });

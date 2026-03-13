@@ -33,26 +33,45 @@ def setup_database():
             
             # Handle database migrations for schema changes
             try:
+                from sqlalchemy import inspect, text
+                inspector = inspect(db.engine)
+                
                 with db.engine.connect() as conn:
                     # Check agent table for isolated_until column
-                    result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
-                    agent_columns = [row[1] for row in result]  # Column names are in index 1
+                    agent_columns = [col['name'] for col in inspector.get_columns('agent')]
                     
                     if 'isolated_until' not in agent_columns:
                         print("Adding missing 'isolated_until' column to agent table...")
-                        conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
+                        conn.execute(text("ALTER TABLE agent ADD COLUMN isolated_until TIMESTAMP"))
                         conn.commit()
                         print("Successfully added 'isolated_until' column")
                     else:
                         print("Agent table 'isolated_until' column exists")
+                    
+                    # Check agent table for pending_command column
+                    if 'pending_command' not in agent_columns:
+                        print("Adding missing 'pending_command' column to agent table...")
+                        conn.execute(text("ALTER TABLE agent ADD COLUMN pending_command TEXT"))
+                        conn.commit()
+                        print("Successfully added 'pending_command' column")
+                    else:
+                        print("Agent table 'pending_command' column exists")
+                    
+                    # Check agent table for network_adapter_name column
+                    if 'network_adapter_name' not in agent_columns:
+                        print("Adding missing 'network_adapter_name' column to agent table...")
+                        conn.execute(text("ALTER TABLE agent ADD COLUMN network_adapter_name VARCHAR(100)"))
+                        conn.commit()
+                        print("Successfully added 'network_adapter_name' column")
+                    else:
+                        print("Agent table 'network_adapter_name' column exists")
                         
                     # Check network_flow table for classification column
-                    result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
-                    flow_columns = [row[1] for row in result]  # Column names are in index 1
+                    flow_columns = [col['name'] for col in inspector.get_columns('network_flow')]
                     
                     if 'classification' not in flow_columns:
                         print("Adding missing 'classification' column to network_flow table...")
-                        conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
+                        conn.execute(text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
                         conn.commit()
                         print("Successfully added 'classification' column")
                     else:
@@ -169,7 +188,10 @@ def main():
     elif args.command == 'server':
         if args.install_deps:
             install_dependencies()
-            setup_database()
+        
+        # Always run database setup to ensure schema is up-to-date
+        print("Checking database...")
+        setup_database()
         
         print("=== Starting Security Management Server ===")
         print("Web interface will be available at: http://localhost:5000")

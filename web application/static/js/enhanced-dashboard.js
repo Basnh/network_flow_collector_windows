@@ -398,7 +398,10 @@ class SecurityDashboard {
 
     // Utility Methods
     formatTime(timestamp) {
-        return new Date(timestamp).toLocaleTimeString();
+        const UTC_PLUS_7_OFFSET = 7 * 60 * 60 * 1000;
+        const date = new Date(timestamp);
+        const adjustedDate = new Date(date.getTime() + UTC_PLUS_7_OFFSET);
+        return adjustedDate.toLocaleTimeString();
     }
 
     cleanup() {

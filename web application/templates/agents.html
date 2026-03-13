@@ -165,7 +165,7 @@
                                 
                                 <div class="col-agent-time">
                                     <div class="time-display">
-                                        {% set time_diff = (datetime.utcnow() - agent.last_seen).total_seconds() %}
+                                        {% set time_diff = (get_utc7_now() - agent.last_seen).total_seconds() %}
                                         {% if time_diff < 60 %}
                                         <span class="time-main live">
                                             <i class="fas fa-circle-notch fa-spin"></i>
