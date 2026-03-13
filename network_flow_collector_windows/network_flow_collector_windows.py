@@ -152,6 +152,26 @@ class WindowsNetworkFlowCollector:
         if platform_module.system() != 'Windows':
             self.logger.warning("This is the Windows version. Use the Linux version for non-Windows systems.")
         
+        # Npcap Fix: Explicitly set WlanHelper path for Scapy and update PATH
+        # This fixes '\WlanHelper.exe' is not recognized error on Wi-Fi
+        try:
+            npcap_dir = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'System32', 'Npcap')
+            wlan_helper = os.path.join(npcap_dir, 'WlanHelper.exe')
+            
+            if os.path.exists(wlan_helper):
+                # Update Scapy's internal path for WlanHelper
+                # Note: Scapy uses this for Wi-Fi interface management
+                import scapy.arch.windows as scapy_windows
+                scapy_windows._WlanHelper = wlan_helper
+                self.logger.info(f"Set Scapy WlanHelper path to: {wlan_helper}")
+                
+                # Also add to system PATH to be safe
+                if npcap_dir not in os.environ["PATH"]:
+                    os.environ["PATH"] = npcap_dir + os.path.pathsep + os.environ["PATH"]
+                    self.logger.info(f"Added {npcap_dir} to system PATH")
+        except Exception as e:
+            self.logger.warning(f"Could not explicitly set Npcap paths: {e}")
+
         # Check for Npcap installation
         npcap_installed = self.check_npcap_installation()
         if not npcap_installed:

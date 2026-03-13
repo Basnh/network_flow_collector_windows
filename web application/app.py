@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///network_security.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost/network_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -1013,33 +1013,43 @@ def migrate_database():
     """Handle database migrations for schema changes"""
     try:
         with db.engine.connect() as conn:
-            # Check agent table for isolated_until column
-            result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
-            agent_columns = [row[1] for row in result]  # Column names are in index 1
+            # Detect database type
+            db_url = str(db.engine.url)
+            is_postgres = 'postgresql' in db_url
             
-            if 'isolated_until' not in agent_columns:
-                logger.info("Adding missing 'isolated_until' column to agent table")
-                conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
-                conn.commit()
-                logger.info("Successfully added 'isolated_until' column")
+            if is_postgres:
+                # PostgreSQL migration - check information_schema
+                logger.info("Detected PostgreSQL database - skipping migration (tables created via db.create_all())")
+                return
             else:
-                logger.info("Agent table 'isolated_until' column exists")
+                # SQLite migration using PRAGMA
+                # Check agent table for isolated_until column
+                result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
+                agent_columns = [row[1] for row in result]  # Column names are in index 1
                 
-            # Check network_flow table for classification column
-            result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
-            flow_columns = [row[1] for row in result]  # Column names are in index 1
-            
-            if 'classification' not in flow_columns:
-                logger.info("Adding missing 'classification' column to network_flow table")
-                conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
-                conn.commit()
-                logger.info("Successfully added 'classification' column")
-            else:
-                logger.info("Network flow table 'classification' column exists")
+                if 'isolated_until' not in agent_columns:
+                    logger.info("Adding missing 'isolated_until' column to agent table")
+                    conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
+                    conn.commit()
+                    logger.info("Successfully added 'isolated_until' column")
+                else:
+                    logger.info("Agent table 'isolated_until' column exists")
+                    
+                # Check network_flow table for classification column
+                result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
+                flow_columns = [row[1] for row in result]  # Column names are in index 1
+                
+                if 'classification' not in flow_columns:
+                    logger.info("Adding missing 'classification' column to network_flow table")
+                    conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
+                    conn.commit()
+                    logger.info("Successfully added 'classification' column")
+                else:
+                    logger.info("Network flow table 'classification' column exists")
                 
     except Exception as e:
         logger.error(f"Error during database migration: {e}")
-        raise e
+        # Don't raise - migration is optional
 
 # ==================== APPLICATION STARTUP ====================
 

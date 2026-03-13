@@ -13528,3 +13528,170 @@
 2026-03-04 15:39:44,541 - WARNING - [WARNING] No packets captured! Check interface and permissions
 2026-03-04 15:39:44,541 - INFO - Saving all remaining flows...
 2026-03-04 15:39:44,541 - INFO - Saved 0 flows to network_flows_20260304_153940.csv
+2026-03-13 18:24:49,227 - INFO - Checking Windows requirements...
+2026-03-13 18:24:49,260 - INFO - Npcap service is running
+2026-03-13 18:24:49,260 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:24:49,260 - INFO - Checking Windows requirements...
+2026-03-13 18:24:49,278 - INFO - Npcap service is running
+2026-03-13 18:24:49,278 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:24:49,294 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:24:49,294 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:24:49,295 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:24:51,371 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:24:51,371 - INFO - Initial registration successful
+2026-03-13 18:24:51,378 - INFO - Security Agent Client started successfully
+2026-03-13 18:24:51,386 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-03-13 18:24:51,392 - INFO - Output file: network_flows_20260313_182449.csv
+2026-03-13 18:24:51,393 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:24:51,396 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:24:51,396 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:24:51,406 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:24:51,411 - INFO - Capturing on interface: Wi-Fi
+2026-03-13 18:24:51,428 - ERROR - Error during packet capture: 
+2026-03-13 18:24:51,428 - ERROR - Make sure Npcap is installed and you have Administrator privileges
+2026-03-13 18:24:51,436 - ERROR - Some network adapters may not support promiscuous mode
+2026-03-13 18:24:51,436 - INFO - [FINAL] Capture complete: 0 packets captured
+2026-03-13 18:24:51,445 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:24:51,447 - WARNING - [WARNING] No packets captured! Check interface and permissions
+2026-03-13 18:24:51,447 - INFO - Saving all remaining flows...
+2026-03-13 18:24:51,447 - INFO - Saved 0 flows to network_flows_20260313_182449.csv
+2026-03-13 18:27:10,783 - INFO - Checking Windows requirements...
+2026-03-13 18:27:10,823 - INFO - Npcap service is running
+2026-03-13 18:27:10,823 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:27:10,827 - INFO - Checking Windows requirements...
+2026-03-13 18:27:10,855 - INFO - Npcap service is running
+2026-03-13 18:27:10,855 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:27:10,873 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:27:10,873 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:27:10,873 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:27:12,967 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:27:12,967 - INFO - Initial registration successful
+2026-03-13 18:27:12,977 - INFO - Security Agent Client started successfully
+2026-03-13 18:27:12,990 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-03-13 18:27:12,991 - INFO - Output file: network_flows_20260313_182710.csv
+2026-03-13 18:27:12,991 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:27:12,992 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:27:12,993 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:27:12,993 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:27:12,994 - INFO - Capturing on interface: Wi-Fi
+2026-03-13 18:27:13,020 - ERROR - Error during packet capture: 
+2026-03-13 18:27:13,021 - ERROR - Make sure Npcap is installed and you have Administrator privileges
+2026-03-13 18:27:13,021 - ERROR - Some network adapters may not support promiscuous mode
+2026-03-13 18:27:13,024 - INFO - [FINAL] Capture complete: 0 packets captured
+2026-03-13 18:27:13,025 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:27:13,025 - WARNING - [WARNING] No packets captured! Check interface and permissions
+2026-03-13 18:27:13,025 - INFO - Saving all remaining flows...
+2026-03-13 18:27:13,025 - INFO - Saved 0 flows to network_flows_20260313_182710.csv
+2026-03-13 18:27:59,161 - INFO - Checking Windows requirements...
+2026-03-13 18:27:59,185 - INFO - Npcap service is running
+2026-03-13 18:27:59,185 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:27:59,205 - INFO - Found 63 interfaces using get_windows_if_list
+2026-03-13 18:28:22,491 - INFO - Checking Windows requirements...
+2026-03-13 18:28:22,514 - INFO - Npcap service is running
+2026-03-13 18:28:22,515 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:28:22,525 - INFO - Checking Windows requirements...
+2026-03-13 18:28:22,545 - INFO - Npcap service is running
+2026-03-13 18:28:22,545 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:28:22,562 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:28:22,562 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:28:22,562 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:28:24,627 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:28:24,627 - INFO - Initial registration successful
+2026-03-13 18:28:24,641 - INFO - Security Agent Client started successfully
+2026-03-13 18:28:24,643 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-03-13 18:28:24,645 - INFO - Output file: network_flows_20260313_182822.csv
+2026-03-13 18:28:24,645 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:28:24,645 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:28:24,645 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:28:24,645 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:28:24,645 - INFO - Capturing on interface: Wi-Fi
+2026-03-13 18:28:24,661 - ERROR - Error during packet capture: 
+2026-03-13 18:28:24,661 - ERROR - Make sure Npcap is installed and you have Administrator privileges
+2026-03-13 18:28:24,664 - ERROR - Some network adapters may not support promiscuous mode
+2026-03-13 18:28:24,664 - INFO - [FINAL] Capture complete: 0 packets captured
+2026-03-13 18:28:24,664 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:28:24,665 - WARNING - [WARNING] No packets captured! Check interface and permissions
+2026-03-13 18:28:24,667 - INFO - Saving all remaining flows...
+2026-03-13 18:28:24,667 - INFO - Saved 0 flows to network_flows_20260313_182822.csv
+2026-03-13 18:28:59,922 - INFO - Checking Windows requirements...
+2026-03-13 18:28:59,941 - INFO - Npcap service is running
+2026-03-13 18:28:59,963 - INFO - Found 63 interfaces using get_windows_if_list
+2026-03-13 18:29:03,835 - INFO - Checking Windows requirements...
+2026-03-13 18:29:03,866 - INFO - Npcap service is running
+2026-03-13 18:29:03,866 - INFO - Checking Windows requirements...
+2026-03-13 18:29:03,892 - INFO - Npcap service is running
+2026-03-13 18:29:03,905 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:29:03,905 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:29:03,905 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:29:05,964 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:29:05,964 - INFO - Initial registration successful
+2026-03-13 18:29:05,972 - INFO - Security Agent Client started successfully
+2026-03-13 18:29:05,976 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-03-13 18:29:05,976 - INFO - Output file: network_flows_20260313_182903.csv
+2026-03-13 18:29:05,976 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:29:05,976 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:29:05,976 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:29:05,976 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:29:05,976 - INFO - Capturing on interface: Wi-Fi
+2026-03-13 18:29:05,995 - ERROR - Error during packet capture: 
+2026-03-13 18:29:05,995 - ERROR - Make sure Npcap is installed and you have Administrator privileges
+2026-03-13 18:29:05,995 - ERROR - Some network adapters may not support promiscuous mode
+2026-03-13 18:29:05,995 - INFO - [FINAL] Capture complete: 0 packets captured
+2026-03-13 18:29:05,995 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:29:05,995 - WARNING - [WARNING] No packets captured! Check interface and permissions
+2026-03-13 18:29:05,995 - INFO - Saving all remaining flows...
+2026-03-13 18:29:05,995 - INFO - Saved 0 flows to network_flows_20260313_182903.csv
+2026-03-13 18:45:32,855 - INFO - Checking Windows requirements...
+2026-03-13 18:45:32,856 - INFO - Set Scapy WlanHelper path to: C:\Windows\System32\Npcap\WlanHelper.exe
+2026-03-13 18:45:32,898 - INFO - Npcap service is running
+2026-03-13 18:45:32,899 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:45:32,906 - INFO - Checking Windows requirements...
+2026-03-13 18:45:32,906 - INFO - Set Scapy WlanHelper path to: C:\Windows\System32\Npcap\WlanHelper.exe
+2026-03-13 18:45:32,940 - INFO - Npcap service is running
+2026-03-13 18:45:32,940 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:45:32,957 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:45:32,957 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:45:32,957 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:45:35,045 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:45:35,046 - INFO - Initial registration successful
+2026-03-13 18:45:35,056 - INFO - Security Agent Client started successfully
+2026-03-13 18:45:35,083 - INFO - Starting Windows network flow collection on interface: Wi-Fi
+2026-03-13 18:45:35,084 - INFO - Output file: network_flows_20260313_184532.csv
+2026-03-13 18:45:35,084 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:45:35,084 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:45:35,085 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:45:35,085 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:45:35,086 - INFO - Capturing on interface: Wi-Fi
+2026-03-13 18:45:35,216 - INFO - [DEBUG] Created new flow #1: 10.10.5.68:5353 -> 224.0.0.251:5353 (17)
+2026-03-13 18:45:35,375 - INFO - [DEBUG] Created new flow #2: 162.159.136.234:443 -> 10.10.9.161:1663 (6)
+2026-03-13 18:45:35,379 - INFO - [DEBUG] Created new flow #3: 10.10.9.161:3288 -> 162.159.133.232:443 (6)
+2026-03-13 18:45:35,567 - INFO - [DEBUG] Created new flow #4: 10.10.9.161:63274 -> 172.67.68.179:443 (17)
+2026-03-13 18:45:35,964 - INFO - [DEBUG] Created new flow #5: 10.10.9.161:64065 -> 8.8.8.8:53 (17)
+2026-03-13 18:45:35,978 - INFO - [DEBUG] Created new flow #6: 10.10.9.161:55666 -> 8.8.8.8:53 (17)
+2026-03-13 18:45:36,016 - INFO - [DEBUG] Created new flow #7: 10.10.9.161:49211 -> 8.8.4.4:443 (17)
+2026-03-13 18:45:36,111 - INFO - [DEBUG] Created new flow #8: 10.10.9.161:65522 -> 172.217.194.95:443 (17)
+2026-03-13 18:45:36,182 - INFO - [DEBUG] Created new flow #9: 10.10.9.161:3450 -> 10.10.9.251:8009 (6)
+2026-03-13 18:45:36,239 - INFO - [DEBUG] Created new flow #10: 10.10.9.251:5353 -> 224.0.0.251:5353 (17)
+2026-03-13 18:45:36,313 - INFO - [DEBUG] Created new flow #11: 10.10.9.161:3556 -> 162.159.128.232:443 (6)
+2026-03-13 18:45:37,117 - INFO - Agent status: active, Threat level: low
+2026-03-13 18:45:37,117 - ERROR - Error restoring connectivity: name 'subprocess' is not defined
+2026-03-13 18:45:37,248 - INFO - Received shutdown signal. Saving data...
+2026-03-13 18:45:37,248 - INFO - Saving all remaining flows...
+2026-03-13 18:45:37,248 - INFO - [SAVE] Complete IPv4 Flow: 10.10.5.68:5353 -> 224.0.0.251:5353 (17) - 6 packets
+2026-03-13 18:45:37,253 - INFO - [SAVE] Complete IPv4 Flow: 162.159.136.234:443 -> 10.10.9.161:1663 (6) - 19 packets
+2026-03-13 18:45:37,253 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:3288 -> 162.159.133.232:443 (6) - 2 packets
+2026-03-13 18:45:37,262 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:63274 -> 172.67.68.179:443 (17) - 19 packets
+2026-03-13 18:45:37,265 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:64065 -> 8.8.8.8:53 (17) - 2 packets
+2026-03-13 18:45:37,272 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:55666 -> 8.8.8.8:53 (17) - 2 packets
+2026-03-13 18:45:37,274 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:49211 -> 8.8.4.4:443 (17) - 20 packets
+2026-03-13 18:45:37,275 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:65522 -> 172.217.194.95:443 (17) - 21 packets
+2026-03-13 18:45:37,277 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:3450 -> 10.10.9.251:8009 (6) - 3 packets
+2026-03-13 18:45:37,280 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.251:5353 -> 224.0.0.251:5353 (17) - 7 packets
+2026-03-13 18:45:37,282 - INFO - [SAVE] Complete IPv4 Flow: 10.10.9.161:3556 -> 162.159.128.232:443 (6) - 2 packets
+2026-03-13 18:45:37,287 - INFO - Saved 11 flows to network_flows_20260313_184532.csv
+2026-03-13 18:45:37,287 - INFO - [FINAL] Capture complete: 123 packets captured
+2026-03-13 18:45:37,288 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:45:37,288 - WARNING - [WARNING] Only 0 flows from 123 packets
+2026-03-13 18:45:37,289 - WARNING -   Consider longer capture time or check promiscuous mode
+2026-03-13 18:45:37,289 - INFO - Saving all remaining flows...
+2026-03-13 18:45:37,290 - INFO - Saved 0 flows to network_flows_20260313_184532.csv

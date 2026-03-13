@@ -2919,3 +2919,27 @@
 2026-03-03 19:13:51,393 - WARNING -   Consider longer capture time or check promiscuous mode
 2026-03-03 19:13:51,394 - INFO - Saving all remaining flows...
 2026-03-03 19:13:51,394 - INFO - Saved 0 flows to network_flows_with_security_20260303_191212.csv
+2026-03-13 18:23:56,636 - INFO - Checking Windows requirements...
+2026-03-13 18:23:56,664 - INFO - Npcap service is running
+2026-03-13 18:23:56,664 - WARNING - Administrator privileges recommended for best packet capture performance
+2026-03-13 18:23:56,665 - INFO - Starting Security Agent Client: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:23:56,665 - INFO - Server URL: http://localhost:5000
+2026-03-13 18:23:56,665 - INFO - Hostname: Dinosaur (10.10.9.161)
+2026-03-13 18:23:58,705 - INFO - Agent registered successfully: 67eef1f24c370edb880b077c21f9ff66
+2026-03-13 18:23:58,705 - INFO - Initial registration successful
+2026-03-13 18:23:58,710 - INFO - Security Agent Client started successfully
+2026-03-13 18:23:58,711 - INFO - Starting Windows network flow collection on interface: None
+2026-03-13 18:23:58,711 - INFO - Output file: network_flows_with_security_20260313_182356.csv
+2026-03-13 18:23:58,712 - INFO - Flow timeout: 120 seconds
+2026-03-13 18:23:58,712 - INFO - Promiscuous mode: Enabled
+2026-03-13 18:23:58,712 - INFO - [*] Promiscuous mode enabled - capturing ALL network traffic
+2026-03-13 18:23:58,712 - INFO - [*] Will capture traffic from all devices on the network segment
+2026-03-13 18:23:58,713 - INFO - Capturing on all interfaces
+2026-03-13 18:23:58,726 - ERROR - Error during packet capture: 
+2026-03-13 18:23:58,726 - ERROR - Make sure Npcap is installed and you have Administrator privileges
+2026-03-13 18:23:58,726 - ERROR - Some network adapters may not support promiscuous mode
+2026-03-13 18:23:58,726 - INFO - [FINAL] Capture complete: 0 packets captured
+2026-03-13 18:23:58,734 - INFO - [FINAL] Total flows created: 0
+2026-03-13 18:23:58,734 - WARNING - [WARNING] No packets captured! Check interface and permissions
+2026-03-13 18:23:58,738 - INFO - Saving all remaining flows...
+2026-03-13 18:23:58,739 - INFO - Saved 0 flows to network_flows_with_security_20260313_182356.csv
