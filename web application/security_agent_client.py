@@ -233,9 +233,8 @@ class SecurityAgentClient:
             return None
 
     def execute_isolation(self, server_ip=None):
-        """Execute network isolation using Windows Firewall (Block all except Server)"""
+        """Execute network isolation by setting Default Block policy and allowing only Management"""
         try:
-            # If server_ip not provided, try to resolve from URL
             if not server_ip:
                 server_host = self.server_url.split('//')[-1].split(':')[0]
                 try:
@@ -243,45 +242,35 @@ class SecurityAgentClient:
                 except:
                     server_ip = None
 
-            # Clean up any existing rules first
+            # 1. Clean up existing management rules and ensure Firewall is ON
             self.execute_restoration()
+            subprocess.run('netsh advfirewall set allprofiles state on', shell=True, capture_output=True)
 
-            commands = []
-            if server_ip and server_ip != '127.0.0.1':
-                # Split IP into parts to calculate ranges
-                # For simplicity and reliability in batch/shell, we use two block rules:
-                # 1. 0.0.0.0 to (server_ip - 1)
-                # 2. (server_ip + 1) to 255.255.255.255
-                
-                # Use PowerShell for cleaner IP range and IPv6 handling
+            # 2. Add explicit Allow rules for Management
+            if server_ip:
+                # Allow IP, Loopback and DHCP (essential to keep the IP address)
                 ps_cmd = f"""
-                $serverIpStr = '{server_ip}'
-                $ip = [System.Net.IPAddress]::Parse($serverIpStr)
-                $bytes = $ip.GetAddressBytes()
-                $val = [BitConverter]::ToUInt32($bytes[3..0], 0)
+                # Allow Server IP (v4)
+                New-NetFirewallRule -DisplayName "Manager_Allow_In_Server" -Direction Inbound -Action Allow -RemoteAddress "{server_ip}" -Profile Any -ErrorAction SilentlyContinue
+                New-NetFirewallRule -DisplayName "Manager_Allow_Out_Server" -Direction Outbound -Action Allow -RemoteAddress "{server_ip}" -Profile Any -ErrorAction SilentlyContinue
                 
-                # Define IPv4 ranges excluding the server IP
-                $ranges = @()
-                if ($val -gt 0) {{ $ranges += "0.0.0.0-$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val - 1))[3..0]))" }}
-                if ($val -lt 0xFFFFFFFF) {{ $ranges += "$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val + 1))[3..0]))-255.255.255.255" }}
-                $remoteIps = $ranges -join ","
+                # Allow Loopback
+                New-NetFirewallRule -DisplayName "Manager_Allow_In_Loopback" -Direction Inbound -Action Allow -RemoteAddress "127.0.0.1","::1" -Profile Any -ErrorAction SilentlyContinue
+                New-NetFirewallRule -DisplayName "Manager_Allow_Out_Loopback" -Direction Outbound -Action Allow -RemoteAddress "127.0.0.1","::1" -Profile Any -ErrorAction SilentlyContinue
                 
-                # 1. Block IPv6 completely
-                New-NetFirewallRule -DisplayName "Manager_Isolation_In_v6" -Direction Inbound -Action Block -Protocol Any -EtherType IPv6 -Profile Any -ErrorAction SilentlyContinue
-                New-NetFirewallRule -DisplayName "Manager_Isolation_Out_v6" -Direction Outbound -Action Block -Protocol Any -EtherType IPv6 -Profile Any -ErrorAction SilentlyContinue
-
-                # 2. Block IPv4 except Server
-                New-NetFirewallRule -DisplayName "Manager_Isolation_In_v4" -Direction Inbound -Action Block -RemoteAddress $remoteIps -Profile Any -ErrorAction SilentlyContinue
-                New-NetFirewallRule -DisplayName "Manager_Isolation_Out_v4" -Direction Outbound -Action Block -RemoteAddress $remoteIps -Profile Any -ErrorAction SilentlyContinue
+                # Allow DHCP
+                New-NetFirewallRule -DisplayName "Manager_Allow_Out_DHCP" -Direction Outbound -Action Allow -Protocol UDP -LocalPort 68 -RemotePort 67 -Profile Any -ErrorAction SilentlyContinue
                 """
                 subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
-                self.logger.critical(f"FIREWALL ISOLATION ENFORCED - IPv6 Blocked + Only IPv4 with {server_ip} allowed")
-            else:
-                # Fallback to total block if server IP unknown
-                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_In_All" dir=in action=block remoteip=any profile=any', shell=True)
-                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_Out_All" dir=out action=block remoteip=any profile=any', shell=True)
-                self.logger.critical("FIREWALL ISOLATION ENFORCED - TOTAL BLOCK (Server IP unknown)")
+
+            # 3. SET DEFAULT POLICY TO BLOCK (The core of isolation)
+            # This blocks everything that is not explicitly allowed above
+            subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound', shell=True, capture_output=True)
             
+            # 4. Force termination of existing connections to ensure isolation is immediate
+            subprocess.run('powershell -Command "Get-NetTCPConnection -State Established | Where-Object { $_.RemoteAddress -ne \'' + (server_ip if server_ip else '127.0.0.1') + '\' } | Remove-NetTCPConnection -ErrorAction SilentlyContinue"', shell=True, capture_output=True)
+
+            self.logger.critical(f"NETWORK ISOLATION ENFORCED (Default Block) - Only authorized management traffic allowed.")
             return True
             
         except Exception as e:
@@ -289,17 +278,19 @@ class SecurityAgentClient:
             return False
 
     def execute_restoration(self):
-        """Remove network isolation rules"""
+        """Restore default firewall policy and remove isolation rules"""
         try:
-            # Use PowerShell to remove rules by Name (handles both netsh and New-NetFirewallRule)
-            ps_cmd = 'Remove-NetFirewallRule -DisplayName "Manager_Isolation_*" -ErrorAction SilentlyContinue'
+            # 1. Set Default Outbound back to Allow (Standard Windows behavior)
+            subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound', shell=True, capture_output=True)
+
+            # 2. Remove Management specific rules
+            ps_cmd = 'Remove-NetFirewallRule -DisplayName "Manager_Allow_*" -ErrorAction SilentlyContinue'
             subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
             
-            # Legacy netsh cleanup just in case
-            subprocess.run('netsh advfirewall firewall delete rule name="Manager_Isolation_In"', shell=True, capture_output=True)
-            subprocess.run('netsh advfirewall firewall delete rule name="Manager_Isolation_Out"', shell=True, capture_output=True)
+            # Cleanup old rule names just in case
+            subprocess.run('powershell -Command "Remove-NetFirewallRule -DisplayName \'Manager_Isolation_*\' -ErrorAction SilentlyContinue"', shell=True, capture_output=True)
                 
-            self.logger.info("Network connectivity restored (Firewall rules removed)")
+            self.logger.info("Network connectivity restored (Policy reset to AllowOutbound)")
             return True
             
         except Exception as e:
