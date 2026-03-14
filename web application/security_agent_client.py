@@ -352,14 +352,33 @@ class SecurityAgentClient:
             self.logger.error(f"Error enabling network adapter: {e}")
             return False, None
 
+    def auto_restore_network(self, adapter_name):
+        """Callback to automatically restore network after isolation duration expires"""
+        self.logger.warning(f"Auto-restoring network for adapter: {adapter_name}")
+        success, used_adapter = self.enable_network_adapter(adapter_name)
+        
+        if success:
+            self.logger.info("Auto-restoration successful")
+        else:
+            self.logger.error("Auto-restoration failed")
+            
     def handle_isolation_command(self, command):
         """Handle isolation commands from server"""
         try:
             action = command.get('action', '').lower()
             adapter_name = command.get('adapter_name')
+            duration_minutes = command.get('duration_minutes')
             
             if action == 'isolate':
                 success, used_adapter = self.disable_network_adapter(adapter_name)
+                
+                # Setup auto-restore if duration provided
+                if success and duration_minutes and duration_minutes > 0:
+                    self.logger.warning(f"Auto-restoration scheduled in {duration_minutes} minute(s)")
+                    restore_timer = threading.Timer(duration_minutes * 60, self.auto_restore_network, args=[used_adapter])
+                    restore_timer.daemon = True
+                    restore_timer.start()
+
                 return {
                     'success': success,
                     'action': 'isolate',

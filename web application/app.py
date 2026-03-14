@@ -582,6 +582,7 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
         isolation_command = {
             'action': 'isolate',
             'reason': reason,
+            'duration_minutes': duration_minutes,
             'timestamp': get_utc7_now().isoformat()
         }
         agent.pending_command = json.dumps(isolation_command)
