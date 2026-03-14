@@ -8,6 +8,9 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('isolate_agent_web', agent_id=agent.agent_id) }}">
+                {% if csrf_token() %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% endif %}
                 <div class="modal-body">
                     <p>Are you sure you want to isolate <strong class="text-primary">{{ agent.hostname }}</strong>?</p>
                     <div class="p-3 mb-3 rounded"
@@ -56,6 +59,9 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('restore_agent_web', agent_id=agent.agent_id) }}">
+                {% if csrf_token() %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% endif %}
                 <div class="modal-body">
                     <p>Restore network access for <strong class="text-success">{{ agent.hostname }}</strong>?</p>
                     <div class="p-3 mb-3 rounded"

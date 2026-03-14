@@ -6,6 +6,7 @@ Collects data from agents and detects trojans/malware
 
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from datetime import datetime, timedelta
 from pytz import timezone
 import json
@@ -30,8 +31,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost/network_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # No limit on CSRF token age
 
 db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

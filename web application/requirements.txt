@@ -1,6 +1,7 @@
 # Flask Web Application
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
+Flask-WTF==1.1.1
 
 # Database
 SQLAlchemy==2.0.21
