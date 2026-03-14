@@ -792,21 +792,24 @@ def api_agent_status(agent_id):
         last_seen_threshold = get_utc7_now() - timedelta(minutes=2)
         is_online = agent.last_seen and agent.last_seen > last_seen_threshold
         
-        current_status = 'online' if is_online else 'offline'
-        status_changed = current_status != agent.status
-        
-        # Update status if changed
-        if status_changed:
-            agent.status = current_status
-            db.session.commit()
+        # IMPORTANT: Never overwrite 'isolated' status based on heartbeat alone.
+        # Isolation is only cleared by explicit restore command.
+        if agent.status == 'isolated':
+            display_status = 'isolated'
+        else:
+            display_status = 'online' if is_online else 'offline'
+            # Only update DB status when NOT isolated
+            if display_status != agent.status:
+                agent.status = display_status
+                db.session.commit()
         
         return jsonify({
             'agent_id': agent.agent_id,
             'hostname': agent.hostname,
-            'status': current_status,
+            'status': display_status,
             'last_seen': agent.last_seen.strftime('%Y-%m-%d %H:%M:%S') if agent.last_seen else 'Never',
             'threat_level': agent.threat_level,
-            'status_changed': status_changed
+            'status_changed': False
         })
     except Exception as e:
         logger.error(f"Error fetching agent status: {e}")

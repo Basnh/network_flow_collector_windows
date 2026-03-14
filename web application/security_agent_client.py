@@ -216,17 +216,12 @@ class SecurityAgentClient:
                 
                 self.logger.info(f"Agent status: {status}, Threat level: {threat_level}")
                 
-                # Handle instructions
-                if 'NETWORK_ISOLATED' in instructions:
-                    self.execute_isolation()
-                else:
-                    self.execute_restoration()
-                
+                # Handle instructions - only act on explicit server instructions
                 if 'INCREASE_MONITORING' in instructions:
                     self.logger.warning("Increasing monitoring frequency due to security concerns")
-                    self.upload_interval = 10 # Faster updates
+                    self.upload_interval = 10  # Faster updates
                 else:
-                    self.upload_interval = 30 # Normal updates
+                    self.upload_interval = 30  # Normal updates
                 
                 return status_data
             else:
@@ -332,6 +327,7 @@ class SecurityAgentClient:
                     return False, None
             
             cmd = f'Disable-NetAdapter -Name "{adapter_name}" -Confirm:$false'
+            self.logger.critical(f">>> Executing: Disable-NetAdapter -Name '{adapter_name}'")
             result = subprocess.run(
                 ['powershell', '-Command', cmd],
                 capture_output=True,
@@ -513,10 +509,12 @@ class SecurityAgentClient:
                 
                 if data.get('has_command'):
                     command = data.get('command', {})
-                    self.logger.info(f"Received command from server: {command.get('action')}")
+                    self.logger.critical(f"====== COMMAND RECEIVED: {command.get('action')} ======")
+                    self.logger.critical(f"Full command: {command}")
                     
                     # Execute the command
                     result = self.handle_isolation_command(command)
+                    self.logger.critical(f"RESULT: success={result.get('success')}, adapter={result.get('adapter_name')}, error={result.get('error')}")
                     
                     # Report result back to server
                     self.report_command_result(result)
