@@ -232,59 +232,74 @@ class SecurityAgentClient:
             self.logger.error(f"Error checking agent status: {e}")
             return None
 
-    def execute_isolation(self):
-        """Execute network isolation using Windows Firewall"""
+    def execute_isolation(self, server_ip=None):
+        """Execute network isolation using Windows Firewall (Block all except Server)"""
         try:
-            # Check if already isolated (we can use a flag or check if rule exists)
-            # For simplicity, we'll try to add rules; netsh will handle if they exist
-            
-            # Get server IP to allow communication
-            server_host = self.server_url.split('//')[-1].split(':')[0]
-            try:
-                server_ip = socket.gethostbyname(server_host)
-            except:
-                server_ip = None
+            # If server_ip not provided, try to resolve from URL
+            if not server_ip:
+                server_host = self.server_url.split('//')[-1].split(':')[0]
+                try:
+                    server_ip = socket.gethostbyname(server_host)
+                except:
+                    server_ip = None
 
-            # Isolation commands: Block all except management server
-            commands = [
-                # Block all inbound by default
-                f'netsh advfirewall firewall add rule name="Manager_Isolation_In" dir=in action=block remoteip=any',
-                # Block all outbound by default
-                f'netsh advfirewall firewall add rule name="Manager_Isolation_Out" dir=out action=block remoteip=any'
-            ]
-            
-            # Add allow rules for the server BEFORE the block rules or with higher priority
-            # In Windows Firewall, Block rules usually take precedence unless we use specific allow rules
-            # Actually, a better way is to allow the specific IP
+            # Clean up any existing rules first
+            self.execute_restoration()
+
+            commands = []
             if server_ip and server_ip != '127.0.0.1':
-                commands.insert(0, f'netsh advfirewall firewall add rule name="Manager_Allow_In" dir=in action=allow remoteip={server_ip}')
-                commands.insert(1, f'netsh advfirewall firewall add rule name="Manager_Allow_Out" dir=out action=allow remoteip={server_ip}')
+                # Split IP into parts to calculate ranges
+                # For simplicity and reliability in batch/shell, we use two block rules:
+                # 1. 0.0.0.0 to (server_ip - 1)
+                # 2. (server_ip + 1) to 255.255.255.255
+                
+                # Use PowerShell for cleaner IP range handling
+                ps_cmd = f"""
+                $ip = [System.Net.IPAddress]::Parse('{server_ip}')
+                $bytes = $ip.GetAddressBytes()
+                $val = [BitConverter]::ToUInt32($bytes[3..0], 0)
+                
+                # Define ranges
+                $ranges = @()
+                if ($val -gt 0) {{ $ranges += "0.0.0.0-$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val - 1))[3..0]))" }}
+                if ($val -lt 0xFFFFFFFF) {{ $ranges += "$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val + 1))[3..0]))-255.255.255.255" }}
+                
+                $remoteIps = $ranges -join ","
+                
+                New-NetFirewallRule -DisplayName "Manager_Isolation_In" -Direction Inbound -Action Block -RemoteAddress $remoteIps -ErrorAction SilentlyContinue
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Out" -Direction Outbound -Action Block -RemoteAddress $remoteIps -ErrorAction SilentlyContinue
+                """
+                subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
+                self.logger.critical(f"FIREWALL ISOLATION ENFORCED - Only communication with {server_ip} allowed")
+            else:
+                # Fallback to total block if server IP unknown
+                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_In" dir=in action=block remoteip=any', shell=True)
+                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_Out" dir=out action=block remoteip=any', shell=True)
+                self.logger.critical("FIREWALL ISOLATION ENFORCED - TOTAL BLOCK (Server IP unknown)")
             
-            for cmd in commands:
-                subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            self.logger.critical("NETWORK ISOLATION ENFORCED - Only management communication allowed")
+            return True
             
         except Exception as e:
             self.logger.error(f"Error enforcing isolation: {e}")
+            return False
 
     def execute_restoration(self):
         """Remove network isolation rules"""
         try:
-            commands = [
-                'netsh advfirewall firewall delete rule name="Manager_Isolation_In"',
-                'netsh advfirewall firewall delete rule name="Manager_Isolation_Out"',
-                'netsh advfirewall firewall delete rule name="Manager_Allow_In"',
-                'netsh advfirewall firewall delete rule name="Manager_Allow_Out"'
-            ]
+            # Use PowerShell to remove rules by Name (handles both netsh and New-NetFirewallRule)
+            ps_cmd = 'Remove-NetFirewallRule -DisplayName "Manager_Isolation_*" -ErrorAction SilentlyContinue'
+            subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
             
-            for cmd in commands:
-                subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            # Legacy netsh cleanup just in case
+            subprocess.run('netsh advfirewall firewall delete rule name="Manager_Isolation_In"', shell=True, capture_output=True)
+            subprocess.run('netsh advfirewall firewall delete rule name="Manager_Isolation_Out"', shell=True, capture_output=True)
                 
-            self.logger.info("Network connectivity restored")
+            self.logger.info("Network connectivity restored (Firewall rules removed)")
+            return True
             
         except Exception as e:
             self.logger.error(f"Error restoring connectivity: {e}")
+            return False
 
     def get_network_adapters(self):
         """Get list of active network adapters"""
@@ -401,29 +416,30 @@ class SecurityAgentClient:
             duration_minutes = command.get('duration_minutes')
             
             if action == 'isolate':
-                success, used_adapter = self.disable_network_adapter(adapter_name)
+                server_ip = command.get('server_ip')
+                success = self.execute_isolation(server_ip)
                 
                 # Setup auto-restore if duration provided
                 if success and duration_minutes and duration_minutes > 0:
                     self.logger.warning(f"Auto-restoration scheduled in {duration_minutes} minute(s)")
-                    restore_timer = threading.Timer(duration_minutes * 60, self.auto_restore_network, args=[used_adapter])
+                    restore_timer = threading.Timer(duration_minutes * 60, self.execute_restoration)
                     restore_timer.daemon = True
                     restore_timer.start()
 
                 return {
                     'success': success,
                     'action': 'isolate',
-                    'adapter_name': used_adapter,
-                    'error': '' if success else 'Failed to disable network adapter',
+                    'adapter_name': 'FIREWALL',
+                    'error': '' if success else 'Failed to enforce firewall isolation',
                     'timestamp': get_utc7_now().isoformat()
                 }
             elif action == 'restore':
-                success, used_adapter = self.enable_network_adapter(adapter_name)
+                success = self.execute_restoration()
                 return {
                     'success': success,
                     'action': 'restore',
-                    'adapter_name': used_adapter,
-                    'error': '' if success else 'Failed to enable network adapter',
+                    'adapter_name': 'FIREWALL',
+                    'error': '' if success else 'Failed to remove firewall rules',
                     'timestamp': get_utc7_now().isoformat()
                 }
             else:

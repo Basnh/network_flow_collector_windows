@@ -190,15 +190,15 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         {% if agent.status != 'isolated' %}
-                                        <button class="action-btn danger" data-bs-toggle="modal"
-                                            data-bs-target="#isolateModal{{ agent.id }}" title="Isolate Agent">
+                                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}"
+                                            class="action-btn danger" title="Isolate Agent">
                                             <i class="fas fa-shield-virus"></i>
-                                        </button>
+                                        </a>
                                         {% else %}
-                                        <button class="action-btn success" data-bs-toggle="modal"
-                                            data-bs-target="#restoreModal{{ agent.id }}" title="Restore Agent">
+                                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}"
+                                            class="action-btn success" title="Restore Agent">
                                             <i class="fas fa-undo"></i>
-                                        </button>
+                                        </a>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -224,10 +224,6 @@
 
 </div>
 
-<!-- Modals - rendered outside table container to avoid z-index/overflow issues -->
-{% for agent in agents %}
-{% include 'includes/agent_modals.html' ignore missing %}
-{% endfor %}
 
 <script>
     function refreshAgentsData() {

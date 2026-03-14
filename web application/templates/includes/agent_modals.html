@@ -7,7 +7,7 @@
                 <h5 class="modal-title">Isolate Agent</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('isolate_agent_web', agent_id=agent.agent_id) }}">
+            <form id="isolateForm{{ agent.id }}" method="POST" action="{{ url_for('isolate_agent_web', agent_id=agent.agent_id) }}" onsubmit="console.log('Isolate form submitted'); return true;">
                 {% if csrf_token() %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 {% endif %}
@@ -58,7 +58,7 @@
                 <h5 class="modal-title">Restore Agent Access</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('restore_agent_web', agent_id=agent.agent_id) }}">
+            <form id="restoreForm{{ agent.id }}" method="POST" action="{{ url_for('restore_agent_web', agent_id=agent.agent_id) }}" onsubmit="console.log('Restore form submitted'); return true;">
                 {% if csrf_token() %}
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 {% endif %}

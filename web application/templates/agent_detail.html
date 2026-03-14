@@ -36,6 +36,41 @@
         cursor: not-allowed;
         opacity: 0.6;
     }
+
+    /* Connection Pulse Animation */
+    @keyframes pulse-success {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(35, 134, 54, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0); }
+    }
+    
+    @keyframes pulse-offline {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(139, 148, 158, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0); }
+    }
+
+    .pulse-online {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #238636;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        animation: pulse-success 2s infinite;
+    }
+
+    .pulse-offline {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #8b949e;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        animation: pulse-offline 2s infinite;
+    }
 </style>
 {% endblock %}
 
@@ -44,11 +79,25 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h2">
             <i class="fas fa-desktop me-2 text-primary"></i> {{ agent.hostname }}
+            
+            <!-- Connection Status (Online/Offline) -->
+            {% if agent.is_online %}
+            <span class="ms-2 badge bg-dark border border-success text-success" style="font-size: 0.4em; vertical-align: middle;">
+                <span class="pulse-online"></span> ONLINE
+            </span>
+            {% else %}
+            <span class="ms-2 badge bg-dark border border-secondary text-secondary" style="font-size: 0.4em; vertical-align: middle;">
+                <span class="pulse-offline"></span> OFFLINE
+            </span>
+            {% endif %}
+
+            <!-- Administrative Status (Active/Isolated) -->
             <span
                 class="ms-2 badge {% if agent.status == 'active' %}bg-success{% elif agent.status == 'isolated' %}bg-danger{% else %}bg-secondary{% endif %}"
                 style="font-size: 0.5em; vertical-align: middle;">
                 {{ agent.status.upper() }}
             </span>
+            
             {% if agent.status == 'isolated' and agent.isolated_until %}
             <span class="ms-2 badge bg-warning text-dark" style="font-size: 0.4em; vertical-align: middle;">
                 <i class="fas fa-clock me-1"></i> EXPIRES: {{ agent.isolated_until.strftime('%H:%M:%S (%d/%m)') }}
@@ -57,13 +106,13 @@
         </h1>
         <div class="btn-group">
             {% if agent.status != 'isolated' %}
-            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#isolateModal">
+            <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-outline-danger btn-sm">
                 <i class="fas fa-ban me-1"></i> Isolate
-            </button>
+            </a>
             {% else %}
-            <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#restoreModal">
+            <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-outline-success btn-sm">
                 <i class="fas fa-undo me-1"></i> Restore
-            </button>
+            </a>
             {% endif %}
             <a href="{{ url_for('agents_list') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i> Back
@@ -74,8 +123,8 @@
     <div class="row g-4 mb-4">
         <!-- Agent Meta -->
         <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header border-0 pb-0">
+            <div class="card mb-4">
+                <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
                     <small class="text-muted fw-bold text-uppercase">Agent Metadata</small>
                 </div>
                 <div class="card-body">
@@ -94,6 +143,50 @@
                     <div class="mb-0">
                         <label class="small text-muted d-block mb-1">LAST SEEN</label>
                         <div class="small opacity-75">{{ agent.last_seen.strftime('%Y-%m-%d %H:%M:%S UTC+7') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connectivity & Control -->
+            <div class="card">
+                <div class="card-header border-0 pb-0">
+                    <small class="text-muted fw-bold text-uppercase">Connectivity & Control</small>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        {% if agent.is_online %}
+                        <span class="pulse-online"></span>
+                        <div>
+                            <div class="fw-bold text-success">Online</div>
+                            <small class="text-muted">Agent is actively polling</small>
+                        </div>
+                        {% else %}
+                        <span class="pulse-offline"></span>
+                        <div>
+                            <div class="fw-bold text-secondary">Offline</div>
+                            <small class="text-muted">No heartbeat detected</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">ADAPTER</label>
+                        <div class="small fw-bold">
+                            <i class="fas fa-network-wired me-1"></i>
+                            {{ agent.network_adapter_name if agent.network_adapter_name else 'Detection Pending...' }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {% if agent.status == 'isolated' %}
+                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-success">
+                            <i class="fas fa-undo me-2"></i> Khôi phục kết nối
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-danger">
+                            <i class="fas fa-ban me-2"></i> Ngắt kết nối Agent
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -245,9 +338,6 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
     </div>
 </div>
 
-<!-- Modals -->
-{% set agent = agent %} <!-- Ensure agent is in context for the include -->
-{% include 'includes/agent_modals.html' %}
 
 <script>
     function copySnippet() {

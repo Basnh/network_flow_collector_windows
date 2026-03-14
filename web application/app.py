@@ -37,7 +37,7 @@ db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Utility function to get current time in UTC+7
@@ -99,6 +99,14 @@ class Agent(db.Model):
     pending_command = db.Column(db.Text, nullable=True)  # JSON string of pending network isolation command
     network_adapter_name = db.Column(db.String(100), nullable=True)  # Name of network adapter to isolate
     
+    @property
+    def is_online(self):
+        """Check if agent is online (last seen within 2 minutes)"""
+        if self.last_seen:
+            # last_seen is stored as naive UTC+7, so we need naive UTC+7 now
+            return (get_utc7_now() - self.last_seen).total_seconds() < 120
+        return False
+
     # Relationships
     flows = db.relationship('NetworkFlow', backref='agent', lazy=True, cascade='all, delete-orphan')
     alerts = db.relationship('SecurityAlert', backref='agent', lazy=True, cascade='all, delete-orphan')
@@ -311,6 +319,7 @@ threat_detector = ThreatDetector()
 # ==================== API ENDPOINTS ====================
 
 @app.route('/api/register_agent', methods=['POST'])
+@csrf.exempt
 def register_agent():
     """Register a new agent"""
     try:
@@ -355,6 +364,7 @@ def register_agent():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/submit_flow', methods=['POST'])
+@csrf.exempt
 def submit_flow():
     """Receive network flow data from agents"""
     try:
@@ -446,6 +456,7 @@ def submit_flow():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/agent_status/<agent_id>')
+@csrf.exempt
 def get_agent_status(agent_id):
     """Get agent status and instructions"""
     agent = Agent.query.filter_by(agent_id=agent_id).first()
@@ -487,15 +498,11 @@ def get_agent_status(agent_id):
     })
 
 @app.route('/api/agent/<agent_id>/pending_command', methods=['GET'])
+@csrf.exempt
 def get_pending_command(agent_id):
     """Get pending command for agent (used for polling network isolation commands)"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
-        if not agent:
-            return jsonify({'error': 'Agent not found'}), 404
-        
-        # Update last seen
-        agent.last_seen = get_utc7_now()
         
         if agent.pending_command:
             # Return the pending command and immediately clear it
@@ -514,9 +521,12 @@ def get_pending_command(agent_id):
             
     except Exception as e:
         logger.error(f"Error retrieving pending command for agent {agent_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/agent/<agent_id>/command_result', methods=['POST'])
+@csrf.exempt
 def report_command_result(agent_id):
     """Agent reports result of executing isolation/restoration command"""
     try:
@@ -582,11 +592,22 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
         agent.status = 'isolated'
         agent.isolated_until = isolated_until
         
-        # Create isolation command for agent to execute (network adapter disable)
+        # Get server IP from request to tell agent what to allow
+        server_ip = socket.gethostbyname(socket.gethostname()) # Default to local hostname
+        try:
+            # Try to get the actual IP the agent uses to reach the server
+            server_ip = request.host.split(':')[0]
+            # If it's a hostname, try to resolve it
+            server_ip = socket.gethostbyname(server_ip)
+        except:
+            pass
+
+        # Create isolation command for agent to execute (firewall rules)
         isolation_command = {
             'action': 'isolate',
             'reason': reason,
             'duration_minutes': duration_minutes,
+            'server_ip': server_ip,
             'timestamp': get_utc7_now().isoformat()
         }
         agent.pending_command = json.dumps(isolation_command)
@@ -599,13 +620,12 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
             success=True
         )
         db.session.add(isolation_action)
+        
         db.session.commit()
         
-        logger.info(f"Agent {agent_id} isolation command queued: {reason}")
         return True
         
     except Exception as e:
-        logger.error(f"Error queuing isolation for agent {agent_id}: {e}")
         return False
 
 def restore_agent_network(agent_id, reason):
@@ -712,6 +732,12 @@ def alerts_list():
     alerts = SecurityAlert.query.order_by(SecurityAlert.created_at.desc()).all()
     return render_template('alerts.html', alerts=alerts)
 
+@app.route('/isolate_form/<agent_id>', methods=['GET'])
+def isolate_form(agent_id):
+    """Show isolation form"""
+    agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
+    return render_template('isolate.html', agent=agent)
+
 @app.route('/isolate/<agent_id>', methods=['POST'])
 def isolate_agent_web(agent_id):
     """Isolate agent via web interface"""
@@ -763,6 +789,7 @@ def resolve_alert(alert_id):
 # ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================
 
 @app.route('/api/dashboard/stats')
+@csrf.exempt
 def api_dashboard_stats():
     """Get real-time dashboard statistics"""
     try:
@@ -786,6 +813,7 @@ def api_dashboard_stats():
         return jsonify({'error': 'Unable to fetch stats'}), 500
 
 @app.route('/api/agents/<agent_id>/status')
+@csrf.exempt
 def api_agent_status(agent_id):
     """Get real-time agent status"""
     try:
@@ -819,6 +847,7 @@ def api_agent_status(agent_id):
         return jsonify({'error': 'Unable to fetch agent status'}), 500
 
 @app.route('/api/activity/latest')
+@csrf.exempt
 def api_latest_activity():
     """Get latest system activities"""
     try:
@@ -864,6 +893,7 @@ def api_latest_activity():
         return jsonify([])
 
 @app.route('/api/threats/summary')
+@csrf.exempt
 def api_threats_summary():
     """Get threat summary for dashboard"""
     try:
@@ -912,6 +942,7 @@ def api_threats_summary():
 # ==================== REAL-TIME UPDATE API ENDPOINTS ====================
 
 @app.route('/api/alerts/recent')
+@csrf.exempt
 def api_recent_alerts():
     """Get recent alerts for real-time updates (no page reload)"""
     try:
@@ -940,6 +971,7 @@ def api_recent_alerts():
         return jsonify([])
 
 @app.route('/api/agents/status')
+@csrf.exempt
 def api_agents_status():
     """Get all agents status for real-time updates"""
     try:
@@ -968,6 +1000,7 @@ def api_agents_status():
         return jsonify([])
 
 @app.route('/api/dashboard/metrics')
+@csrf.exempt
 def api_dashboard_metrics():
     """Enhanced dashboard metrics for smooth updates"""
     try:
