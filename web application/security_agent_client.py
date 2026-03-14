@@ -253,28 +253,33 @@ class SecurityAgentClient:
                 # 1. 0.0.0.0 to (server_ip - 1)
                 # 2. (server_ip + 1) to 255.255.255.255
                 
-                # Use PowerShell for cleaner IP range handling
+                # Use PowerShell for cleaner IP range and IPv6 handling
                 ps_cmd = f"""
-                $ip = [System.Net.IPAddress]::Parse('{server_ip}')
+                $serverIpStr = '{server_ip}'
+                $ip = [System.Net.IPAddress]::Parse($serverIpStr)
                 $bytes = $ip.GetAddressBytes()
                 $val = [BitConverter]::ToUInt32($bytes[3..0], 0)
                 
-                # Define ranges
+                # Define IPv4 ranges excluding the server IP
                 $ranges = @()
                 if ($val -gt 0) {{ $ranges += "0.0.0.0-$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val - 1))[3..0]))" }}
                 if ($val -lt 0xFFFFFFFF) {{ $ranges += "$([System.Net.IPAddress]([BitConverter]::GetBytes([uint32]($val + 1))[3..0]))-255.255.255.255" }}
-                
                 $remoteIps = $ranges -join ","
                 
-                New-NetFirewallRule -DisplayName "Manager_Isolation_In" -Direction Inbound -Action Block -RemoteAddress $remoteIps -ErrorAction SilentlyContinue
-                New-NetFirewallRule -DisplayName "Manager_Isolation_Out" -Direction Outbound -Action Block -RemoteAddress $remoteIps -ErrorAction SilentlyContinue
+                # 1. Block IPv6 completely
+                New-NetFirewallRule -DisplayName "Manager_Isolation_In_v6" -Direction Inbound -Action Block -Protocol Any -EtherType IPv6 -Profile Any -ErrorAction SilentlyContinue
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Out_v6" -Direction Outbound -Action Block -Protocol Any -EtherType IPv6 -Profile Any -ErrorAction SilentlyContinue
+
+                # 2. Block IPv4 except Server
+                New-NetFirewallRule -DisplayName "Manager_Isolation_In_v4" -Direction Inbound -Action Block -RemoteAddress $remoteIps -Profile Any -ErrorAction SilentlyContinue
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Out_v4" -Direction Outbound -Action Block -RemoteAddress $remoteIps -Profile Any -ErrorAction SilentlyContinue
                 """
                 subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
-                self.logger.critical(f"FIREWALL ISOLATION ENFORCED - Only communication with {server_ip} allowed")
+                self.logger.critical(f"FIREWALL ISOLATION ENFORCED - IPv6 Blocked + Only IPv4 with {server_ip} allowed")
             else:
                 # Fallback to total block if server IP unknown
-                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_In" dir=in action=block remoteip=any', shell=True)
-                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_Out" dir=out action=block remoteip=any', shell=True)
+                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_In_All" dir=in action=block remoteip=any profile=any', shell=True)
+                subprocess.run('netsh advfirewall firewall add rule name="Manager_Isolation_Out_All" dir=out action=block remoteip=any profile=any', shell=True)
                 self.logger.critical("FIREWALL ISOLATION ENFORCED - TOTAL BLOCK (Server IP unknown)")
             
             return True
