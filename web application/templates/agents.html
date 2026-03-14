@@ -9,7 +9,7 @@
 {% block content %}
 <!-- Cybersecurity Command Center Dashboard -->
 <div class="cybersec-dashboard">
-    
+
     <!-- Top Status Bar -->
     <div class="top-status-bar">
         <div class="system-status">
@@ -46,7 +46,8 @@
                 </div>
                 <div class="status-text">
                     <span class="label">OFFLINE</span>
-                    <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length }}</span>
+                    <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length
+                        }}</span>
                 </div>
             </div>
         </div>
@@ -112,24 +113,24 @@
                         </div>
                         <div class="table-body">
                             {% for agent in agents %}
-                            <div class="agent-row status-{{ agent.status }} threat-{{ agent.threat_level }}" 
-                                 data-agent-id="{{ agent.agent_id }}" data-status="{{ agent.status }}">
-                                
+                            <div class="agent-row status-{{ agent.status }} threat-{{ agent.threat_level }}"
+                                data-agent-id="{{ agent.agent_id }}" data-status="{{ agent.status }}">
+
                                 <div class="col-agent-id">
                                     <div class="agent-info">
-                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" 
-                                           class="agent-hostname">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
+                                            class="agent-hostname">
                                             <i class="fas fa-desktop"></i>
                                             {{ agent.hostname }}
                                         </a>
                                         <span class="agent-id-short">ID: {{ agent.agent_id[:8] }}...</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-agent-ip">
                                     <code class="ip-address">{{ agent.ip_address }}</code>
                                 </div>
-                                
+
                                 <div class="col-agent-status">
                                     <div class="status-container">
                                         {% if agent.status == 'active' %}
@@ -143,7 +144,8 @@
                                             ISOLATED
                                         </span>
                                         {% if agent.isolated_until %}
-                                        <span class="status-time">Ends: {{ agent.isolated_until.strftime('%H:%M') }}</span>
+                                        <span class="status-time">Ends: {{ agent.isolated_until.strftime('%H:%M')
+                                            }}</span>
                                         {% endif %}
                                         {% else %}
                                         <span class="status-badge offline">
@@ -153,7 +155,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-agent-threat">
                                     <div class="threat-level-container">
                                         <span class="severity-badge {{ agent.threat_level }}">
@@ -162,47 +164,46 @@
                                         </span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-agent-time">
                                     <div class="time-display">
                                         {% set time_diff = (get_utc7_now() - agent.last_seen).total_seconds() %}
-                                        {% if time_diff < 60 %}
-                                        <span class="time-main live">
+                                        {% if time_diff < 60 %} <span class="time-main live">
                                             <i class="fas fa-circle-notch fa-spin"></i>
                                             Just now
-                                        </span>
-                                        {% elif time_diff < 3600 %}
-                                        <span class="time-main">{{ (time_diff/60)|int }}m ago</span>
-                                        {% else %}
-                                        <span class="time-main">{{ agent.last_seen.strftime('%H:%M:%S') }}</span>
-                                        <span class="time-date">{{ agent.last_seen.strftime('%d/%m/%Y') }}</span>
-                                        {% endif %}
+                                            </span>
+                                            {% elif time_diff < 3600 %} <span class="time-main">{{ (time_diff/60)|int
+                                                }}m ago</span>
+                                                {% else %}
+                                                <span class="time-main">{{ agent.last_seen.strftime('%H:%M:%S')
+                                                    }}</span>
+                                                <span class="time-date">{{ agent.last_seen.strftime('%d/%m/%Y')
+                                                    }}</span>
+                                                {% endif %}
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-agent-actions">
                                     <div class="action-buttons">
-                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" 
-                                           class="action-btn primary" title="View Details">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
+                                            class="action-btn primary" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         {% if agent.status != 'isolated' %}
                                         <button class="action-btn danger" data-bs-toggle="modal"
-                                                data-bs-target="#isolateModal{{ agent.id }}" title="Isolate Agent">
+                                            data-bs-target="#isolateModal{{ agent.id }}" title="Isolate Agent">
                                             <i class="fas fa-shield-virus"></i>
                                         </button>
                                         {% else %}
                                         <button class="action-btn success" data-bs-toggle="modal"
-                                                data-bs-target="#restoreModal{{ agent.id }}" title="Restore Agent">
+                                            data-bs-target="#restoreModal{{ agent.id }}" title="Restore Agent">
                                             <i class="fas fa-undo"></i>
                                         </button>
                                         {% endif %}
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Modals -->
-                            {% include 'includes/agent_modals.html' ignore missing %}
+
                             {% endfor %}
                         </div>
                     </div>
@@ -211,7 +212,8 @@
                         <div class="no-threats-content">
                             <i class="fas fa-desktop"></i>
                             <h4>No Agents Found</h4>
-                            <p>No Windows collectors are registered yet. Deploy an agent to begin monitoring network flows.</p>
+                            <p>No Windows collectors are registered yet. Deploy an agent to begin monitoring network
+                                flows.</p>
                         </div>
                     </div>
                     {% endif %}
@@ -222,31 +224,36 @@
 
 </div>
 
-<script>
-function refreshAgentsData() {
-    location.reload();
-}
+<!-- Modals - rendered outside table container to avoid z-index/overflow issues -->
+{% for agent in agents %}
+{% include 'includes/agent_modals.html' ignore missing %}
+{% endfor %}
 
-// Filter functionality
-document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        // Update active button
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        
-        const filter = this.dataset.filter;
-        const rows = document.querySelectorAll('.agent-row');
-        
-        rows.forEach(row => {
-            if (filter === 'all') {
-                row.style.display = 'grid';
-            } else {
-                const status = row.dataset.status;
-                row.style.display = status === filter ? 'grid' : 'none';
-            }
+<script>
+    function refreshAgentsData() {
+        location.reload();
+    }
+
+    // Filter functionality
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const filter = this.dataset.filter;
+            const rows = document.querySelectorAll('.agent-row');
+
+            rows.forEach(row => {
+                if (filter === 'all') {
+                    row.style.display = 'grid';
+                } else {
+                    const status = row.dataset.status;
+                    row.style.display = status === filter ? 'grid' : 'none';
+                }
+            });
         });
     });
-});
 </script>
 
 {% endblock %}

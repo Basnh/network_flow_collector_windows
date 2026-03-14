@@ -14,10 +14,40 @@ import platform
 import hashlib
 import subprocess
 import uuid
+import ctypes
 from datetime import datetime, timedelta
 from pytz import timezone
 from collections import deque
 import os
+import sys
+
+# UTC+7 timezone
+UTC_PLUS_7 = timezone('Asia/Bangkok')
+
+def is_admin():
+    """Check if running with Administrator privileges"""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+def request_elevation():
+    """Re-launch current script with UAC elevation prompt"""
+    try:
+        # Get the script path and arguments
+        script = sys.argv[0]
+        params = ' '.join(sys.argv[1:])
+        # ShellExecute with 'runas' triggers UAC prompt
+        ret = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, f'"{script}" {params}', None, 1
+        )
+        if ret <= 32:
+            print(f"[!] Failed to elevate (code {ret}). Please run as Administrator manually.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"[!] Could not request elevation: {e}")
+        print("    Please right-click and run as Administrator.")
+        sys.exit(1)
 
 # UTC+7 timezone
 UTC_PLUS_7 = timezone('Asia/Bangkok')
@@ -309,11 +339,16 @@ class SecurityAgentClient:
                 shell=False
             )
             
+            self.logger.critical(f"PowerShell stdout: {result.stdout}")
+            if result.stderr:
+                self.logger.error(f"PowerShell stderr: {result.stderr}")
+            
             if result.returncode == 0:
                 self.logger.critical(f"NETWORK ISOLATED - Adapter '{adapter_name}' DISABLED")
                 return True, adapter_name
             else:
-                self.logger.error(f"Failed to disable adapter: {result.stderr}")
+                self.logger.error(f"Failed to disable adapter '{adapter_name}' (rc={result.returncode}): {result.stderr}")
+                self.logger.error("Hint: The agent must be run as Administrator to disable network adapters.")
                 return False, adapter_name
                 
         except Exception as e:
@@ -459,11 +494,11 @@ class SecurityAgentClient:
                     # Poll for pending commands (isolation/restoration)
                     self.poll_and_execute_commands()
                 
-                time.sleep(60)  # Check every minute
+                time.sleep(10)  # Check every 10 seconds for fast command delivery
                 
             except Exception as e:
                 self.logger.error(f"Error in heartbeat worker: {e}")
-                time.sleep(60)
+                time.sleep(10)
     
     def poll_and_execute_commands(self):
         """Poll server for pending commands and execute them"""
@@ -617,6 +652,15 @@ if __name__ == '__main__':
     
     # Setup logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Auto-elevate to Administrator if needed (required for Disable-NetAdapter)
+    if not is_admin():
+        print("[!] Not running as Administrator.")
+        print("[*] Requesting elevation via UAC...")
+        request_elevation()
+        # request_elevation() calls sys.exit() so code below only runs if elevated
+    
+    print("[✓] Running as Administrator - network isolation will work.")
     
     # Create and start agent
     agent = SecurityAgentClient(args.server, args.agent_id)

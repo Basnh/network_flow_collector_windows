@@ -2840,3 +2840,37 @@ body {
         justify-content: center;
     }
 }
+
+/* ========================================
+   BOOTSTRAP MODAL OVERRIDES
+   Ensure modals render above all custom panels
+   (critical when panels use overflow: hidden)
+======================================== */
+.modal {
+    z-index: 1055 !important;
+}
+
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+.modal-content {
+    position: relative;
+    pointer-events: all;
+}
+
+/* Fix panels with overflow:hidden - prevent clipping modal backdrop */
+.threats-panel,
+.radar-panel,
+.traffic-panel,
+.flows-panel {
+    overflow: visible;
+}
+
+/* Let panel body scroll internally without blocking modals */
+.threats-panel .panel-body,
+.flows-panel .panel-body,
+.threats-table-container {
+    overflow: auto;
+}
+

@@ -495,8 +495,9 @@ def get_pending_command(agent_id):
         agent.last_seen = get_utc7_now()
         
         if agent.pending_command:
-            # Return the pending command
+            # Return the pending command and immediately clear it
             command = json.loads(agent.pending_command)
+            agent.pending_command = None  # Clear so it doesn't repeat on next poll
             response = {
                 'has_command': True,
                 'command': command
