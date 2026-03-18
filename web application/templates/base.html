@@ -66,68 +66,164 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             margin: 0;
             overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Full screen container */
-        .full-screen-container {
-            width: 100vw;
+        .sidebar-container {
+            display: flex;
+            flex: 1;
             height: calc(100vh - 61px);
-            margin: 0;
-            padding: 0 5rem; 
-            overflow-x: hidden;
-            box-sizing: border-box;
         }
 
-        .full-screen-container main {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
+        /* Sidebar Styling */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border-right: 1px solid var(--border-default);
+            padding: 20px 0;
+            position: fixed;
+            height: calc(100vh - 61px);
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
         }
 
-        /* Glassmorphism navbar */
+        body[data-theme="light"] .sidebar {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+            border-right-color: #e5e7eb;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-brand a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        body[data-theme="light"] .sidebar-brand a {
+            color: #1f2937;
+        }
+
+        .sidebar-brand a:hover {
+            color: var(--accent-primary);
+            transform: translateX(5px);
+        }
+
+        .sidebar-brand i {
+            font-size: 1.5rem;
+            color: var(--accent-primary);
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 15px;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+        }
+
+        body[data-theme="light"] .sidebar-nav-link {
+            color: rgba(31, 41, 55, 0.7);
+        }
+
+        .sidebar-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding-left: 20px;
+        }
+
+        body[data-theme="light"] .sidebar-nav-link:hover {
+            background-color: rgba(31, 41, 55, 0.1);
+            color: #1f2937;
+        }
+
+        .sidebar-nav-link.active {
+            background-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(9, 105, 218, 0.3);
+        }
+
+        .sidebar-nav-link i {
+            font-size: 1.1rem;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Main Wrapper */
+        .main-wrapper {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - 260px);
+        }
+
+        .main-wrapper main {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        body[data-theme="light"] {
+            background-color: #f8f9fa;
+            color: #1f2937;
+        }
+
+        /* Full screen container - removed for sidebar layout */
+        .full-screen-container {
+            display: none;
+        }
+
+        /* Glassmorphism navbar - updated for horizontal layout only */
         .navbar {
             background: rgba(255, 255, 255, 0.8) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-default) !important;
-            padding: 0.75rem 2rem; /* Thêm padding phù hợp với container */
+            padding: 0.75rem 2rem;
             box-shadow: var(--shadow-sm);
+            position: relative;
+            z-index: 99;
+            transition: all 0.3s ease;
+        }
+
+        body[data-theme="light"] .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-bottom-color: #e5e7eb !important;
         }
 
         .navbar-brand {
-            font-weight: 700;
-            color: var(--text-main) !important;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: none;
         }
 
-        .navbar-brand i {
-            color: var(--accent-primary);
-        }
-
-        /* Navigation Links Styling */
-        .navbar-nav .nav-link {
-            color: var(--text-main) !important;
-            font-weight: 500;
-            padding: 0.5rem 1rem !important;
-            margin: 0 0.25rem;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-        }
-
-        .navbar-nav .nav-link:hover {
-            background-color: var(--bg-hover);
-            color: var(--accent-primary) !important;
-            transform: translateY(-1px);
-        }
-
-        .navbar-nav .nav-link i {
-            font-size: 0.9rem;
+        .navbar-nav {
+            display: none;
         }
 
         .table {
@@ -190,6 +286,23 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: var(--bg-hover);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         /* Status & Badges */
@@ -306,7 +419,68 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+                padding: 15px 0;
+            }
+
+            .sidebar-brand span,
+            .sidebar-nav-link span {
+                display: none;
+            }
+
+            .sidebar-brand {
+                padding: 0 15px 20px;
+                text-align: center;
+            }
+
+            .sidebar-brand a {
+                justify-content: center;
+            }
+
+            .sidebar-nav-link {
+                justify-content: center;
+                padding: 12px;
+            }
+
+            .sidebar-nav-link:hover {
+                padding-left: 12px;
+            }
+
+            .main-wrapper {
+                margin-left: 70px;
+                width: calc(100% - 70px);
+            }
+
+            .main-wrapper main {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar {
+                width: 60px;
+            }
+
+            .main-wrapper {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+            }
+        }
     </style>
+
+    <!-- Theme Initialization Script -->
+    <script>
+        // Initialize theme from localStorage or default to dark
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 
 <body>
@@ -328,31 +502,35 @@
         </div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-shield-alt"></i> Project Luận Văn
-            </a>
-
-            <!-- Navigation Links -->
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('dashboard') }}">
-                    <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-                </a>
-                <a class="nav-link" href="{{ url_for('agents_list') }}">
-                    <i class="fas fa-desktop me-1"></i> Agents
-                </a>
-                <a class="nav-link" href="{{ url_for('alerts_list') }}">
-                    <i class="fas fa-exclamation-triangle me-1"></i> Alerts
+    <!-- Sidebar Navigation -->
+    <div class="sidebar-container">
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <a href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Project Luận Văn</span>
                 </a>
             </div>
-        </div>
-    </nav>
 
-    <div class="full-screen-container">
-        <!-- Main content -->
-        <main>
+            <nav class="sidebar-nav">
+                <a class="sidebar-nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="sidebar-nav-link" href="{{ url_for('agents_list') }}">
+                    <i class="fas fa-desktop"></i>
+                    <span>Agents</span>
+                </a>
+                <a class="sidebar-nav-link" href="{{ url_for('alerts_list') }}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Alerts</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="main-wrapper">
+            <!-- Main content -->
+            <main>
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; width: calc(100% - 40px);">
@@ -368,7 +546,8 @@
             {% endwith %}
 
             {% block content %}{% endblock %}
-        </main>
+            </main>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
@@ -408,6 +587,21 @@
         // Initialize clock
         updateClock();
         setInterval(updateClock, 1000);
+
+        // Activate current navigation link
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar-nav-link');
+            
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        });
 
         // Setup auto-refresh (will be managed by dashboard-effects.js for dashboard pages)
         if (window.location.pathname === '/') {

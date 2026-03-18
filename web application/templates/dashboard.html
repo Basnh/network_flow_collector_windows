@@ -54,7 +54,7 @@
         <div class="real-time-counter">
             <div class="counter-display">
                 <span class="counter-label">FLOWS THU THẬP</span>
-                <span class="counter-value" id="flows-per-sec">{{ threat_flows|length }}</span>
+                <span class="counter-value" id="flows-per-sec">{{ total_flows_collected }}</span>
             </div>
         </div>
     </div>
@@ -613,16 +613,10 @@
     </div>
 </div>
 
-<!-- Floating Action Buttons -->
+<!-- Theme Toggle Button -->
 <div class="floating-actions">
-    <button class="fab primary" onclick="toggleFullScreen()" title="Toggle Fullscreen">
-        <i class="fas fa-expand"></i>
-    </button>
-    <button class="fab secondary" onclick="exportDashboard()" title="Export Data">
-        <i class="fas fa-download"></i>
-    </button>
-    <button class="fab accent" onclick="openCommandCenter()" title="Command Center">
-        <i class="fas fa-terminal"></i>
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
     </button>
 </div>
 
@@ -834,6 +828,41 @@
                 }
             });
         }, 800);
+
+        // Initialize theme from localStorage
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
     });
+
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        // Set theme attribute
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Update localStorage
+        localStorage.setItem('theme', theme);
+        
+        // Update button icon
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            // Update title
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+        
+        console.log('🌓 Theme changed to:', theme);
+    }
 </script>
 {% endblock %}

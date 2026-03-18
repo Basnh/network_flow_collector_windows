@@ -1,0 +1,3 @@
+note: cần kiểm soát được khi nào bật RAT thì chương trình có 
+1: Chương trình có thể đánh dấu phát hiện các gói tin nào có RAT
+2: 

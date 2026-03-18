@@ -43,6 +43,42 @@
     --animation-slow: 0.8s;
 }
 
+/* ========================================
+   LIGHT MODE THEME
+======================================== */
+body[data-theme="light"] {
+    --cybersec-bg-deep: #f8f9fa;
+    --cybersec-bg-secondary: #ffffff;
+    --cybersec-bg-panel: rgba(255, 255, 255, 0.95);
+    --cybersec-bg-glass: rgba(255, 255, 255, 0.9);
+    
+    /* Accent Colors for Light Mode */
+    --threat-critical: #dc2626;
+    --threat-high: #ea580c;
+    --threat-medium: #f97316;
+    --threat-low: #16a34a;
+    --accent-highlight: #0284c7;
+    --accent-ai: #7c3aed;
+    --accent-neutral: #78716c;
+    
+    /* Gradients for Light Mode */
+    --gradient-primary: linear-gradient(135deg, #ffffff, #f8f9fa);
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.9));
+    --gradient-glow: linear-gradient(45deg, #0284c7, #7c3aed);
+    
+    /* Text Colors for Light Mode */
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
+    --text-accent: #0284c7;
+    
+    /* Neon Glow Effects for Light Mode */
+    --glow-blue: 0 0 20px rgba(2, 132, 199, 0.15);
+    --glow-green: 0 0 20px rgba(22, 163, 74, 0.15);
+    --glow-red: 0 0 20px rgba(220, 38, 38, 0.15);
+    --glow-purple: 0 0 20px rgba(124, 58, 237, 0.15);
+}
+
 /* Global Styles */
 body {
     background: var(--cybersec-bg-deep);
@@ -51,6 +87,7 @@ body {
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .cybersec-dashboard {
@@ -367,6 +404,15 @@ body {
     min-height: 140px;
 }
 
+body[data-theme="dark"] .metric-card {
+    background: var(--gradient-glass);
+    border-color: rgba(56, 189, 248, 0.1);
+}
+
+body[data-theme="dark"] .metric-card .card-header {
+    background: transparent;
+}
+
 .metric-card::before {
     content: "";
     position: absolute;
@@ -413,11 +459,47 @@ body {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), var(--glow-red);
 }
 
+.threat-critical {
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.threat-critical:hover {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), var(--glow-red);
+}
+
 .card-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
+}
+
+body[data-theme="dark"] .card-header {
+    background: transparent;
+    border: none;
+}
+
+body[data-theme="light"] .card-header {
+    background: rgba(2, 132, 199, 0.04);
+    border-bottom: 1px solid rgba(2, 132, 199, 0.1);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+}
+
+body[data-theme="dark"] .card-icon i {
+    color: var(--accent-highlight);
+}
+
+body[data-theme="light"] .card-icon i {
+    color: #0284c7;
+}
+
+body[data-theme="dark"] .card-title {
+    color: var(--text-secondary);
+}
+
+body[data-theme="light"] .card-title {
+    color: #9ca3af;
 }
 
 .card-icon i {
@@ -827,23 +909,27 @@ body {
 }
 
 .severity-badge.critical {
-    background: var(--threat-critical);
-    color: white;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .severity-badge.high {
-    background: var(--threat-high);
-    color: white;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .severity-badge.medium {
-    background: var(--threat-medium);
-    color: white;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(249, 115, 22, 0.2);
 }
 
 .severity-badge.low {
-    background: var(--threat-low);
-    color: white;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .no-threats {
@@ -2375,9 +2461,413 @@ body {
     border: 2px solid var(--threat-low);
 }
 
+.fab.theme-toggle {
+    border: 2px solid var(--accent-highlight);
+    background: var(--gradient-glass);
+}
+
+.fab.theme-toggle i {
+    transition: transform 0.3s ease;
+}
+
+.fab.theme-toggle:hover i {
+    transform: rotate(20deg);
+}
+
 .fab i {
     position: relative;
     z-index: 1;
+}
+
+/* ========================================
+   LIGHT MODE ADJUSTMENTS
+======================================== */
+body[data-theme="light"] .metric-card {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(2, 132, 199, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+body[data-theme="light"] .metric-card:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(2, 132, 199, 0.15);
+    border-color: rgba(2, 132, 199, 0.25);
+}
+
+body[data-theme="light"] .threat-low {
+    border-color: rgba(22, 163, 74, 0.15);
+}
+
+body[data-theme="light"] .threat-low:hover {
+    border-color: rgba(22, 163, 74, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(22, 163, 74, 0.15);
+}
+
+body[data-theme="light"] .threat-medium {
+    border-color: rgba(249, 115, 22, 0.15);
+}
+
+body[data-theme="light"] .threat-medium:hover {
+    border-color: rgba(249, 115, 22, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(249, 115, 22, 0.15);
+}
+
+body[data-theme="light"] .threat-high {
+    border-color: rgba(220, 38, 38, 0.15);
+}
+
+body[data-theme="light"] .threat-high:hover {
+    border-color: rgba(220, 38, 38, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(220, 38, 38, 0.15);
+}
+
+body[data-theme="light"] .threat-critical {
+    border-color: rgba(220, 38, 38, 0.15);
+}
+
+body[data-theme="light"] .threat-critical:hover {
+    border-color: rgba(220, 38, 38, 0.25);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 20px rgba(220, 38, 38, 0.15);
+}
+
+body[data-theme="light"] .top-status-bar {
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom-color: rgba(2, 132, 199, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body[data-theme="light"] .real-time-counter {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(2, 132, 199, 0.3);
+    box-shadow: 0 0 20px rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .floating-actions .fab {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body[data-theme="light"] .floating-actions .fab:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15), 0 0 20px rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .metric-progress {
+    background: rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .card-title {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .metric-label {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .metric-total,
+body[data-theme="light"] .metric-unit {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .status-icon {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: var(--accent-highlight);
+}
+
+body[data-theme="light"] .pulse-blue {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .pulse-green {
+    border-color: #16a34a;
+    color: #16a34a;
+}
+
+body[data-theme="light"] .pulse-purple {
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
+
+body[data-theme="light"] .flows-panel,
+body[data-theme="light"] .threats-panel,
+body[data-theme="light"] .radar-panel,
+body[data-theme="light"] .traffic-panel,
+body[data-theme="light"] .protocol-panel,
+body[data-theme="light"] .sources-panel {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(2, 132, 199, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+body[data-theme="light"] .flows-panel:hover,
+body[data-theme="light"] .threats-panel:hover,
+body[data-theme="light"] .radar-panel:hover,
+body[data-theme="light"] .traffic-panel:hover,
+body[data-theme="light"] .protocol-panel:hover,
+body[data-theme="light"] .sources-panel:hover {
+    border-color: rgba(2, 132, 199, 0.25);
+    box-shadow: 0 0 20px rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .panel-header {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.03), rgba(124, 58, 237, 0.03));
+    border-bottom-color: rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .panel-title {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .panel-title i {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .control-btn {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .control-btn:hover {
+    background: #0284c7;
+    color: white;
+    box-shadow: 0 0 20px rgba(2, 132, 199, 0.2);
+}
+
+body[data-theme="light"] .protocol-panel .toggle-btn {
+    background: rgba(2, 132, 199, 0.08);
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .protocol-panel .toggle-btn:hover {
+    background: rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .table-header {
+    border-bottom-color: rgba(2, 132, 199, 0.15);
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .threat-row {
+    border-bottom-color: rgba(2, 132, 199, 0.08);
+    color: #1f2937;
+}
+
+body[data-theme="light"] .threat-row:hover {
+    background: rgba(2, 132, 199, 0.05);
+}
+
+body[data-theme="light"] .threat-badge {
+    background: rgba(255, 255, 255, 0.7);
+    color: #9ca3af;
+    border-color: rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .source-ip {
+    color: #1f2937;
+    font-family: "JetBrains Mono", monospace;
+}
+
+body[data-theme="light"] .flow-row {
+    color: #1f2937;
+    border-bottom-color: rgba(2, 132, 199, 0.08);
+}
+
+body[data-theme="light"] .flow-row:hover {
+    background: rgba(2, 132, 199, 0.05);
+}
+
+body[data-theme="light"] .protocol-label {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .panel-body {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .no-reload-message {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .metric-updating {
+    background: rgba(2, 132, 199, 0.1) !important;
+}
+
+@keyframes lightMetricPulse {
+    0%, 100% { 
+        transform: scale(1); 
+        background: rgba(2, 132, 199, 0.1);
+    }
+    50% { 
+        transform: scale(1.02); 
+        background: rgba(2, 132, 199, 0.2);
+    }
+}
+
+body[data-theme="light"] .metric-updating {
+    animation: lightMetricPulse 0.8s ease-in-out !important;
+}
+
+body[data-theme="light"] .page-loader {
+    background: #f8f9fa;
+}
+
+body[data-theme="light"] .error-content {
+    background: white;
+    color: #1f2937;
+    border-color: #e5e7eb;
+}
+
+body[data-theme="light"] .error-content h4 {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .error-content p {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .card-body {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .metric-value {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .status-text .value {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .status-text .label {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .counter-label {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .counter-value {
+    color: #1f2937;
+}
+
+body[data-theme="light"] select,
+body[data-theme="light"] .dropdown-menu {
+    background: white;
+    color: #1f2937;
+    border-color: #e5e7eb;
+}
+
+body[data-theme="light"] .dropdown-menu a {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .dropdown-menu a:hover {
+    background: #f3f4f6;
+}
+
+body[data-theme="light"] .threats-table-container {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .table-header {
+    background: rgba(2, 132, 199, 0.05);
+    border-bottom-color: rgba(2, 132, 199, 0.2);
+    color: #0284c7;
+}
+
+body[data-theme="light"] .table-header i {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .threat-row {
+    border-bottom-color: rgba(2, 132, 199, 0.08);
+    color: #1f2937;
+}
+
+body[data-theme="light"] .threat-row:hover {
+    background: rgba(2, 132, 199, 0.03);
+}
+
+body[data-theme="light"] .time-display {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .time-main {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .time-date {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .threat-info {
+    color: #1f2937;
+}
+
+body[data-theme="light"] .threat-badge {
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    border-color: rgba(2, 132, 199, 0.2);
+}
+
+body[data-theme="light"] .alerts-count {
+    background: #0284c7;
+    color: white;
+}
+
+body[data-theme="light"] .alerts-section-full {
+    background: transparent;
+}
+
+body[data-theme="light"] .alerts-section-full .threats-panel {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .alerts-section-full .threats-panel .panel-header {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.05), rgba(124, 58, 237, 0.05));
+    border-bottom-color: rgba(2, 132, 199, 0.1);
+}
+
+body[data-theme="light"] .alerts-section-full .threats-panel .panel-body {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+body[data-theme="light"] .filter-btn {
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .filter-btn:hover {
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+}
+
+body[data-theme="light"] .filter-btn.active {
+    background: #0284c7;
+    color: white;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .control-btn {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(2, 132, 199, 0.2);
+    color: #9ca3af;
+}
+
+body[data-theme="light"] .control-btn:hover {
+    background: #f3f4f6;
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .filter-buttons {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(2, 132, 199, 0.15);
 }
 
 /* ========================================
@@ -2596,6 +3086,7 @@ body {
     cursor: pointer;
     transition: all var(--animation-fast);
     font-size: 0.875rem;
+    background: transparent !important;
 }
 
 .agents-table .agent-row:hover {

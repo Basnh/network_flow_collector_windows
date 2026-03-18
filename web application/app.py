@@ -686,13 +686,17 @@ def dashboard():
     threat_flows = NetworkFlow.query.filter_by(is_malicious=True)\
         .order_by(NetworkFlow.created_at.desc()).limit(5).all()
     
+    # Total flows since installation
+    total_flows_collected = NetworkFlow.query.count()
+    
     return render_template('dashboard.html',
                          total_agents=total_agents,
                          active_agents=active_agents,
                          isolated_agents=isolated_agents,
                          recent_alerts=recent_alerts,
                          critical_agents=critical_agents,
-                         threat_flows=threat_flows)
+                         threat_flows=threat_flows,
+                         total_flows_collected=total_flows_collected)
 
 @app.route('/agents')
 def agents_list():

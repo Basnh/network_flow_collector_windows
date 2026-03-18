@@ -41,7 +41,8 @@ class CyberSecDashboard {
     initCharts() {
         this.createTrafficChart();
         this.createProtocolChart();
-        this.initFlowsPerSecCounter();
+        // Disabled - Show static total flows count instead of animated counter
+        // this.initFlowsPerSecCounter();
     }
 
     createTrafficChart() {
@@ -475,11 +476,12 @@ class CyberSecDashboard {
                     }
                 }, 5000, 'sensor-count');
 
-                window.setSafeInterval(() => {
-                    if (this.realTimeUpdates) {
-                        this.updateFlowsCounter();
-                    }
-                }, 2000, 'flows-counter');
+                // Disabled - Show static total flows count instead of animated counter
+                // window.setSafeInterval(() => {
+                //     if (this.realTimeUpdates) {
+                //         this.updateFlowsCounter();
+                //     }
+                // }, 2000, 'flows-counter');
 
                 // Initialize smooth update system for seamless UX
                 setTimeout(() => {
@@ -1345,7 +1347,8 @@ async function updateDashboardStats() {
         
         // Update metrics with smooth animations
         smoothUpdateMetric('live-sensor-count', data.active_agents || 0);
-        smoothUpdateMetric('flows-per-sec', data.threat_flows || 0);
+        // Disabled - Keep static total flows count instead of updating dynamically
+        // smoothUpdateMetric('flows-per-sec', data.threat_flows || 0);
         
         // Update metric cards
         updateMetricCard('active_agents', data.active_agents, data.total_agents);

@@ -71,6 +71,304 @@
         vertical-align: middle;
         animation: pulse-offline 2s infinite;
     }
+
+    /* Dark Mode Styling */
+    body[data-theme="dark"] .card {
+        background-color: rgba(30, 41, 59, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] .card-header {
+        background-color: rgba(15, 23, 42, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+        color: #cbd5e1;
+    }
+
+    body[data-theme="dark"] .card-body {
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] pre {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border-color: rgba(226, 232, 240, 0.1) !important;
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] code {
+        color: #38bdf8 !important;
+    }
+
+    body[data-theme="dark"] .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .btn-outline-danger {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    body[data-theme="dark"] .btn-outline-danger:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    body[data-theme="dark"] .btn-outline-success {
+        color: #22c55e;
+        border-color: #22c55e;
+    }
+
+    body[data-theme="dark"] .btn-outline-success:hover {
+        background-color: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+    }
+
+    body[data-theme="dark"] .btn-outline-secondary {
+        color: #78716c;
+        border-color: #78716c;
+    }
+
+    body[data-theme="dark"] .btn-outline-secondary:hover {
+        background-color: rgba(120, 113, 108, 0.1);
+        color: #a89484;
+    }
+
+    body[data-theme="dark"] .nav-tabs {
+        border-bottom-color: rgba(226, 232, 240, 0.1) !important;
+    }
+
+    body[data-theme="dark"] .nav-link {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .nav-link.active {
+        color: #38bdf8 !important;
+        border-bottom-color: #38bdf8 !important;
+    }
+
+    body[data-theme="dark"] .badge-low {
+        background-color: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-critical {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-high {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-medium {
+        background-color: rgba(249, 115, 22, 0.2);
+        color: #fb923c;
+        border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    /* Code blocks styling */
+    .code-block {
+        background-color: rgba(245, 245, 245, 0.85);
+        border-color: rgba(2, 132, 199, 0.15);
+    }
+
+    body[data-theme="dark"] .code-block {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border-color: rgba(226, 232, 240, 0.1) !important;
+    }
+
+    body[data-theme="light"] .code-block {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+    }
+
+    /* Light Mode - Keep original styling */
+    body[data-theme="light"] .card {
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] .card-header {
+        background-color: rgba(2, 132, 199, 0.05) !important;
+        border-color: rgba(2, 132, 199, 0.1) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] .card-body {
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] pre {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] code {
+        color: #0284c7 !important;
+    }
+
+    body[data-theme="light"] .text-muted {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .small {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .text-primary {
+        color: #0969da !important;
+    }
+
+    body[data-theme="light"] .text-success {
+        color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .text-secondary {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .badge-low {
+        background-color: rgba(34, 197, 94, 0.15) !important;
+        color: #16a34a !important;
+        border: 1px solid rgba(34, 197, 94, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-critical {
+        background-color: rgba(220, 38, 38, 0.15) !important;
+        color: #dc2626 !important;
+        border: 1px solid rgba(220, 38, 38, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-high {
+        background-color: rgba(234, 88, 12, 0.15) !important;
+        color: #ea580c !important;
+        border: 1px solid rgba(234, 88, 12, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-medium {
+        background-color: rgba(249, 115, 22, 0.15) !important;
+        color: #f97316 !important;
+        border: 1px solid rgba(249, 115, 22, 0.3) !important;
+    }
+
+    body[data-theme="light"] .nav-tabs {
+        border-bottom-color: rgba(2, 132, 199, 0.15) !important;
+    }
+
+    body[data-theme="light"] .nav-link {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .nav-link.active {
+        color: #0284c7 !important;
+        border-bottom-color: #0284c7 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-danger {
+        color: #dc2626 !important;
+        border-color: #dc2626 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-danger:hover {
+        background-color: rgba(220, 38, 38, 0.1) !important;
+        color: #dc2626 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-success {
+        color: #16a34a !important;
+        border-color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .btn-outline-success:hover {
+        background-color: rgba(34, 197, 94, 0.1) !important;
+        color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .btn-outline-secondary {
+        color: #6b7280 !important;
+        border-color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-secondary:hover {
+        background-color: rgba(107, 114, 128, 0.1) !important;
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .btn-success {
+        background-color: #16a34a !important;
+        border-color: #16a34a !important;
+        color: white !important;
+    }
+
+    body[data-theme="light"] .btn-danger {
+        background-color: #dc2626 !important;
+        border-color: #dc2626 !important;
+        color: white !important;
+    }
+
+    body[data-theme="light"] .opacity-75 {
+        opacity: 0.75 !important;
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="dark"] .opacity-75 {
+        opacity: 0.75 !important;
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="light"] .fw-bold {
+        font-weight: 700 !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="dark"] .card-body {
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] .card-body div {
+        color: #e2e8f0 !important;
+    }
+
+    body[data-theme="dark"] .card-body .small {
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] .card-body label {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .card-body code {
+        color: #38bdf8 !important;
+        background-color: transparent;
+    }
+
+    body[data-theme="dark"] .card-body .fw-bold {
+        color: #f1f5f9 !important;
+    }
+
+    body[data-theme="dark"] .fw-bold {
+        font-weight: 700 !important;
+        color: #f1f5f9 !important;
+    }
+
+    body[data-theme="dark"] .small {
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] label {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] code {
+        color: #38bdf8 !important;
+        background-color: transparent;
+    }
 </style>
 {% endblock %}
 
@@ -205,8 +503,8 @@
                     <p class="small text-muted mb-3">Run this PowerShell snippet on the target host to reconnect or
                         update this agent configuration.</p>
                     <div class="position-relative">
-                        <pre class="mb-0 p-3 rounded shadow-sm"
-                            style="background-color: #f6f8fa; border: 1px solid var(--border-default);"><code id="deploy-snippet" style="color: var(--syntax-blue); font-family: 'JetBrains Mono', monospace;"># Connect Agent to Central Hub
+                        <pre class="mb-0 p-3 rounded shadow-sm code-block"
+                            style="border: 1px solid var(--border-default);"><code id="deploy-snippet" style="color: var(--syntax-blue); font-family: 'JetBrains Mono', monospace;"># Connect Agent to Central Hub
 $AgentID = "{{ agent.agent_id }}"
 $HubURL = "{{ request.url_root }}"
 $Secret = "********************"
@@ -228,8 +526,8 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
         </div>
         <div class="card-body">
             {% if agent.os_info %}
-            <pre class="mb-0 p-3 shadow-none"
-                style="background-color: #f6f8fa; border: 1px solid var(--border-default); color: var(--syntax-green); font-size: 0.9em; overflow-x: auto; font-family: 'JetBrains Mono', monospace;"><code>{{ agent.os_info }}</code></pre>
+            <pre class="mb-0 p-3 shadow-none code-block"
+                style="border: 1px solid var(--border-default); color: var(--syntax-green); font-size: 0.9em; overflow-x: auto; font-family: 'JetBrains Mono', monospace;"><code>{{ agent.os_info }}</code></pre>
             {% else %}
             <div class="text-center py-4 text-muted small">No detailed system info reported.</div>
             {% endif %}
@@ -349,5 +647,42 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
             setTimeout(() => { btn.innerHTML = originalText; }, 2000);
         });
     }
+
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
 </script>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
 {% endblock %}
