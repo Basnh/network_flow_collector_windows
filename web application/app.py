@@ -217,43 +217,200 @@ class ThreatDetector:
     
     def __init__(self):
         self.model = None
+        self.scaler = None
+        self.label_encoder = None
         self.is_trained = False
+        self.model_path = None
+        self.scaler_path = None
+        self.label_encoder_path = None
+        self.processed_data_path = None
+        self.last_error = ''
+        self.prediction_count = 0
+        self.scaler_used_count = 0
+        self.encoder_used_count = 0
+        self.last_prediction_label = None
+        self.last_decoded_label = None
+        self.last_threat_score = 0.0
         self.load_model()
+
+    def _build_candidate_paths(self, file_name, env_var_name=None):
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(app_dir)
+        env_path = os.environ.get(env_var_name, '').strip() if env_var_name else ''
+        candidates = [
+            env_path,
+            os.path.join(app_dir, file_name),
+            os.path.join(project_dir, file_name),
+            os.path.join(os.getcwd(), file_name)
+        ]
+        return [p for p in candidates if p]
+
+    def _find_existing_path(self, file_name, env_var_name=None):
+        candidates = self._build_candidate_paths(file_name, env_var_name)
+        found = next((p for p in candidates if os.path.exists(p)), None)
+        return found, candidates
         
     def load_model(self):
-        """Load the trained model from best_model.pkl"""
+        """Load model and optional preprocessing artifacts from PKL files."""
         try:
-            # Get the directory where web application resides
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            model_path = os.path.join(base_dir, 'best_model.pkl')
-            
-            logger.info(f"Attempting to load model from: {model_path}")
-            
-            if not os.path.exists(model_path):
-                logger.warning(f"Model file not found at {model_path}")
+            model_path, candidate_paths = self._find_existing_path('best_model.pkl', 'THREAT_MODEL_PATH')
+            if not model_path:
+                logger.error("Model file best_model.pkl not found. Checked paths: %s", candidate_paths)
+                self.model_path = None
+                self.is_trained = False
+                self.model = None
+                self.last_error = "best_model.pkl not found"
                 return False
-            
-            logger.info(f"Model file found, loading...")
+
             with open(model_path, 'rb') as f:
                 self.model = pickle.load(f)
-            
+
+            self.model_path = model_path
             self.is_trained = True
-            logger.info(f"✅ Successfully loaded model from {model_path}")
+            logger.warning(f"✅ Successfully loaded model from {model_path}")
+
+            # Optional scaler for feature preprocessing
+            scaler_path, scaler_candidates = self._find_existing_path('scaler.pkl', 'THREAT_SCALER_PATH')
+            if scaler_path:
+                try:
+                    with open(scaler_path, 'rb') as f:
+                        self.scaler = pickle.load(f)
+                    self.scaler_path = scaler_path
+                    logger.warning(f"✅ Loaded scaler from {scaler_path}")
+                except Exception as scaler_error:
+                    self.scaler = None
+                    self.scaler_path = None
+                    logger.error(f"❌ Could not load scaler.pkl: {scaler_error}")
+            else:
+                self.scaler = None
+                self.scaler_path = None
+                logger.warning("scaler.pkl not found. Checked paths: %s", scaler_candidates)
+
+            # Optional label encoder for class decoding
+            encoder_path, encoder_candidates = self._find_existing_path('mahoa_nhan.pkl', 'THREAT_LABEL_ENCODER_PATH')
+            if encoder_path:
+                try:
+                    with open(encoder_path, 'rb') as f:
+                        self.label_encoder = pickle.load(f)
+                    self.label_encoder_path = encoder_path
+                    logger.warning(f"✅ Loaded label encoder from {encoder_path}")
+                except Exception as encoder_error:
+                    self.label_encoder = None
+                    self.label_encoder_path = None
+                    logger.error(f"❌ Could not load mahoa_nhan.pkl: {encoder_error}")
+            else:
+                self.label_encoder = None
+                self.label_encoder_path = None
+                logger.warning("mahoa_nhan.pkl not found. Checked paths: %s", encoder_candidates)
+
+            # Optional processed_data.pkl path for traceability/consistency checks
+            processed_path, _ = self._find_existing_path('processed_data.pkl', 'THREAT_PROCESSED_DATA_PATH')
+            self.processed_data_path = processed_path
+
+            self.last_error = ''
             return True
             
         except Exception as e:
             logger.error(f"❌ Error loading model: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            self.model_path = None
+            self.scaler_path = None
+            self.label_encoder_path = None
+            self.processed_data_path = None
+            self.model = None
+            self.scaler = None
+            self.label_encoder = None
+            self.last_error = str(e)
             self.is_trained = False
             return False
+
+    def get_pipeline_status(self):
+        """Return current PKL pipeline status for diagnostics."""
+        return {
+            'model_loaded': bool(self.model is not None and self.is_trained),
+            'model_path': self.model_path,
+            'scaler_loaded': bool(self.scaler is not None),
+            'scaler_path': self.scaler_path,
+            'label_encoder_loaded': bool(self.label_encoder is not None),
+            'label_encoder_path': self.label_encoder_path,
+            'processed_data_found': bool(self.processed_data_path),
+            'processed_data_path': self.processed_data_path,
+            'prediction_count': self.prediction_count,
+            'scaler_used_count': self.scaler_used_count,
+            'encoder_used_count': self.encoder_used_count,
+            'last_prediction_label': self.last_prediction_label,
+            'last_decoded_label': self.last_decoded_label,
+            'last_threat_score': self.last_threat_score,
+            'last_error': self.last_error,
+        }
+
+    def _is_malicious_label(self, label):
+        """Normalize model output label to malicious/non-malicious."""
+        try:
+            if isinstance(label, (bool, np.bool_)):
+                return bool(label)
+
+            if isinstance(label, (int, float, np.integer, np.floating)):
+                return float(label) >= 1.0
+
+            label_str = str(label).strip().lower()
+            if not label_str:
+                return False
+
+            benign_tokens = {'0', 'benign', 'normal', 'safe', 'false', 'clean'}
+            if label_str in benign_tokens:
+                return False
+
+            malicious_tokens = {
+                '1', 'malicious', 'trojan', 'attack', 'anomaly', 'suspicious',
+                'malware', 'bot', 'botnet', 'backdoor', 'worm', 'ransomware',
+                'true', 'threat'
+            }
+            return label_str in malicious_tokens
+        except Exception:
+            return False
     
-    def extract_flow_features(self, flow):
+    def extract_flow_features(self, flow, raw_ml_features=None):
         """
         Extract 79 features from network flow.
         - Features 1-68: Match CIC-IDS dataset format for model prediction
         - Features 69-79: Activity statistics for extended analysis
         """
+        # Nếu Agent/Client đã trích xuất sẵn đầy đủ features (80+ parameters) -> Nạp luôn!
+        if raw_ml_features and isinstance(raw_ml_features, list) and len(raw_ml_features) > 80:
+            try:
+                # 0: flow_id, 1: src_ip, 2: src_port, 3: dst_ip, 4: dst_port, 5: protocol, 6: timestamp
+                
+                # Protocol mapper
+                protocol_val = raw_ml_features[5]
+                if isinstance(protocol_val, str):
+                    protocol_num = {'TCP': 1, 'UDP': 2, 'ICMP': 3}.get(protocol_val.upper(), 0)
+                else:
+                    protocol_num = float(protocol_val)
+
+                # Chuyển đổi feature từ array của WindowsNetworkFlowCollector thành mảng float
+                advanced_features = [
+                    float(raw_ml_features[2] or 0),   # Source Port
+                    float(raw_ml_features[4] or 0),   # Destination Port
+                    float(protocol_num)               # Protocol
+                ]
+                
+                # Từ index 7 trở đi (tức Flow Duration)
+                for val in raw_ml_features[7:83]: # Đảm bảo lấy đủ 76 values kế tiếp
+                    try:
+                        advanced_features.append(float(val) if val not in [None, ''] else 0.0)
+                    except Exception:
+                        advanced_features.append(0.0)
+                        
+                # Padding hoặc trim để khớp chính xác 79 features
+                while len(advanced_features) < 79:
+                    advanced_features.append(0.0)
+                return advanced_features[:79]
+            except Exception as e:
+                logger.error(f"Error parsing raw_ml_features: {e}")
+                # Fallback xuống dummy features nếu lỗi
+
         payload_length = len(flow.payload_content) if flow.payload_content else 0
         
         # Calculate some basic metrics from payload
@@ -406,37 +563,147 @@ class ThreatDetector:
         """Model is already trained - this is a placeholder for compatibility"""
         logger.info("Using pre-trained model from best_model.pkl - no additional training needed")
     
-    def predict_threat(self, flow):
-        """Predict if a flow is a threat using the loaded model"""
+    def predict_threat(self, flow, raw_ml_features=None):
+        """Predict if a flow is a threat using Signature-based rules + loaded ML model"""
         threats_found = []
         threat_score = 0.0
+        scaler_used = False
+        encoder_used = False
         
+        # ---------------------------------------------------------
+        # 1. RULE-BASED / SIGNATURE DETECTION (Trojan/Malware Catch)
+        # Lớp bảo vệ bổ sung để bắt Trojan khi ML bị thiếu features
+        # ---------------------------------------------------------
+        payload_str = str(flow.payload_content or '').lower()
+        
+        # Các port mờ ám thường dùng cho C2/Reverse Shell
+        suspicious_ports = {2404, 4444, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999}
+        if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
+            susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
+            threats_found.append(f"Suspicious port {susp_port} (Trojan/C2 Indicator)")
+            threat_score = max(threat_score, 0.85)
+
+        # Chữ ký Payload độc hại phổ biến của Trojan
+        bad_patterns = [
+            'cmd.exe', 'powershell', 'nc -e', '/bin/sh', '/bin/bash', 
+            'eval(base64', 'meterpreter', 'reverse_tcp', 'mimikatz',
+            'wget ', 'curl ', 'invoke-webrequest'
+        ]
+        for pat in bad_patterns:
+            if pat in payload_str:
+                threats_found.append(f"Malicious payload signature matched: '{pat}'")
+                threat_score = max(threat_score, 0.95)
+        
+        # Nếu đã phát hiện rõ ràng bằng Signature -> Trả về luôn để khỏi tính qua ML thiếu feature bị lệch điểm
+        if threat_score >= 0.85:
+            self.last_threat_score = threat_score
+            return threat_score, threats_found
+
+        # ---------------------------------------------------------
+        # 2. MACHINE LEARNING DETECTION (Fallback)
+        # ---------------------------------------------------------
         if not self.is_trained or self.model is None:
             logger.warning("Model not loaded - returning default prediction")
             return 0.0, ["Model not available"]
         
         try:
             # Extract all 79 features from flow
-            all_features = self.extract_flow_features(flow)
+            all_features = self.extract_flow_features(flow, raw_ml_features)
             
             # Use only first 68 features for model prediction
             # Features 69-79 are collected but not used by the current model
             model_features = all_features[:68]
-            
-            # Create input array for model
-            X = np.array([model_features])
-            
-            # Make prediction using the model (returns 0 or 1)
-            prediction = self.model.predict(X)
-            threat_score = float(prediction[0])
-            
-            # Convert to 0.0 or 1.0
-            threat_score = 1.0 if threat_score == 1 else 0.0
-            
-            if threat_score == 1.0:
+
+            # Prefer DataFrame with feature names to support models trained with named columns.
+            X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
+            X_np = np.array([model_features])
+
+            X_scaled = None
+            if self.scaler is not None and hasattr(self.scaler, 'transform'):
+                try:
+                    # Most sklearn scalers can accept DataFrame and return ndarray.
+                    X_scaled = self.scaler.transform(X_df)
+                    scaler_used = True
+                except Exception:
+                    try:
+                        X_scaled = self.scaler.transform(X_np)
+                        scaler_used = True
+                    except Exception:
+                        X_scaled = None
+
+            prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
+
+            prediction = None
+            predict_error = None
+            for X in prediction_inputs:
+                try:
+                    prediction = self.model.predict(X)
+                    predict_error = None
+                    break
+                except Exception as e:
+                    predict_error = e
+
+            if prediction is None:
+                raise predict_error if predict_error else RuntimeError("Model prediction failed")
+
+            pred_label = prediction[0]
+            decoded_label = pred_label
+
+            # If model outputs encoded integer labels, decode via label encoder when available.
+            if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
+                try:
+                    decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
+                    decoded_label = decoded[0]
+                    encoder_used = True
+                except Exception:
+                    decoded_label = pred_label
+
+            is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
+            threat_score = 1.0 if is_malicious else 0.0
+
+            # Use probability when available for better confidence scoring.
+            if hasattr(self.model, 'predict_proba'):
+                proba = None
+                for X in prediction_inputs:
+                    try:
+                        proba = self.model.predict_proba(X)[0]
+                        break
+                    except Exception:
+                        continue
+
+                if proba is not None:
+                    classes = list(getattr(self.model, 'classes_', []))
+                    malicious_index = None
+
+                    if classes:
+                        for idx, cls in enumerate(classes):
+                            if self._is_malicious_label(cls):
+                                malicious_index = idx
+                                break
+
+                    if malicious_index is None:
+                        if len(proba) == 2:
+                            malicious_index = 1
+                        elif len(proba) > 0:
+                            malicious_index = int(np.argmax(proba))
+
+                    if malicious_index is not None and malicious_index < len(proba):
+                        threat_score = float(proba[malicious_index])
+
+            if is_malicious:
                 threats_found.append("Threat detected by model")
             else:
                 threats_found.append("Normal traffic detected")
+
+            self.prediction_count += 1
+            if scaler_used:
+                self.scaler_used_count += 1
+            if encoder_used:
+                self.encoder_used_count += 1
+            self.last_prediction_label = str(pred_label)
+            self.last_decoded_label = str(decoded_label)
+            self.last_threat_score = float(threat_score)
+            self.last_error = ''
                 
             return threat_score, threats_found
             
@@ -444,10 +711,20 @@ class ThreatDetector:
             logger.error(f"❌ Error in model prediction: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            self.last_error = str(e)
             return 0.0, ["Error during prediction"]
 
 # Initialize threat detector
 threat_detector = ThreatDetector()
+
+@app.route('/api/model_pipeline_status', methods=['GET'])
+def model_pipeline_status():
+    """Inspect whether inference pipeline uses accompanying PKL artifacts."""
+    try:
+        return jsonify(threat_detector.get_pipeline_status()), 200
+    except Exception as e:
+        logger.error(f"Error getting model pipeline status: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ==================== API ENDPOINTS ====================
 
@@ -535,7 +812,8 @@ def submit_flow():
                 )
                 
                 # Threat analysis
-                threat_score, payload_threats = threat_detector.predict_threat(flow)
+                raw_ml_features = flow_data.get('ml_features', None)
+                threat_score, payload_threats = threat_detector.predict_threat(flow, raw_ml_features)
                 if is_icmp_echo_traffic(flow.protocol, flow.payload_content, flow.src_port, flow.dst_port):
                     # Ignore ping request/reply from alerting pipeline to avoid false positives.
                     flow.threat_score = 0.0

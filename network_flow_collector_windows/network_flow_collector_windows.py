@@ -1032,8 +1032,11 @@ class WindowsNetworkFlowCollector:
             
             self.logger.info(f"[SAVE] Complete IPv4 Flow: {flow['src_ip']}:{flow['src_port']} -> {flow['dst_ip']}:{flow['dst_port']} ({flow['protocol']}) - {total_packets} packets")
             
+            return row_data
+            
         except Exception as e:
             self.logger.error(f"Error saving flow {flow_id}: {e}")
+            return None
     
     def format_hex_dump(self, data, max_bytes=64):
         """Format raw bytes as hex dump exactly like in the screenshot"""

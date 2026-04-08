@@ -926,8 +926,8 @@ def integrate_with_flow_collector(collector_instance, server_url='http://localho
     def enhanced_save_flow(flow_id):
         """Enhanced save method that also sends data to security server"""
         try:
-            # Call original save method first
-            original_save_method(flow_id)
+            # Call original save method first and get the generated features
+            row_data = original_save_method(flow_id)
             
             # Extract flow data for agent client
             if flow_id in collector_instance.flows:
@@ -942,7 +942,8 @@ def integrate_with_flow_collector(collector_instance, server_url='http://localho
                     'Destination Port': flow.get('dst_port', 0),
                     'Protocol': flow.get('protocol', ''),
                     'Payload Content': collector_instance.flow_content.get(flow_id, ''),
-                    'Timestamp': flow.get('timestamp', time.time())
+                    'Timestamp': flow.get('timestamp', time.time()),
+                    'ml_features': row_data  # Pass the real 80+ features extracted directly!
                 }
                 
                 # Convert timestamp to ISO format
