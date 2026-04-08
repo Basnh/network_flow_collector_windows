@@ -17,6 +17,7 @@ import os
 import hashlib
 import socket
 import subprocess
+import uuid
 from collections import defaultdict
 import logging
 import pickle
@@ -41,6 +42,11 @@ logger = logging.getLogger(__name__)
 
 # Disable Werkzeug logger to remove HTTP request logs
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+# In-memory request/response store for process collection between server and agent
+PROCESS_REQUESTS = {}
+PROCESS_RESULTS = {}
+PROCESS_LOCK = threading.Lock()
 
 # Utility function to get current time in UTC+7
 def get_utc7_now():
@@ -707,6 +713,140 @@ def report_command_result(agent_id):
         logger.error(f"Error processing command result for agent {agent_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+
+@app.route('/api/agent/<agent_id>/process_request', methods=['GET'])
+@csrf.exempt
+def get_process_request(agent_id):
+    """Agent polls this endpoint to see if server requested process collection."""
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'has_request': False}), 200
+
+        # Update heartbeat when agent calls this endpoint
+        agent.last_seen = get_utc7_now()
+        db.session.commit()
+
+        now = get_utc7_now()
+        with PROCESS_LOCK:
+            req = PROCESS_REQUESTS.get(agent_id)
+            if not req:
+                return jsonify({'has_request': False}), 200
+
+            # Expire stale requests after 30s
+            if (now - req['created_at']).total_seconds() > 30:
+                PROCESS_REQUESTS.pop(agent_id, None)
+                return jsonify({'has_request': False}), 200
+
+            return jsonify({
+                'has_request': True,
+                'request_id': req['request_id']
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error getting process request for agent {agent_id}: {e}")
+        return jsonify({'has_request': False}), 200
+
+
+@app.route('/api/agent/<agent_id>/process_result', methods=['POST'])
+@csrf.exempt
+def submit_process_result(agent_id):
+    """Agent submits collected process list for a previously issued request."""
+    try:
+        data = request.get_json() or {}
+        request_id = data.get('request_id')
+        success = bool(data.get('success', False))
+        processes = data.get('processes', [])
+
+        if not request_id:
+            return jsonify({'ok': False, 'error': 'missing request_id'}), 400
+
+        if isinstance(processes, dict):
+            processes = [processes]
+        if not isinstance(processes, list):
+            processes = []
+
+        # Keep only expected fields for UI safety
+        normalized = []
+        for proc in processes:
+            normalized.append({
+                'ProcessName': str(proc.get('ProcessName', 'Unknown') or 'Unknown'),
+                'PID': int(proc.get('PID') or 0),
+                'LocalAddress': str(proc.get('LocalAddress', '0.0.0.0') or '0.0.0.0'),
+                'LocalPort': int(proc.get('LocalPort') or 0),
+                'RemoteAddress': str(proc.get('RemoteAddress', '0.0.0.0') or '0.0.0.0'),
+                'RemotePort': int(proc.get('RemotePort') or 0),
+                'State': str(proc.get('State', 'Unknown') or 'Unknown')
+            })
+
+        with PROCESS_LOCK:
+            req = PROCESS_REQUESTS.get(agent_id)
+            if req and req['request_id'] == request_id:
+                PROCESS_RESULTS[request_id] = {
+                    'success': success,
+                    'processes': normalized,
+                    'created_at': get_utc7_now()
+                }
+                PROCESS_REQUESTS.pop(agent_id, None)
+
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if agent:
+            agent.last_seen = get_utc7_now()
+            db.session.commit()
+
+        return jsonify({'ok': True}), 200
+
+    except Exception as e:
+        logger.error(f"Error submitting process result for agent {agent_id}: {e}")
+        return jsonify({'ok': False, 'error': 'internal error'}), 500
+
+
+@app.route('/api/kill_process/<agent_id>', methods=['POST'])
+@csrf.exempt
+def kill_process(agent_id):
+    """Send kill process command to agent"""
+    try:
+        data = request.get_json() or {}
+        pid = data.get('pid')
+        process_name = data.get('process_name', 'unknown')
+        
+        if not pid:
+            return jsonify({'success': False, 'error': 'PID required'}), 400
+        
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'success': False, 'error': 'Agent not found'}), 404
+        
+        # Check if agent is online
+        last_seen_threshold = get_utc7_now() - timedelta(seconds=120)
+        if not agent.last_seen or agent.last_seen < last_seen_threshold:
+            return jsonify({'success': False, 'error': 'Agent is offline'}), 503
+        
+        # Send kill_process command via pending_command
+        command = {
+            'action': 'kill_process',
+            'pid': int(pid),
+            'process_name': process_name,
+            'timestamp': get_utc7_now().isoformat()
+        }
+        
+        agent.pending_command = json.dumps(command)
+        db.session.commit()
+        
+        logger.info(f"Kill process command sent to agent {agent_id}: {process_name} (PID: {pid})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Kill command sent for {process_name} (PID: {pid})',
+            'agent_id': agent_id
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error killing process on agent {agent_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== NETWORK ISOLATION ====================
 
 def isolate_agent_network(agent_id, reason, duration_minutes=None):
@@ -1263,95 +1403,54 @@ def api_agents_status():
 @app.route('/api/get_processes/<agent_id>')
 @csrf.exempt
 def get_agent_processes(agent_id):
-    """Get list of processes and network connections from an agent
-    
-    This endpoint returns a list of processes and their network connections.
-    In a production environment, this would query the agent for real-time data
-    or retrieve cached data from the database.
-    """
+    """Request process list from agent and wait briefly for result."""
     try:
-        # Verify agent exists
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
             return jsonify({
                 'success': False,
                 'message': 'Agent not found'
             }), 404
-        
-        # For demonstration, we can return process data from network flows
-        # In production, you would have a separate processes table or query agent directly
-        # For now, we'll simulate data based on network flows
-        
-        flows = NetworkFlow.query.filter_by(agent_id=agent_id)\
-            .order_by(NetworkFlow.created_at.desc())\
-            .limit(50).all()
-        
-        # Group flows by src_port to simulate processes
-        processes_dict = {}
-        
-        for flow in flows:
-            # Use src_port as a unique identifier (simplified - in real scenario would be PID)
-            key = f"{flow.src_port}_{flow.protocol}"
-            
-            if key not in processes_dict:
-                # Try to guess process name from port/protocol
-                process_name = guess_process_name(flow.src_port, flow.protocol)
-                processes_dict[key] = {
-                    'ProcessName': process_name,
-                    'LocalAddress': '127.0.0.1',  # Default localhost
-                    'LocalPort': flow.src_port or 0,
-                    'RemoteAddress': flow.dst_ip or '0.0.0.0',
-                    'RemotePort': flow.dst_port or 0,
-                    'State': 'Established' if flow.dst_ip else 'Listen',
-                    'Protocol': flow.protocol or 'TCP',
-                    'Flows': 1
-                }
-            else:
-                processes_dict[key]['Flows'] += 1
-        
-        # Convert to list
-        processes = list(processes_dict.values())
-        
-        # If no flows exist, return some common system processes
-        if not processes:
-            processes = [
-                {
-                    'ProcessName': 'system',
-                    'LocalAddress': '0.0.0.0',
-                    'LocalPort': 0,
-                    'RemoteAddress': '0.0.0.0',
-                    'RemotePort': 0,
-                    'State': 'Listen',
-                    'Protocol': 'TCP'
-                },
-                {
-                    'ProcessName': 'services.exe',
-                    'LocalAddress': '127.0.0.1',
-                    'LocalPort': 135,
-                    'RemoteAddress': '0.0.0.0',
-                    'RemotePort': 0,
-                    'State': 'Listen',
-                    'Protocol': 'TCP'
-                },
-                {
-                    'ProcessName': 'svchost.exe',
-                    'LocalAddress': '127.0.0.1',
-                    'LocalPort': 445,
-                    'RemoteAddress': '0.0.0.0',
-                    'RemotePort': 0,
-                    'State': 'Listen',
-                    'Protocol': 'TCP'
-                }
-            ]
-        
+
+        # Only serve online agents
+        if not agent.is_online:
+            return jsonify({
+                'success': False,
+                'message': 'Agent is offline'
+            }), 503
+
+        request_id = uuid.uuid4().hex
+        with PROCESS_LOCK:
+            PROCESS_REQUESTS[agent_id] = {
+                'request_id': request_id,
+                'created_at': get_utc7_now()
+            }
+
+        # Wait up to 12s for agent heartbeat loop to return results
+        timeout_at = time.time() + 12
+        while time.time() < timeout_at:
+            with PROCESS_LOCK:
+                result = PROCESS_RESULTS.pop(request_id, None)
+            if result:
+                return jsonify({
+                    'success': True,
+                    'agent_id': agent_id,
+                    'hostname': agent.hostname,
+                    'processes': result.get('processes', []),
+                    'process_count': len(result.get('processes', [])),
+                    'timestamp': get_utc7_now().isoformat()
+                }), 200
+            time.sleep(0.5)
+
         return jsonify({
-            'success': True,
+            'success': False,
             'agent_id': agent_id,
             'hostname': agent.hostname,
-            'processes': processes,
-            'process_count': len(processes),
+            'message': 'Timed out waiting for agent process data',
+            'processes': [],
+            'process_count': 0,
             'timestamp': get_utc7_now().isoformat()
-        }), 200
+        }), 504
         
     except Exception as e:
         logger.error(f"Error fetching processes for agent {agent_id}: {e}")

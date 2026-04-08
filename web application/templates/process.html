@@ -289,6 +289,27 @@
         text-align: center;
         color: var(--accent-primary);
     }
+
+    /* Kill Button */
+    .btn-kill {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-kill:hover {
+        background-color: #c82333;
+        transform: scale(1.05);
+    }
+
+    .btn-kill:active {
+        transform: scale(0.95);
+    }
 </style>
 {% endblock %}
 
@@ -340,7 +361,8 @@
                     <th style="width: 15%;">Remote Address</th>
                     <th style="width: 10%;">Remote Port</th>
                     <th style="width: 12%;">State</th>
-                    <th style="width: 23%;">Details</th>
+                    <th style="width: 15%;">Details</th>
+                    <th style="width: 8%;">Actions</th>
                 </tr>
             </thead>
             <tbody id="processTableBody">
@@ -479,6 +501,7 @@
             const localPort = proc.LocalPort !== undefined && proc.LocalPort !== null ? String(proc.LocalPort) : '-';
             const remotePort = proc.RemotePort !== undefined && proc.RemotePort !== null ? String(proc.RemotePort) : '-';
             const state = String(proc.State || 'Unknown').trim();
+            const pid = proc.PID || 0;
 
             // Get status badge color
             const statusClass = getStatusClass(state);
@@ -497,6 +520,9 @@
                 <td><span class="status-badge ${statusClass}">${escapeHtml(state)}</span></td>
                 <td style="font-size: 0.85rem; color: var(--text-muted);">
                     ${getConnectionType(localPort, remotePort, state)}
+                </td>
+                <td>
+                    ${pid > 0 ? `<button class="btn-kill" onclick="killProcess(${pid}, '${escapeHtml(processName)}')" title="Kill this process"><i class="fas fa-times"></i></button>` : '-'}
                 </td>
             `;
 
@@ -593,5 +619,43 @@
             loadProcesses(agentId);
         }
     }, 30000); // 30 seconds
+
+    // Kill process function
+    function killProcess(pid, processName) {
+        if (!confirm(`Are you sure you want to kill process: ${processName} (PID: ${pid})?`)) {
+            return;
+        }
+        
+        const agentId = document.getElementById('agentSelect').value;
+        if (!agentId) {
+            showError('No agent selected');
+            return;
+        }
+        
+        fetch(`/api/kill_process/${agentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                pid: pid,
+                process_name: processName
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Kill command sent: ${data.message}`);
+                // Refresh process list after 1 second
+                setTimeout(() => loadProcesses(agentId), 1000);
+            } else {
+                showError(`Failed to kill process: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error killing process:', error);
+            showError('Error sending kill command: ' + error.message);
+        });
+    }
 </script>
 {% endblock %}

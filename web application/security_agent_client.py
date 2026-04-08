@@ -619,6 +619,18 @@ class SecurityAgentClient:
                     'error': '' if success else 'Failed to remove firewall rules',
                     'timestamp': get_utc7_now().isoformat()
                 }
+            elif action == 'kill_process':
+                pid = command.get('pid')
+                process_name = command.get('process_name', 'unknown')
+                success = self.execute_kill_process(pid, process_name)
+                return {
+                    'success': success,
+                    'action': 'kill_process',
+                    'process_name': process_name,
+                    'pid': pid,
+                    'error': '' if success else f'Failed to kill process {process_name} (PID: {pid})',
+                    'timestamp': get_utc7_now().isoformat()
+                }
             else:
                 self.logger.error(f"Unknown isolation command: {action}")
                 return {
@@ -638,6 +650,35 @@ class SecurityAgentClient:
                 'adapter_name': '',
                 'timestamp': get_utc7_now().isoformat()
             }
+    
+    def execute_kill_process(self, pid, process_name):
+        """Kill a process by PID using taskkill command"""
+        try:
+            if not pid or int(pid) <= 0:
+                self.logger.warning(f"Invalid PID for kill_process: {pid}")
+                return False
+
+            self.logger.warning(f"Attempting to kill process: {process_name} (PID: {pid})")
+            
+            # Use taskkill to terminate the process
+            result = subprocess.run(
+                ['taskkill', '/PID', str(pid), '/F'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                self.logger.critical(f"✓ Process terminated successfully: {process_name} (PID: {pid})")
+                return True
+            else:
+                error_msg = result.stderr if result.stderr else "Unknown error"
+                self.logger.error(f"✗ Failed to kill process {process_name} (PID: {pid}): {error_msg}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error killing process {process_name} (PID: {pid}): {e}")
+            return False
     
     def upload_worker(self):
         """Background worker to upload flows periodically"""
@@ -682,6 +723,9 @@ class SecurityAgentClient:
                     
                     # Poll for pending commands (isolation/restoration)
                     self.poll_and_execute_commands()
+
+                    # Poll for process-list requests from web UI
+                    self.poll_and_send_processes()
                 
                 time.sleep(10)  # Check every 10 seconds for fast command delivery
                 
@@ -740,6 +784,95 @@ class SecurityAgentClient:
                 
         except Exception as e:
             self.logger.error(f"Error reporting command result: {e}")
+
+    def collect_processes(self):
+        """Collect local process and connection list in the UI's expected format."""
+        try:
+            # Same logic as note.txt, but output JSON instead of Format-Table for server transport.
+            ps_cmd = r'''
+            Get-NetTCPConnection -ErrorAction SilentlyContinue | ForEach-Object {
+                $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+                [PSCustomObject]@{
+                    ProcessName   = if ($proc) { $proc.ProcessName } else { "Unknown" }
+                    PID           = [int]$_.OwningProcess
+                    LocalAddress  = [string]$_.LocalAddress
+                    LocalPort     = [int]$_.LocalPort
+                    RemoteAddress = [string]$_.RemoteAddress
+                    RemotePort    = [int]$_.RemotePort
+                    State         = [string]$_.State
+                }
+            } | ConvertTo-Json -Depth 4 -Compress
+            '''
+
+            result = subprocess.run(['powershell', '-NoProfile', '-Command', ps_cmd], capture_output=True, text=True, timeout=20)
+
+            if result.returncode != 0:
+                self.logger.error(f"collect_processes PowerShell failed: {result.stderr}")
+                return []
+
+            raw = (result.stdout or '').strip()
+            if not raw:
+                return []
+
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                parsed = [parsed]
+            if not isinstance(parsed, list):
+                return []
+
+            processes = []
+            for proc in parsed:
+                processes.append({
+                    'ProcessName': str(proc.get('ProcessName', 'Unknown') or 'Unknown'),
+                    'PID': int(proc.get('PID') or 0),
+                    'LocalAddress': str(proc.get('LocalAddress', '0.0.0.0') or '0.0.0.0'),
+                    'LocalPort': int(proc.get('LocalPort') or 0),
+                    'RemoteAddress': str(proc.get('RemoteAddress', '0.0.0.0') or '0.0.0.0'),
+                    'RemotePort': int(proc.get('RemotePort') or 0),
+                    'State': str(proc.get('State', 'Unknown') or 'Unknown')
+                })
+
+            return processes
+
+        except Exception as e:
+            self.logger.error(f"Error collecting process list: {e}")
+            return []
+
+    def poll_and_send_processes(self):
+        """Poll server for process requests and submit fresh local process list."""
+        try:
+            response = requests.get(
+                f"{self.server_url}/api/agent/{self.agent_id}/process_request",
+                timeout=8
+            )
+
+            if response.status_code != 200:
+                return
+
+            payload = response.json()
+            if not payload.get('has_request'):
+                return
+
+            request_id = payload.get('request_id')
+            if not request_id:
+                return
+
+            processes = self.collect_processes()
+            result = {
+                'request_id': request_id,
+                'success': True,
+                'processes': processes,
+                'timestamp': get_utc7_now().isoformat()
+            }
+
+            requests.post(
+                f"{self.server_url}/api/agent/{self.agent_id}/process_result",
+                json=result,
+                timeout=15
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error polling/sending process list: {e}")
     
     def start(self):
         """Start the security agent client"""
