@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}Flow Details - {{ flow.src_ip }} → {{ flow.dst_ip }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Card styling */
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+        border-b: 1px solid var(--border-default);
+    }
+
+    /* Badge styling */
+    .badge {
+        padding: 0.4em 0.8em;
+        font-weight: 500;
+        border-radius: 4px;
+    }
+
+    .badge.badge-threat {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge.badge-safe {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .badge.badge-suspicious {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* Flow stats */
+    .flow-stat {
+        padding: 1rem;
+        background-color: var(--bg-deep);
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+
+    .flow-stat-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .flow-stat-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text-main);
+        word-break: break-all;
+    }
+
+    /* Threat indicators */
+    .threat-indicator {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        background-color: var(--bg-deep);
+    }
+
+    .threat-indicator.high {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-left: 4px solid #ef4444;
+    }
+
+    .threat-indicator.medium {
+        background-color: rgba(245, 158, 11, 0.1);
+        border-left: 4px solid #f59e0b;
+    }
+
+    .threat-indicator.low {
+        background-color: rgba(34, 197, 94, 0.1);
+        border-left: 4px solid #22c55e;
+    }
+
+    .threat-indicator-icon {
+        margin-right: 0.75rem;
+        font-size: 1.25rem;
+    }
+
+    .threat-indicator-text {
+        flex: 1;
+    }
+
+    /* Progress bar */
+    .threat-progress {
+        width: 100%;
+        height: 8px;
+        background-color: var(--bg-deep);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .threat-progress-bar {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    /* Dark mode */
+    body[data-theme="dark"] .card {
+        background-color: rgba(30, 41, 59, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+    }
+
+    body[data-theme="dark"] .card-header {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border-color: rgba(226, 232, 240, 0.1);
+    }
+
+    body[data-theme="dark"] .flow-stat {
+        background-color: rgba(15, 23, 42, 0.6);
+    }
+
+    body[data-theme="dark"] .flow-stat-label {
+        color: #94a3b8;
+    }
+
+    body[data-theme="dark"] .flow-stat-value {
+        color: #f1f5f9;
+    }
+
+    body[data-theme="dark"] .threat-indicator {
+        background-color: rgba(15, 23, 42, 0.6);
+    }
+
+    /* Light mode */
+    body[data-theme="light"] .card {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    body[data-theme="light"] .flow-stat {
+        background-color: rgba(245, 245, 245, 0.5) !important;
+    }
+
+    body[data-theme="light"] .flow-stat-label {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .flow-stat-value {
+        color: #1f2937 !important;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--border-default);
+    }
+
+    .nav-link {
+        color: var(--text-muted);
+        border: none;
+        padding: 0.75rem 1rem;
+        margin-bottom: -2px;
+        border-bottom: 3px solid transparent;
+    }
+
+    .nav-link.active {
+        color: var(--accent-primary);
+        border-bottom-color: var(--accent-primary);
+    }
+
+    .nav-link:hover {
+        border-bottom-color: var(--accent-primary);
+        color: var(--accent-primary);
+    }
+
+    /* Payload section */
+    .payload-container {
+        background-color: var(--bg-deep);
+        border-radius: 6px;
+        padding: 1rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        color: #38bdf8;
+        word-break: break-all;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    body[data-theme="dark"] .payload-container {
+        background-color: rgba(15, 23, 42, 0.9);
+    }
+
+    body[data-theme="light"] .payload-container {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4 fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2">
+                <i class="fas fa-network-wired me-2 text-primary"></i>Network Flow
+            </h1>
+            <p class="text-muted small mb-0">
+                <code>{{ flow.src_ip }}:{{ flow.src_port if flow.src_port is not none else 'N/A' }}</code>
+                <i class="fas fa-arrow-right mx-2"></i>
+                <code>{{ flow.dst_ip }}:{{ flow.dst_port if flow.dst_port is not none else 'N/A' }}</code>
+            </p>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back to Agent
+            </a>
+        </div>
+    </div>
+
+    <!-- Threat Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header border-0 pb-0">
+                    <small class="text-muted fw-bold text-uppercase">Threat Assessment</small>
+                </div>
+                <div class="card-body">
+                    <!-- Threat Score -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="small text-muted fw-bold">THREAT SCORE</label>
+                            <span class="badge {% if flow.threat_score > 0.7 %}badge-threat{% elif flow.threat_score > 0.4 %}badge-suspicious{% else %}badge-safe{% endif %}">
+                                {{ (flow.threat_score * 100)|round|int }}%
+                            </span>
+                        </div>
+                        <div class="threat-progress">
+                            <div class="threat-progress-bar {% if flow.threat_score > 0.7 %}bg-danger{% elif flow.threat_score > 0.4 %}bg-warning{% else %}bg-success{% endif %}"
+                                style="width: {{ (flow.threat_score * 100)|round|int }}%;">
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {% if flow.threat_score > 0.7 %}
+                                <i class="fas fa-virus me-1 text-danger"></i> **HIGH RISK** - Likely threat detected
+                            {% elif flow.threat_score > 0.4 %}
+                                <i class="fas fa-exclamation-triangle me-1 text-warning"></i> **SUSPICIOUS** - Requires investigation
+                            {% else %}
+                                <i class="fas fa-check-circle me-1 text-success"></i> **LOW RISK** - Normal behavior
+                            {% endif %}
+                        </small>
+                    </div>
+
+                    <!-- Classification -->
+                    <div class="mb-2">
+                        <label class="small text-muted fw-bold d-block mb-2">CLASSIFICATION</label>
+                        {% if flow.classification == 'Trojan' %}
+                            <span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Trojan</span>
+                        {% elif flow.classification == 'Malware' %}
+                            <span class="badge bg-danger"><i class="fas fa-skull me-1"></i> Malware</span>
+                        {% elif flow.classification == 'Suspicious' %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation me-1"></i> Suspicious</span>
+                        {% else %}
+                            <span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> {{ flow.classification }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Info -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header border-0 pb-0">
+                    <small class="text-muted fw-bold text-uppercase">From Agent</small>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">HOSTNAME</label>
+                        <div class="fw-bold">{{ agent.hostname }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">AGENT ID</label>
+                        <code class="text-primary" style="font-size: 0.85em;">{{ agent.agent_id }}</code>
+                    </div>
+                    <div class="mb-0">
+                        <label class="small text-muted d-block mb-1">TIMESTAMP</label>
+                        <div class="small">{{ flow.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC+7') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Basic Information -->
+    <div class="card mb-4">
+        <div class="card-header border-0 pb-0">
+            <small class="text-muted fw-bold text-uppercase">Basic Information</small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Source -->
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Source IP</div>
+                        <div class="flow-stat-value">{{ flow.src_ip }}</div>
+                    </div>
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Source Port</div>
+                        <div class="flow-stat-value">{{ flow.src_port if flow.src_port is not none else 'N/A' }}</div>
+                    </div>
+                </div>
+
+                <!-- Destination -->
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Destination IP</div>
+                        <div class="flow-stat-value">{{ flow.dst_ip }}</div>
+                    </div>
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Destination Port</div>
+                        <div class="flow-stat-value">{{ flow.dst_port if flow.dst_port is not none else 'N/A' }}</div>
+                    </div>
+                </div>
+
+                <!-- Protocol -->
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Protocol</div>
+                        <div class="flow-stat-value">
+                            {% if flow.protocol == 'TCP' %}
+                                <i class="fas fa-network-wired me-1"></i>TCP
+                            {% elif flow.protocol == 'UDP' %}
+                                <i class="fas fa-broadcast-tower me-1"></i>UDP
+                            {% elif flow.protocol == 'ICMP' %}
+                                <i class="fas fa-circle me-1"></i>ICMP
+                            {% else %}
+                                {{ flow.protocol or 'Unknown' }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flow ID -->
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Flow ID</div>
+                        <div class="flow-stat-value" style="font-size: 0.9rem;">{{ flow.flow_id }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anomaly Detection -->
+    <div class="card mb-4">
+        <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
+            <small class="text-muted fw-bold text-uppercase">Anomaly Detection</small>
+            {% if anomalies.reason %}
+                <span class="badge bg-warning text-dark">{{ anomalies.reason|length }} Detected</span>
+            {% else %}
+                <span class="badge bg-success">Normal</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if anomalies.reason %}
+                {% for reason in anomalies.reason %}
+                    <div class="threat-indicator {% if 'High' in reason or 'Suspicious' in reason or 'Windows' in reason %}high{% elif 'Suspicious' in reason %}medium{% else %}low{% endif %}">
+                        <div class="threat-indicator-icon">
+                            {% if 'High' in reason or 'Suspicious' in reason or 'Windows' in reason %}
+                                <i class="fas fa-exclamation-circle"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle"></i>
+                            {% endif %}
+                        </div>
+                        <div class="threat-indicator-text">
+                            {{ reason }}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="threat-indicator low">
+                    <div class="threat-indicator-icon">
+                        <i class="fas fa-check-circle text-success"></i>
+                    </div>
+                    <div class="threat-indicator-text">
+                        <strong>No anomalies detected</strong> - Flow behavior appears normal
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payload Analysis -->
+    <div class="card mb-4">
+        <div class="card-header border-0 pb-0">
+            <small class="text-muted fw-bold text-uppercase">Payload Analysis</small>
+        </div>
+        <div class="card-body">
+            {% if flow.payload_content %}
+                <label class="small text-muted fw-bold d-block mb-2">CONTENT (HEX)</label>
+                <div class="payload-container">{{ flow.payload_content }}</div>
+            {% else %}
+                <div class="alert alert-info mb-0" role="alert">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    <strong>Encrypted or No Payload</strong> - No readable payload content available
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Flow Metadata -->
+    <div class="card">
+        <div class="card-header border-0 pb-0">
+            <small class="text-muted fw-bold text-uppercase">Metadata</small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Created At</div>
+                        <div class="flow-stat-value" style="font-size: 0.95rem;">{{ flow.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="flow-stat">
+                        <div class="flow-stat-label">Malicious Status</div>
+                        <div class="flow-stat-value">
+                            {% if flow.is_malicious %}
+                                <span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Malicious</span>
+                            {% else %}
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i> Clean</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
+</script>
+{% endblock %}

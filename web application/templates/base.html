@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Project Luận Văn ở đây{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- AOS (Animate On Scroll) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Animations -->
+    <link href="{{ url_for('static', filename='css/animations.css') }}" rel="stylesheet">
+    <!-- Enhanced Theme System -->
+    <link href="{{ url_for('static', filename='css/theme.css') }}" rel="stylesheet">
+    <!-- Dashboard Enhanced Styles -->
+    <link href="{{ url_for('static', filename='css/dashboard-enhanced.css') }}" rel="stylesheet">
+    <!-- Cybersecurity Dashboard Styles -->
+    <link href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}" rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        :root {
+            /* GitHub-inspired Light Palette */
+            --bg-deep: #f6f8fa;
+            --bg-surface: #ffffff;
+            --bg-hover: #f3f4f6;
+            --bg-card: #ffffff;
+            --border-default: #d0d7de;
+            --text-main: #1f2328;
+            --text-muted: #657b83;
+            --accent-primary: #0969da;
+
+            /* Syntax Highlighting Colors (Light Mode) */
+            --syntax-purple: #8250df;
+            --syntax-blue: #0550ae;
+            --syntax-green: #116329;
+            --syntax-orange: #953800;
+            --syntax-red: #cf222e;
+            --syntax-grey: #6e7781;
+
+            /* Status Colors */
+            --status-success: #1a7f37;
+            --status-danger: #d1242f;
+            --status-warning: #9a6700;
+            --status-info: #0969da;
+
+            --shadow-sm: 0 1px 2px rgba(31, 35, 40, 0.075);
+            --shadow-md: 0 3px 6px rgba(140, 149, 159, 0.15);
+        }
+
+        * {
+            transition: background-color 0.3s, border-color 0.3s, transform 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 61px);
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border-right: 1px solid var(--border-default);
+            padding: 20px 0;
+            position: fixed;
+            height: calc(100vh - 61px);
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        body[data-theme="light"] .sidebar {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+            border-right-color: #e5e7eb;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-brand a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        body[data-theme="light"] .sidebar-brand a {
+            color: #1f2937;
+        }
+
+        .sidebar-brand a:hover {
+            color: var(--accent-primary);
+            transform: translateX(5px);
+        }
+
+        .sidebar-brand i {
+            font-size: 1.5rem;
+            color: var(--accent-primary);
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 15px;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+        }
+
+        body[data-theme="light"] .sidebar-nav-link {
+            color: rgba(31, 41, 55, 0.7);
+        }
+
+        .sidebar-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding-left: 20px;
+        }
+
+        body[data-theme="light"] .sidebar-nav-link:hover {
+            background-color: rgba(31, 41, 55, 0.1);
+            color: #1f2937;
+        }
+
+        .sidebar-nav-link.active {
+            background-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(9, 105, 218, 0.3);
+        }
+
+        .sidebar-nav-link i {
+            font-size: 1.1rem;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Main Wrapper */
+        .main-wrapper {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - 260px);
+        }
+
+        .main-wrapper main {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        body[data-theme="light"] {
+            background-color: #f8f9fa;
+            color: #1f2937;
+        }
+
+        /* Full screen container - removed for sidebar layout */
+        .full-screen-container {
+            display: none;
+        }
+
+        /* Glassmorphism navbar - updated for horizontal layout only */
+        .navbar {
+            background: rgba(255, 255, 255, 0.8) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-default) !important;
+            padding: 0.75rem 2rem;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            z-index: 99;
+            transition: all 0.3s ease;
+        }
+
+        body[data-theme="light"] .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-bottom-color: #e5e7eb !important;
+        }
+
+        .navbar-brand {
+            display: none;
+        }
+
+        .navbar-nav {
+            display: none;
+        }
+
+        .table {
+            color: var(--text-main) !important;
+        }
+
+        .table thead {
+            background-color: var(--bg-deep) !important;
+        }
+
+        /* Developer Premium Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default) !important;
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            background-color: var(--bg-deep) !important;
+            border-bottom: 1px solid var(--border-default) !important;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Code and Terminal styles */
+        code,
+        pre {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .hex-content {
+            background-color: var(--bg-deep);
+            color: var(--syntax-blue);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-default);
+            word-break: break-all;
+        }
+
+        /* Custom scrollbar for dark mode */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--bg-hover);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Status & Badges */
+        .badge {
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+
+        .badge-critical {
+            background-color: var(--status-danger);
+            color: white;
+        }
+
+        .badge-high {
+            background-color: var(--syntax-orange);
+            color: var(--bg-deep);
+        }
+
+        .badge-medium {
+            background-color: var(--status-warning);
+            color: var(--bg-deep);
+        }
+
+        .badge-low {
+            background-color: var(--status-success);
+            color: white;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--syntax-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        /* Enhanced Page Loader */
+        .page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        
+        .page-loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(56, 189, 248, 0.2);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Error Recovery Overlay */
+        .error-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 18, 32, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(8px);
+        }
+        
+        .error-content {
+            text-align: center;
+            color: var(--text-primary);
+            max-width: 400px;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-default);
+        }
+        
+        .error-content i {
+            font-size: 3rem;
+            color: var(--status-warning);
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+                padding: 15px 0;
+            }
+
+            .sidebar-brand span,
+            .sidebar-nav-link span {
+                display: none;
+            }
+
+            .sidebar-brand {
+                padding: 0 15px 20px;
+                text-align: center;
+            }
+
+            .sidebar-brand a {
+                justify-content: center;
+            }
+
+            .sidebar-nav-link {
+                justify-content: center;
+                padding: 12px;
+            }
+
+            .sidebar-nav-link:hover {
+                padding-left: 12px;
+            }
+
+            .main-wrapper {
+                margin-left: 70px;
+                width: calc(100% - 70px);
+            }
+
+            .main-wrapper main {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar {
+                width: 60px;
+            }
+
+            .main-wrapper {
+                margin-left: 60px;
+                width: calc(100% - 60px);
+            }
+        }
+    </style>
+
+    <!-- Theme Initialization Script -->
+    <script>
+        // Initialize theme from localStorage or default to dark
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+</head>
+
+<body>
+    <!-- Enhanced Page Loader with Auto-Hide -->
+    <div class="page-loader" id="pageLoader">
+        <div class="d-flex flex-column align-items-center">
+            <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
+            <h5 class="gradient-text">Loading Security Dashboard...</h5>
+        </div>
+    </div>
+    
+    <!-- Error Recovery Overlay -->
+    <div class="error-overlay" id="errorOverlay" style="display: none;">
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4>Connection Issue Detected</h4>
+            <p>Reconnecting to security dashboard...</p>
+            <button class="btn btn-primary" onclick="forceReload()">Reload Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar-container">
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <a href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Project Luận Văn</span>
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a class="sidebar-nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="sidebar-nav-link" href="{{ url_for('agents_list') }}">
+                    <i class="fas fa-desktop"></i>
+                    <span>Agents</span>
+                </a>
+                <a class="sidebar-nav-link" href="{{ url_for('process_monitor') }}">
+                    <i class="fas fa-window-maximize"></i>
+                    <span>Process Monitor</span>
+                </a>
+                <a class="sidebar-nav-link" href="{{ url_for('alerts_list') }}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Alerts</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="main-wrapper">
+            <!-- Main content -->
+            <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; width: calc(100% - 40px);">
+                {% for category, message in messages %}
+                <div
+                    class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- AOS (Animate On Scroll) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <!-- Custom Dashboard Effects -->
+    <script src="{{ url_for('static', filename='js/dashboard-effects.js') }}"></script>
+    <!-- Enhanced Dashboard Features -->
+    <script src="{{ url_for('static', filename='js/enhanced-dashboard.js') }}"></script>
+
+    <script>
+        // Real-time clock with smooth transitions
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0') + ':' +
+                String(now.getSeconds()).padStart(2, '0');
+
+            const clockElement = document.getElementById('current-time');
+            if (clockElement) {
+                clockElement.style.transition = 'opacity 0.3s ease';
+                clockElement.style.opacity = '0.7';
+
+                setTimeout(() => {
+                    clockElement.textContent = timeString;
+                    clockElement.style.opacity = '1';
+                }, 150);
+            }
+        }
+
+        // Initialize clock
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // Activate current navigation link
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar-nav-link');
+            
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        });
+
+        // Setup auto-refresh (will be managed by dashboard-effects.js for dashboard pages)
+        if (window.location.pathname === '/') {
+            // Dashboard page - use enhanced refresh from dashboard-effects.js
+            document.addEventListener('DOMContentLoaded', () => {
+                if (typeof dashboardEffects !== 'undefined') {
+                    dashboardEffects.setupAutoRefresh(15000);
+                }
+            });
+        } else {
+            // Other pages - smooth data refresh without page reload
+            setInterval(() => {
+                if (window.securityDashboard && window.securityDashboard.fetchDashboardStats) {
+                    window.securityDashboard.fetchDashboardStats();
+                }
+                // Update page timestamp if exists
+                const timeElement = document.getElementById('current-time');
+                if (timeElement) {
+                    const now = new Date();
+                    const timeString = String(now.getHours()).padStart(2, '0') + ':' +
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+                    timeElement.textContent = timeString;
+                }
+            }, 30000);
+        }
+    </script>
+
+    <!-- Refresh Functions for Real-time Updates -->
+    <script>
+        // Global refresh functions to avoid page reload
+        async function refreshAgentsData() {
+            const button = event.target.closest('button');
+            const icon = button.querySelector('i');
+            
+            // Show loading state
+            icon.className = 'fas fa-spinner fa-spin me-1';
+            button.disabled = true;
+            
+            try {
+                // Fetch fresh data and update the table
+                const response = await fetch('/api/agents');
+                if (response.ok) {
+                    // TODO: Implement dynamic table update here
+                    // For now, just show success indicator without reload
+                    console.log('Agents data refreshed successfully');
+                } else {
+                    throw new Error('Failed to fetch agents data');
+                }
+            } catch (error) {
+                console.error('Error refreshing agents:', error);
+                // Show error state briefly
+                icon.className = 'fas fa-exclamation-triangle me-1';
+                setTimeout(() => {
+                    icon.className = 'fas fa-sync-alt me-1';
+                    button.disabled = false;
+                }, 2000);
+                return;
+            }
+            
+            // Success state
+            icon.className = 'fas fa-check me-1';
+            setTimeout(() => {
+                icon.className = 'fas fa-sync-alt me-1';
+                button.disabled = false;
+            }, 1000);
+        }
+
+        async function refreshAlertsData() {
+            const button = event.target.closest('button');
+            const icon = button.querySelector('i');
+            
+            // Show loading state
+            icon.className = 'fas fa-spinner fa-spin me-1';
+            button.disabled = true;
+            
+            try {
+                // Fetch fresh data and update the table
+                const response = await fetch('/api/alerts');
+                if (response.ok) {
+                    // TODO: Implement dynamic table update here
+                    // For now, just show success indicator without reload
+                    console.log('Alerts data refreshed successfully');
+                } else {
+                    throw new Error('Failed to fetch alerts data');
+                }
+            } catch (error) {
+                console.error('Error refreshing alerts:', error);
+                // Show error state briefly
+                icon.className = 'fas fa-exclamation-triangle me-1';
+                setTimeout(() => {
+                    icon.className = 'fas fa-sync-alt me-1';
+                    button.disabled = false;
+                }, 2000);
+                return;
+            }
+            
+            // Success state
+            icon.className = 'fas fa-check me-1';
+            setTimeout(() => {
+                icon.className = 'fas fa-sync-alt me-1';
+                button.disabled = false;
+            }, 1000);
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+    
+    <!-- Enhanced Page Stability & Error Recovery -->
+    <script>
+        // Global error tracking and recovery system
+        let errorCount = 0;
+        let isRecovering = false;
+        let intervalIds = [];
+        
+        // Page loader management
+        function hidePageLoader() {
+            const loader = document.getElementById('pageLoader');
+            if (loader) {
+                setTimeout(() => {
+                    loader.classList.add('hidden');
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                    }, 500);
+                }, 300);
+            }
+        }
+        
+        // Enhanced error recovery system
+        function showErrorOverlay() {
+            const overlay = document.getElementById('errorOverlay');
+            if (overlay && !isRecovering) {
+                isRecovering = true;
+                overlay.style.display = 'flex';
+                console.log('🚨 Error overlay activated - Recovery mode');
+                
+                // Auto-hide after 5 seconds if no manual action
+                setTimeout(() => {
+                    if (isRecovering) {
+                        attemptRecovery();
+                    }
+                }, 5000);
+            }
+        }
+        
+        function hideErrorOverlay() {
+            const overlay = document.getElementById('errorOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                isRecovering = false;
+                errorCount = 0;
+            }
+        }
+        
+        function attemptRecovery() {
+            console.log('🔄 Attempting automatic recovery...');
+            
+            // Clear all intervals to prevent conflicts
+            intervalIds.forEach(id => clearInterval(id));
+            intervalIds = [];
+            
+            // Reset dashboard state
+            if (window.dashboard && typeof window.dashboard.realTimeUpdates !== 'undefined') {
+                window.dashboard.realTimeUpdates = false;
+                setTimeout(() => {
+                    window.dashboard.realTimeUpdates = true;
+                    console.log('✅ Dashboard recovery successful');
+                }, 1000);
+            }
+            
+            hideErrorOverlay();
+        }
+        
+        function forceReload() {
+            console.log('🔄 Force reloading dashboard...');
+            window.location.reload();
+        }
+        
+        // Safe interval management
+        function setSafeInterval(func, delay, context = 'dashboard') {
+            try {
+                const id = setInterval(() => {
+                    try {
+                        func();
+                    } catch (error) {
+                        console.error(`Interval error in ${context}:`, error);
+                        handleJavaScriptError(error, context);
+                    }
+                }, delay);
+                
+                intervalIds.push(id);
+                return id;
+            } catch (error) {
+                console.error('Failed to set interval:', error);
+                return null;
+            }
+        }
+        
+        // Enhanced error handling
+        function handleJavaScriptError(error, context = 'unknown') {
+            errorCount++;
+            console.error(`JS Error #${errorCount} in ${context}:`, error);
+            
+            // Show error overlay if too many errors
+            if (errorCount >= 3 && !isRecovering) {
+                showErrorOverlay();
+                return;
+            }
+            
+            // Try to recover from minor errors
+            if (errorCount < 3) {
+                console.log(`🔧 Minor error detected, attempting self-recovery (${errorCount}/3)`);
+                
+                // Reset error count after 30 seconds if no new errors
+                setTimeout(() => {
+                    if (errorCount > 0) {
+                        errorCount = Math.max(0, errorCount - 1);
+                    }
+                }, 30000);
+            }
+        }
+        
+        // Global error handlers
+        window.addEventListener('error', function(event) {
+            handleJavaScriptError(event.error, 'global');
+        });
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            handleJavaScriptError(event.reason, 'promise');
+        });
+        
+        // Page visibility handling (prevents issues when tab is inactive)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Pause intensive operations when tab is hidden
+                if (window.dashboard) {
+                    window.dashboard.realTimeUpdates = false;
+                }
+            } else {
+                // Resume when tab becomes visible
+                setTimeout(() => {
+                    if (window.dashboard) {
+                        window.dashboard.realTimeUpdates = true;
+                    }
+                }, 500);
+            }
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            // Clear all intervals
+            intervalIds.forEach(id => clearInterval(id));
+            
+            // Stop dashboard updates
+            if (window.dashboard) {
+                window.dashboard.realTimeUpdates = false;
+            }
+        });
+        
+        // Page load completion
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM loaded, initializing stability system...');
+            
+            // Hide loader after DOM is ready
+            hidePageLoader();
+            
+            // Additional safety check
+            setTimeout(() => {
+                if (document.getElementById('pageLoader') && 
+                    !document.getElementById('pageLoader').classList.contains('hidden')) {
+                    hidePageLoader();
+                }
+            }, 2000);
+        });
+        
+        // Complete page load
+        window.addEventListener('load', function() {
+            console.log('✅ Page fully loaded - Stability system active');
+            hidePageLoader();
+            
+            // Reset error count on successful load
+            errorCount = 0;
+            isRecovering = false;
+        });
+        
+        // Make functions globally available
+        window.setSafeInterval = setSafeInterval;
+        window.handleJavaScriptError = handleJavaScriptError;
+        window.attemptRecovery = attemptRecovery;
+        window.forceReload = forceReload;
+    </script>
+</body>
+
+</html>

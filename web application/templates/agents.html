@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Windows Agents - Network Security Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Cybersecurity Command Center Dashboard -->
+<div class="cybersec-dashboard">
+
+    <!-- Top Status Bar -->
+    <div class="top-status-bar">
+        <div class="system-status">
+            <div class="status-item">
+                <div class="status-icon pulse-blue">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">TOTAL AGENTS</span>
+                    <span class="value">{{ agents|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-green">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">ACTIVE AGENTS</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'active')|list|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-red">
+                    <i class="fas fa-shield-virus"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">ISOLATED</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'isolated')|list|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-gray">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">OFFLINE</span>
+                    <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length
+                        }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="real-time-counter">
+            <button class="control-btn" onclick="refreshAgentsData()" title="Refresh Agents">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Agents Section - Full Width -->
+    <div class="alerts-section-full">
+        <!-- Agents Table -->
+        <div class="threats-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-desktop"></i>
+                    Windows Collectors / Agents
+                    <span class="alerts-count">{{ agents|length }}</span>
+                </h3>
+                <div class="panel-controls">
+                    <!-- Filter Buttons -->
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">Tất cả</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="isolated">Isolated</button>
+                        <button class="filter-btn" data-filter="offline">Offline</button>
+                    </div>
+                    <button class="control-btn" onclick="refreshAgentsData()" title="Refresh Agents">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="control-btn" onclick="openDeleteAllModal()" title="Delete All Data" style="color: #da3633;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="threats-table-container">
+                    {% if agents %}
+                    <div class="agents-table">
+                        <div class="table-header">
+                            <div class="col-agent-id">
+                                <i class="fas fa-hashtag"></i>
+                                <span>Hostname / ID</span>
+                            </div>
+                            <div class="col-agent-ip">
+                                <i class="fas fa-network-wired"></i>
+                                <span>IP Address</span>
+                            </div>
+                            <div class="col-agent-status">
+                                <i class="fas fa-heartbeat"></i>
+                                <span>Status</span>
+                            </div>
+                            <div class="col-agent-threat">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Threat Level</span>
+                            </div>
+                            <div class="col-agent-time">
+                                <i class="fas fa-clock"></i>
+                                <span>Last Seen</span>
+                            </div>
+                            <div class="col-agent-actions">
+                                <i class="fas fa-cogs"></i>
+                                <span>Actions</span>
+                            </div>
+                        </div>
+                        <div class="table-body">
+                            {% for agent in agents %}
+                            <div class="agent-row status-{{ agent.status }} threat-{{ agent.threat_level }}"
+                                data-agent-id="{{ agent.agent_id }}" data-status="{{ agent.status }}">
+
+                                <div class="col-agent-id">
+                                    <div class="agent-info">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
+                                            class="agent-hostname">
+                                            <i class="fas fa-desktop"></i>
+                                            {{ agent.hostname }}
+                                        </a>
+                                        <span class="agent-id-short">ID: {{ agent.agent_id[:8] }}...</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-agent-ip">
+                                    <code class="ip-address">{{ agent.ip_address }}</code>
+                                </div>
+
+                                <div class="col-agent-status">
+                                    <div class="status-container">
+                                        {% if agent.status == 'active' %}
+                                        <span class="status-badge active">
+                                            <i class="fas fa-check-circle"></i>
+                                            ACTIVE
+                                        </span>
+                                        {% elif agent.status == 'isolated' %}
+                                        <span class="status-badge isolated">
+                                            <i class="fas fa-ban"></i>
+                                            ISOLATED
+                                        </span>
+                                        {% if agent.isolated_until %}
+                                        <span class="status-time">Ends: {{ agent.isolated_until.strftime('%H:%M')
+                                            }}</span>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="status-badge offline">
+                                            <i class="fas fa-power-off"></i>
+                                            OFFLINE
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-agent-threat">
+                                    <div class="threat-level-container">
+                                        <span class="severity-badge {{ agent.threat_level }}">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            {{ agent.threat_level|upper }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="col-agent-time">
+                                    <div class="time-display">
+                                        {% set time_diff = (get_utc7_now() - agent.last_seen).total_seconds() %}
+                                        {% if time_diff < 60 %} <span class="time-main live">
+                                            <i class="fas fa-circle-notch fa-spin"></i>
+                                            Just now
+                                            </span>
+                                            {% elif time_diff < 3600 %} <span class="time-main">{{ (time_diff/60)|int
+                                                }}m ago</span>
+                                                {% else %}
+                                                <span class="time-main">{{ agent.last_seen.strftime('%H:%M:%S')
+                                                    }}</span>
+                                                <span class="time-date">{{ agent.last_seen.strftime('%d/%m/%Y')
+                                                    }}</span>
+                                                {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-agent-actions">
+                                    <div class="action-buttons">
+                                        <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}"
+                                            class="action-btn primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if agent.status != 'isolated' %}
+                                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}"
+                                            class="action-btn danger" title="Isolate Agent">
+                                            <i class="fas fa-shield-virus"></i>
+                                        </a>
+                                        {% else %}
+                                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}"
+                                            class="action-btn success" title="Restore Agent">
+                                            <i class="fas fa-undo"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="no-threats">
+                        <div class="no-threats-content">
+                            <i class="fas fa-desktop"></i>
+                            <h4>No Agents Found</h4>
+                            <p>No Windows collectors are registered yet. Deploy an agent to begin monitoring network
+                                flows.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Delete All Data Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+            style="background-color: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-main);">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title" style="color: #da3633;">
+                    <i class="fas fa-trash-alt me-2"></i>Delete All Data
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-3 rounded"
+                    style="background-color: rgba(218, 54, 51, 0.15); border: 2px solid rgba(218, 54, 51, 0.3);">
+                    <i class="fas fa-exclamation-circle me-2" style="color: #da3633; font-size: 1.2em;"></i>
+                    <strong style="color: #da3633;">WARNING: This action cannot be undone!</strong>
+                    <p class="mt-2 mb-0">This will permanently delete:</p>
+                    <ul class="mt-2 mb-0">
+                        <li>All agents</li>
+                        <li>All network flows</li>
+                        <li>All security alerts</li>
+                        <li>All isolation actions</li>
+                    </ul>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">
+                        TYPE "DELETE ALL" TO CONFIRM:
+                    </label>
+                    <input type="text" id="deleteConfirmText" class="form-control"
+                        style="background-color: var(--bg-deep); border: 1px solid var(--border-default); color: var(--text-main);"
+                        placeholder='Type "DELETE ALL" to confirm'
+                        autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary"
+                    data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger px-4"
+                    onclick="confirmDeleteAllData()">
+                    <i class="fas fa-trash-alt me-1"></i> Delete All Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function refreshAgentsData() {
+        location.reload();
+    }
+
+    function openDeleteAllModal() {
+        const modal = new bootstrap.Modal(document.getElementById('deleteAllModal'));
+        modal.show();
+    }
+
+    function confirmDeleteAllData() {
+        const confirmText = document.getElementById('deleteConfirmText').value;
+        if (confirmText !== 'DELETE ALL') {
+            alert('Confirmation text incorrect. Please type "DELETE ALL" exactly.');
+            return;
+        }
+
+        fetch('/api/delete_all_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('All data has been successfully deleted!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting data.');
+        });
+    }
+
+    // Filter functionality
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const filter = this.dataset.filter;
+            const rows = document.querySelectorAll('.agent-row');
+
+            rows.forEach(row => {
+                if (filter === 'all') {
+                    row.style.display = 'grid';
+                } else {
+                    const status = row.dataset.status;
+                    row.style.display = status === filter ? 'grid' : 'none';
+                }
+            });
+        });
+    });
+</script>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
+<script>
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
+</script>
+
+{% endblock %}

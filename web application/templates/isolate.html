@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Isolate Agent - Network Security Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+<style>
+    .isolate-container {
+        max-width: 600px;
+        margin: 60px auto;
+        padding: 20px;
+    }
+
+    .card-isolate {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .isolate-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid var(--border-default);
+    }
+
+    .isolate-header-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(218, 54, 51, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+        font-size: 28px;
+        color: #da3633;
+    }
+
+    .isolate-header-text h1 {
+        margin: 0;
+        font-size: 24px;
+        color: var(--text-main);
+    }
+
+    .isolate-header-text p {
+        margin: 5px 0 0 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .agent-info-box {
+        background-color: var(--bg-deep);
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .agent-info-box .label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    .agent-info-box .value {
+        font-size: 16px;
+        color: var(--text-main);
+        font-weight: 500;
+    }
+
+    .warning-box {
+        background-color: rgba(218, 54, 51, 0.1);
+        border-left: 4px solid #da3633;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .warning-box .icon {
+        color: #da3633;
+        margin-right: 10px;
+    }
+
+    .warning-box p {
+        margin: 0;
+        color: #da3633;
+        font-weight: 500;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--bg-deep);
+        border: 1px solid var(--border-default);
+        border-radius: 4px;
+        color: var(--text-main);
+        font-family: inherit;
+        font-size: 14px;
+    }
+
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #da3633;
+        box-shadow: 0 0 0 3px rgba(218, 54, 51, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-default);
+    }
+
+    .btn-cancel {
+        flex: 1;
+        padding: 12px 20px;
+        background-color: var(--bg-deep);
+        border: 1px solid var(--border-default);
+        color: var(--text-main);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background-color: var(--bg-surface);
+        border-color: var(--text-secondary);
+    }
+
+    .btn-isolate {
+        flex: 1;
+        padding: 12px 20px;
+        background-color: #da3633;
+        border: none;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-isolate:hover {
+        background-color: var(--accent-hover);
+        transform: translateY(-2px);
+    }
+
+    /* Connection Pulse Animation */
+    @keyframes pulse-success {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(35, 134, 54, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0); }
+    }
+    
+    @keyframes pulse-offline {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(139, 148, 158, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0); }
+    }
+
+    .pulse-online {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #238636;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        animation: pulse-success 2s infinite;
+    }
+
+    .pulse-offline {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #8b949e;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        animation: pulse-offline 2s infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cybersec-dashboard">
+    <div class="isolate-container">
+        <div class="card-isolate">
+            {% if agent.status == 'isolated' %}
+            <!-- Header for Restoration -->
+            <div class="isolate-header">
+                <div class="isolate-header-icon" style="background: rgba(35, 134, 54, 0.2); color: #238636;">
+                    <i class="fas fa-undo"></i>
+                </div>
+                <div class="isolate-header-text">
+                    <h1>Restore Agent</h1>
+                    <p>Restore network access for this agent</p>
+                </div>
+            </div>
+
+            <!-- Agent Info -->
+            <div class="agent-info-box">
+                <span class="label">Agent Hostname</span>
+                <span class="value">{{ agent.hostname }}</span>
+            </div>
+
+            <div class="agent-info-box">
+                <span class="label">Agent Hostname</span>
+                <span class="value">{{ agent.hostname }}</span>
+            </div>
+
+            <div class="agent-info-box">
+                <span class="label">Connection Status</span>
+                <span class="value">
+                    {% if agent.is_online %}
+                    <span class="text-success"><span class="pulse-online"></span> ONLINE</span>
+                    {% else %}
+                    <span class="text-secondary"><span class="pulse-offline"></span> OFFLINE</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="agent-info-box">
+                <span class="label">Administrative Status</span>
+                <span class="value text-danger">ISOLATED</span>
+            </div>
+
+            {% if agent.isolated_until %}
+            <div class="agent-info-box">
+                <span class="label">Isolated Until</span>
+                <span class="value text-warning">{{ agent.isolated_until.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Info Box -->
+            <div class="warning-box" style="background-color: rgba(35, 134, 54, 0.1); border-left: 4px solid #238636;">
+                <p style="color: #238636;">
+                    <i class="fas fa-info-circle icon" style="color: #238636;"></i>
+                    Restoring access will remove the firewall rules and permit all network traffic.
+                </p>
+            </div>
+
+            <!-- Restoration Form -->
+            <form method="POST" action="{{ url_for('restore_agent_web', agent_id=agent.agent_id) }}">
+                {% if csrf_token() %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% endif %}
+
+                <!-- Reason -->
+                <div class="form-group">
+                    <label for="reason">Reason for Restoration</label>
+                    <textarea name="reason" id="reason" placeholder="Enter reason for restoration..." required>Threat resolved - restoring network access</textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="form-actions">
+                    <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn-cancel">
+                        <i class="fas fa-times me-2"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn-isolate" style="background-color: #238636;">
+                        <i class="fas fa-undo me-2"></i> Restore Access
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <!-- Header for Isolation -->
+            <div class="isolate-header">
+                <div class="isolate-header-icon">
+                    <i class="fas fa-ban"></i>
+                </div>
+                <div class="isolate-header-text">
+                    <h1>Isolate Agent</h1>
+                    <p>Disconnect this agent from the network</p>
+                </div>
+            </div>
+
+            <!-- Agent Info -->
+            <div class="agent-info-box">
+                <span class="label">Agent Hostname</span>
+                <span class="value">{{ agent.hostname }}</span>
+            </div>
+
+            <div class="agent-info-box">
+                <span class="label">Connection Status</span>
+                <span class="value">
+                    {% if agent.is_online %}
+                    <span class="text-success"><span class="pulse-online"></span> ONLINE</span>
+                    {% else %}
+                    <span class="text-secondary"><span class="pulse-offline"></span> OFFLINE</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="agent-info-box">
+                <span class="label">IP Address</span>
+                <span class="value">{{ agent.ip_address }}</span>
+            </div>
+
+            <!-- Warning -->
+            <div class="warning-box">
+                <p>
+                    <i class="fas fa-shield-alt icon"></i>
+                    This will block all network traffic EXCEPT for communication with this management server.
+                </p>
+            </div>
+
+            <!-- Isolation Form -->
+            <form method="POST" action="{{ url_for('isolate_agent_web', agent_id=agent.agent_id) }}">
+                {% if csrf_token() %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% endif %}
+
+                <!-- Duration -->
+                <div class="form-group">
+                    <label for="duration">Isolation Duration</label>
+                    <select name="duration" id="duration" required>
+                        <option value="1m">1 Minute (Testing)</option>
+                        <option value="1h">1 Hour</option>
+                        <option value="1d">1 Day</option>
+                        <option value="indefinite" selected>Indefinite</option>
+                    </select>
+                </div>
+
+                <!-- Reason -->
+                <div class="form-group">
+                    <label for="reason">Reason for Isolation</label>
+                    <textarea name="reason" id="reason" placeholder="Enter reason for network isolation..." required>Threat detected via web interface</textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="form-actions">
+                    <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn-cancel">
+                        <i class="fas fa-times me-2"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn-isolate">
+                        <i class="fas fa-ban me-2"></i> Isolate Agent
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
+<script>
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
+</script>
+{% endblock %}

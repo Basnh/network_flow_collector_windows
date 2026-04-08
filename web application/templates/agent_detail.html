@@ -1,0 +1,1020 @@
+{% extends "base.html" %}
+
+{% block title %}Agent Details - {{ agent.hostname }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Filter Button Styling */
+    .filter-btn {
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+    
+    .filter-btn.active {
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .filter-btn:hover {
+        transform: translateY(-1px);
+    }
+    
+    .filter-btn.active:hover {
+        transform: translateY(-2px);
+    }
+    
+    <!-- Flow stats */
+    .flow-row {
+        transition: background-color 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .flow-row:hover {
+        background-color: rgba(59, 130, 246, 0.05) !important;
+    }
+    
+    body[data-theme="dark"] .flow-row:hover {
+        background-color: rgba(59, 130, 246, 0.05) !important;
+    }
+    
+    body[data-theme="light"] .flow-row:hover {
+        background-color: rgba(59, 130, 246, 0.05) !important;
+    }
+    
+    /* Pagination Styling */
+    .pagination .page-link {
+        color: var(--text-main);
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        padding: 0.375rem 0.75rem;
+        margin: 0 2px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background-color: var(--bg-hover);
+        color: var(--accent-primary);
+        border-color: var(--accent-primary);
+        transform: translateY(-1px);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: var(--accent-primary);
+        border-color: var(--accent-primary);
+        color: white;
+        font-weight: 600;
+    }
+    
+    .pagination .page-item.disabled .page-link {
+        background-color: var(--bg-deep);
+        border-color: var(--border-default);
+        color: var(--text-muted);
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    /* Connection Pulse Animation */
+    @keyframes pulse-success {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(35, 134, 54, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 134, 54, 0); }
+    }
+    
+    @keyframes pulse-offline {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(139, 148, 158, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(139, 148, 158, 0); }
+    }
+
+    .pulse-online {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #238636;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        animation: pulse-success 2s infinite;
+    }
+
+    .pulse-offline {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #8b949e;
+        border-radius: 50%;
+        margin-right: 8px;
+        vertical-align: middle;
+        animation: pulse-offline 2s infinite;
+    }
+
+    /* Dark Mode Styling */
+    body[data-theme="dark"] .card {
+        background-color: rgba(30, 41, 59, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] .card-header {
+        background-color: rgba(15, 23, 42, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+        color: #cbd5e1;
+    }
+
+    body[data-theme="dark"] .card-body {
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] pre {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border-color: rgba(226, 232, 240, 0.1) !important;
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] code {
+        color: #38bdf8 !important;
+    }
+
+    body[data-theme="dark"] .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .btn-outline-danger {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    body[data-theme="dark"] .btn-outline-danger:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    body[data-theme="dark"] .btn-outline-success {
+        color: #22c55e;
+        border-color: #22c55e;
+    }
+
+    body[data-theme="dark"] .btn-outline-success:hover {
+        background-color: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+    }
+
+    body[data-theme="dark"] .btn-outline-secondary {
+        color: #78716c;
+        border-color: #78716c;
+    }
+
+    body[data-theme="dark"] .btn-outline-secondary:hover {
+        background-color: rgba(120, 113, 108, 0.1);
+        color: #a89484;
+    }
+    
+    body[data-theme="dark"] .btn-outline-warning {
+        color: #f59e0b;
+        border-color: #f59e0b;
+    }
+
+    body[data-theme="dark"] .btn-outline-warning:hover {
+        background-color: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    body[data-theme="dark"] .nav-tabs {
+        border-bottom-color: rgba(226, 232, 240, 0.1) !important;
+    }
+
+    body[data-theme="dark"] .nav-link {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .nav-link.active {
+        color: #38bdf8 !important;
+        border-bottom-color: #38bdf8 !important;
+    }
+
+    body[data-theme="dark"] .badge-low {
+        background-color: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-critical {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-high {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    body[data-theme="dark"] .badge-medium {
+        background-color: rgba(249, 115, 22, 0.2);
+        color: #fb923c;
+        border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    /* Code blocks styling */
+    .code-block {
+        background-color: rgba(245, 245, 245, 0.85);
+        border-color: rgba(2, 132, 199, 0.15);
+    }
+
+    body[data-theme="dark"] .code-block {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border-color: rgba(226, 232, 240, 0.1) !important;
+    }
+
+    body[data-theme="light"] .code-block {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+    }
+
+    /* Light Mode - Keep original styling */
+    body[data-theme="light"] .card {
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] .card-header {
+        background-color: rgba(2, 132, 199, 0.05) !important;
+        border-color: rgba(2, 132, 199, 0.1) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] .card-body {
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] pre {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+        border-color: rgba(2, 132, 199, 0.15) !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="light"] code {
+        color: #0284c7 !important;
+    }
+
+    body[data-theme="light"] .text-muted {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .small {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .text-primary {
+        color: #0969da !important;
+    }
+
+    body[data-theme="light"] .text-success {
+        color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .text-secondary {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .badge-low {
+        background-color: rgba(34, 197, 94, 0.15) !important;
+        color: #16a34a !important;
+        border: 1px solid rgba(34, 197, 94, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-critical {
+        background-color: rgba(220, 38, 38, 0.15) !important;
+        color: #dc2626 !important;
+        border: 1px solid rgba(220, 38, 38, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-high {
+        background-color: rgba(234, 88, 12, 0.15) !important;
+        color: #ea580c !important;
+        border: 1px solid rgba(234, 88, 12, 0.3) !important;
+    }
+
+    body[data-theme="light"] .badge-medium {
+        background-color: rgba(249, 115, 22, 0.15) !important;
+        color: #f97316 !important;
+        border: 1px solid rgba(249, 115, 22, 0.3) !important;
+    }
+
+    body[data-theme="light"] .nav-tabs {
+        border-bottom-color: rgba(2, 132, 199, 0.15) !important;
+    }
+
+    body[data-theme="light"] .nav-link {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .nav-link.active {
+        color: #0284c7 !important;
+        border-bottom-color: #0284c7 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-danger {
+        color: #dc2626 !important;
+        border-color: #dc2626 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-danger:hover {
+        background-color: rgba(220, 38, 38, 0.1) !important;
+        color: #dc2626 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-success {
+        color: #16a34a !important;
+        border-color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .btn-outline-success:hover {
+        background-color: rgba(34, 197, 94, 0.1) !important;
+        color: #16a34a !important;
+    }
+
+    body[data-theme="light"] .btn-outline-secondary {
+        color: #6b7280 !important;
+        border-color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-secondary:hover {
+        background-color: rgba(107, 114, 128, 0.1) !important;
+        color: #6b7280 !important;
+    }
+    
+    body[data-theme="light"] .btn-outline-warning {
+        color: #d97706 !important;
+        border-color: #d97706 !important;
+    }
+
+    body[data-theme="light"] .btn-outline-warning:hover {
+        background-color: rgba(217, 119, 6, 0.1) !important;
+        color: #d97706 !important;
+    }
+
+    body[data-theme="light"] .btn-success {
+        background-color: #16a34a !important;
+        border-color: #16a34a !important;
+        color: white !important;
+    }
+
+    body[data-theme="light"] .btn-danger {
+        background-color: #dc2626 !important;
+        border-color: #dc2626 !important;
+        color: white !important;
+    }
+
+    body[data-theme="light"] .opacity-75 {
+        opacity: 0.75 !important;
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="dark"] .opacity-75 {
+        opacity: 0.75 !important;
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="light"] .fw-bold {
+        font-weight: 700 !important;
+        color: #1f2937 !important;
+    }
+
+    body[data-theme="dark"] .card-body {
+        color: #e2e8f0;
+    }
+
+    body[data-theme="dark"] .card-body div {
+        color: #e2e8f0 !important;
+    }
+
+    body[data-theme="dark"] .card-body .small {
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] .card-body label {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] .card-body code {
+        color: #38bdf8 !important;
+        background-color: transparent;
+    }
+
+    body[data-theme="dark"] .card-body .fw-bold {
+        color: #f1f5f9 !important;
+    }
+
+    body[data-theme="dark"] .fw-bold {
+        font-weight: 700 !important;
+        color: #f1f5f9 !important;
+    }
+
+    body[data-theme="dark"] .small {
+        color: #cbd5e1 !important;
+    }
+
+    body[data-theme="dark"] label {
+        color: #94a3b8 !important;
+    }
+
+    body[data-theme="dark"] code {
+        color: #38bdf8 !important;
+        background-color: transparent;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4 fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">
+            <i class="fas fa-desktop me-2 text-primary"></i> {{ agent.hostname }}
+            
+            <!-- Connection Status (Online/Offline) -->
+            {% if agent.is_online %}
+            <span class="ms-2 badge bg-dark border border-success text-success" style="font-size: 0.4em; vertical-align: middle;">
+                <span class="pulse-online"></span> ONLINE
+            </span>
+            {% else %}
+            <span class="ms-2 badge bg-dark border border-secondary text-secondary" style="font-size: 0.4em; vertical-align: middle;">
+                <span class="pulse-offline"></span> OFFLINE
+            </span>
+            {% endif %}
+
+            <!-- Administrative Status (Active/Isolated) -->
+            <span
+                class="ms-2 badge {% if agent.status == 'active' %}bg-success{% elif agent.status == 'isolated' %}bg-danger{% else %}bg-secondary{% endif %}"
+                style="font-size: 0.5em; vertical-align: middle;">
+                {{ agent.status.upper() }}
+            </span>
+            
+            {% if agent.status == 'isolated' and agent.isolated_until %}
+            <span class="ms-2 badge bg-warning text-dark" style="font-size: 0.4em; vertical-align: middle;">
+                <i class="fas fa-clock me-1"></i> EXPIRES: {{ agent.isolated_until.strftime('%H:%M:%S (%d/%m)') }}
+            </span>
+            {% endif %}
+        </h1>
+        <div class="btn-group">
+            {% if agent.status != 'isolated' %}
+            <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-ban me-1"></i> Isolate
+            </a>
+            {% else %}
+            <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-undo me-1"></i> Restore
+            </a>
+            {% endif %}
+            <a href="{{ url_for('agents_list') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Agent Meta -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
+                    <small class="text-muted fw-bold text-uppercase">Agent Metadata</small>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">AGENT ID</label>
+                        <code class="text-primary">{{ agent.agent_id }}</code>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">IP ADDRESS</label>
+                        <div class="fw-bold">{{ agent.ip_address }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">THREAT LEVEL</label>
+                        <span class="badge badge-{{ agent.threat_level }}">{{ agent.threat_level|upper }}</span>
+                    </div>
+                    <div class="mb-0">
+                        <label class="small text-muted d-block mb-1">LAST SEEN</label>
+                        <div class="small opacity-75">{{ agent.last_seen.strftime('%Y-%m-%d %H:%M:%S UTC+7') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connectivity & Control -->
+            <div class="card">
+                <div class="card-header border-0 pb-0">
+                    <small class="text-muted fw-bold text-uppercase">Connectivity & Control</small>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        {% if agent.is_online %}
+                        <span class="pulse-online"></span>
+                        <div>
+                            <div class="fw-bold text-success">Online</div>
+                            <small class="text-muted">Agent is actively polling</small>
+                        </div>
+                        {% else %}
+                        <span class="pulse-offline"></span>
+                        <div>
+                            <div class="fw-bold text-secondary">Offline</div>
+                            <small class="text-muted">No heartbeat detected</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted d-block mb-1">ADAPTER</label>
+                        <div class="small fw-bold">
+                            <i class="fas fa-network-wired me-1"></i>
+                            {{ agent.network_adapter_name if agent.network_adapter_name else 'Detection Pending...' }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        {% if agent.status == 'isolated' %}
+                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-success">
+                            <i class="fas fa-undo me-2"></i> Khôi phục kết nối
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('isolate_form', agent_id=agent.agent_id) }}" class="btn btn-danger">
+                            <i class="fas fa-ban me-2"></i> Ngắt kết nối Agent
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Snippet (Developer Focus) -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
+                    <small class="text-muted fw-bold text-uppercase">Deployment Guide</small>
+                    <button class="btn btn-sm btn-link text-decoration-none text-muted p-0" onclick="copySnippet()">
+                        <i class="fas fa-copy me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">Run this PowerShell snippet on the target host to reconnect or
+                        update this agent configuration.</p>
+                    <div class="position-relative">
+                        <pre class="mb-0 p-3 rounded shadow-sm code-block"
+                            style="border: 1px solid var(--border-default);"><code id="deploy-snippet" style="color: var(--syntax-blue); font-family: 'JetBrains Mono', monospace;"># Connect Agent to Central Hub
+$AgentID = "{{ agent.agent_id }}"
+$HubURL = "{{ request.url_root }}"
+$Secret = "********************"
+
+Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
+    -Method Post `
+    -Headers @{"X-Agent-ID"=$AgentID; "X-Secret"=$Secret} `
+    -Body (ConvertTo-Json @{ status="active"; hostname="$env:COMPUTERNAME" })</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="card mb-4">
+        <div class="card-header border-0 pb-0 shadow-none">
+            <small class="text-muted fw-bold text-uppercase">System Information</small>
+        </div>
+        <div class="card-body">
+            {% if agent.os_info %}
+            <pre class="mb-0 p-3 shadow-none code-block"
+                style="border: 1px solid var(--border-default); color: var(--syntax-green); font-size: 0.9em; overflow-x: auto; font-family: 'JetBrains Mono', monospace;"><code>{{ agent.os_info }}</code></pre>
+            {% else %}
+            <div class="text-center py-4 text-muted small">No detailed system info reported.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabs for Dynamic Content -->
+    <ul class="nav nav-tabs border-bottom-0 mb-3" style="border-bottom: 2px solid var(--border-default) !important;">
+        <li class="nav-item">
+            <a class="nav-link active bg-transparent border-0 text-primary fw-bold"
+                style="margin-bottom: -2px; border-bottom: 3px solid var(--accent-primary) !important;" href="#">
+                <i class="fas fa-network-wired me-2"></i> Network Traffic
+            </a>
+        </li>
+    </ul>
+
+    <!-- Filter Controls -->
+    <div class="card mb-3" style="border-bottom: 1px solid var(--border-default);">
+        <div class="card-body p-3">
+            {% if total_flows_count > 2000 %}
+            <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Dữ liệu quá lớn!</strong> Bộ lọc sử dụng 2000 flows gần nhất.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary filter-btn active" data-filter="all" onclick="filterFlows('all')">
+                    <i class="fas fa-list me-1"></i> Tất cả (<span id="count-all">0</span>)
+                </button>
+                <button class="btn btn-sm btn-outline-success filter-btn" data-filter="benign" onclick="filterFlows('benign')">
+                    <i class="fas fa-check-circle me-1"></i> Bình thường (<span id="count-benign">0</span>)
+                </button>
+                <button class="btn btn-sm btn-outline-danger filter-btn" data-filter="trojan" onclick="filterFlows('trojan')">
+                    <i class="fas fa-exclamation-circle me-1"></i> Trojan/Malware (<span id="count-trojan">0</span>)
+                </button>
+                <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="suspicious" onclick="filterFlows('suspicious')">
+                    <i class="fas fa-question-circle me-1"></i> Đáng ngờ (<span id="count-suspicious">0</span>)
+                </button>
+                <div class="ms-auto">
+                    <span class="small text-muted">Tổng: <strong id="total-count">0</strong> flows</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="color: var(--text-main);" id="flowsTable">
+                    <thead style="background-color: rgba(240, 246, 252, 0.02);">
+                        <tr>
+                            <th class="border-0 px-4 py-3 small text-muted">TIMESTAMP</th>
+                            <th class="border-0 px-4 py-3 small text-muted">DESTINATION</th>
+                            <th class="border-0 px-4 py-3 small text-muted text-center">THREAT SCORE</th>
+                            <th class="border-0 px-4 py-3 small text-muted text-center">STATUS</th>
+                            <th class="border-0 px-4 py-3 small text-muted">PAYLOAD ANALYSIS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if flows %}
+                        {% for flow in flows %}
+                        <tr class="flow-row" data-flow-id="{{ flow.id }}" data-threat-score="{{ flow.threat_score }}" data-flow-status="{% if flow.threat_score > 0.7 %}trojan{% elif flow.threat_score > 0.4 %}suspicious{% else %}benign{% endif %}" style="border-top: 1px solid var(--border-default);">
+                            <td class="px-4 py-3 small text-muted">{{ flow.timestamp.strftime('%H:%M:%S') }}</td>
+                            <td class="px-4 py-3">
+                                <code class="text-muted">{{ flow.dst_ip }}</code>
+                                <span class="badge bg-secondary ms-2" style="font-size: 0.7em;">{{ flow.protocol }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="progress" style="height: 6px; background-color: var(--bg-deep);">
+                                    <div class="progress-bar {% if flow.threat_score > 0.7 %}bg-danger{% elif flow.threat_score > 0.4 %}bg-warning{% else %}bg-success{% endif %}"
+                                        role="progressbar"
+                                        style="--pb-width: {{ (flow.threat_score * 100)|round|int }}%; width: var(--pb-width);">
+                                    </div>
+                                </div>
+                                <small class="opacity-50" style="font-size: 0.7em;">{{ (flow.threat_score * 100)|round|int }}%</small>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if flow.threat_score > 0.7 %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-virus me-1"></i> Trojan
+                                </span>
+                                {% elif flow.threat_score > 0.4 %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-exclamation me-1"></i> Suspicious
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-shield-alt me-1"></i> Clean
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="hex-content small"
+                                    style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    {{ flow.payload_content or "No encrypted payload" }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted small">No traffic logs for this period.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div id="serverPaginationWrapper">
+                {% if flows_pagination and flows_pagination.pages > 1 %}
+                <div id="serverPagination" class="d-flex justify-content-between align-items-center px-4 py-3 border-top" style="border-color: var(--border-default) !important;">
+                    <div class="small text-muted">
+                        Showing {{ ((flows_pagination.page - 1) * 10) + 1 }} - {{ ((flows_pagination.page - 1) * 10) + flows|length }} of {{ flows_pagination.total }} records
+                    </div>
+                    <nav aria-label="Network traffic pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <!-- Previous Button -->
+                            <li class="page-item {% if not flows_pagination.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{% if flows_pagination.has_prev %}{{ url_for('agent_detail', agent_id=agent.agent_id, page=flows_pagination.prev_num) }}{% else %}#{% endif %}" 
+                                   {% if not flows_pagination.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            
+                            <!-- Page Numbers -->
+                            {% for page_num in range(1, flows_pagination.pages + 1) %}
+                                {% if page_num == flows_pagination.page %}
+                                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                                {% elif page_num == 1 or page_num == flows_pagination.pages or (page_num >= flows_pagination.page - 1 and page_num <= flows_pagination.page + 1) %}
+                                    <li class="page-item"><a class="page-link" href="{{ url_for('agent_detail', agent_id=agent.agent_id, page=page_num) }}">{{ page_num }}</a></li>
+                                {% elif page_num == flows_pagination.page - 2 or page_num == flows_pagination.page + 2 %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- Next Button -->
+                            <li class="page-item {% if not flows_pagination.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{% if flows_pagination.has_next %}{{ url_for('agent_detail', agent_id=agent.agent_id, page=flows_pagination.next_num) }}{% else %}#{% endif %}"
+                                   {% if not flows_pagination.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtered Results Display -->
+    <div id="filteredResultsSection" style="display: none;" class="mb-4">
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-filter me-2"></i>
+            Hiển thị <strong id="filtered-count">0</strong> flows từ bộ lọc (tất cả trang)
+        </div>
+    </div>
+
+    <!-- Filtered Pagination -->
+    <div id="filteredPagination" style="display: none;" class="d-flex justify-content-between align-items-center px-0 py-3 border-top" style="border-color: var(--border-default) !important;">
+        <div class="small text-muted">
+            Showing <span id="filteredStart">1</span> - <span id="filteredEnd">10</span> of <span id="filteredTotal">0</span> records
+        </div>
+        <nav aria-label="Filtered flows pagination">
+            <ul class="pagination pagination-sm mb-0" id="filteredPaginationList">
+                <!-- Generated dynamically -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+
+<script>
+    // ==================== FLOW DATA & FILTERING ====================
+    
+    // Store all flows data for filtering
+    const allFlowsData = {{ all_flows_json|safe }};
+    let currentFilter = 'all';
+    
+    // Initialize filter counts on page load
+    function initializeFilterCounts() {
+        let benignCount = 0;
+        let trojanCount = 0;
+        let suspiciousCount = 0;
+        
+        allFlowsData.forEach(flow => {
+            if (flow.status === 'benign') benignCount++;
+            else if (flow.status === 'trojan') trojanCount++;
+            else if (flow.status === 'suspicious') suspiciousCount++;
+        });
+        
+        document.getElementById('count-benign').textContent = benignCount;
+        document.getElementById('count-trojan').textContent = trojanCount;
+        document.getElementById('count-suspicious').textContent = suspiciousCount;
+        document.getElementById('count-all').textContent = allFlowsData.length;
+        document.getElementById('total-count').textContent = allFlowsData.length;
+    }
+    
+    // Filter flows by status (all, benign, trojan, suspicious)
+    function filterFlows(filterType) {
+        currentFilter = filterType;
+        const itemsPerPage = 10;
+        
+        // Update active button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-filter="${filterType}"]`).classList.add('active');
+        
+        // Filter from ALL flows data (not just current page)
+        let filteredFlows = allFlowsData;
+        if (filterType !== 'all') {
+            filteredFlows = allFlowsData.filter(flow => flow.status === filterType);
+        }
+        
+        // Update displayed count
+        document.getElementById('filtered-count').textContent = filteredFlows.length;
+        
+        // Show/hide elements
+        const serverPaginationWrapper = document.getElementById('serverPaginationWrapper');
+        const filteredPaginationDiv = document.getElementById('filteredPagination');
+        const filterSection = document.getElementById('filteredResultsSection');
+        
+        if (filterType !== 'all') {
+            // Lọc mode
+            filterSection.style.display = 'block';
+            serverPaginationWrapper.style.display = 'none';
+            filteredPaginationDiv.style.display = 'flex';
+            
+            // Calculate pagination
+            const totalPages = Math.ceil(filteredFlows.length / itemsPerPage);
+            const currentPage = 1;
+            
+            // Display first page of filtered flows
+            displayFilteredPage(filteredFlows, currentPage, itemsPerPage);
+            
+            // Generate pagination controls
+            generateFilteredPagination(filteredFlows.length, totalPages, currentPage);
+            
+        } else {
+            // All mode - reload to get paginated view
+            filterSection.style.display = 'none';
+            serverPaginationWrapper.style.display = 'block';
+            filteredPaginationDiv.style.display = 'none';
+            window.location.reload();
+        }
+    }
+    
+    // Display flows for a specific page (filtered)
+    function displayFilteredPage(filteredFlows, pageNum, itemsPerPage) {
+        const startIdx = (pageNum - 1) * itemsPerPage;
+        const endIdx = startIdx + itemsPerPage;
+        const pageFlows = filteredFlows.slice(startIdx, endIdx);
+        
+        const tableBody = document.querySelector('table tbody');
+        if (tableBody) {
+            // Create filtered rows
+            let html = '';
+            pageFlows.forEach(flow => {
+                const statusClass = flow.status === 'trojan' ? 'danger' : (flow.status === 'suspicious' ? 'warning' : 'success');
+                const statusIcon = flow.status === 'trojan' ? 'virus' : (flow.status === 'suspicious' ? 'exclamation' : 'shield-alt');
+                const statusLabel = flow.status === 'trojan' ? 'Trojan' : (flow.status === 'suspicious' ? 'Suspicious' : 'Clean');
+                const threatPercent = Math.round(flow.threat_score * 100);
+                
+                html += `
+                    <tr class="flow-row" data-flow-id="${flow.id}" data-threat-score="${flow.threat_score}" data-flow-status="${flow.status}" style="border-top: 1px solid var(--border-default);">
+                        <td class="px-4 py-3 small text-muted">${flow.timestamp}</td>
+                        <td class="px-4 py-3">
+                            <code class="text-muted">${flow.dst_ip}</code>
+                            <span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${flow.protocol}</span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="progress" style="height: 6px; background-color: var(--bg-deep);">
+                                <div class="progress-bar bg-${statusClass}" role="progressbar" style="--pb-width: ${threatPercent}%; width: var(--pb-width);"></div>
+                            </div>
+                            <small class="opacity-50" style="font-size: 0.7em;">${threatPercent}%</small>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="badge bg-${statusClass}">
+                                <i class="fas fa-${statusIcon} me-1"></i> ${statusLabel}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="hex-content small" style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${flow.payload_content}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html || '<tr><td colspan="5" class="text-center py-5 text-muted small">No matching flows found.</td></tr>';
+            
+            // Re-add click handlers
+            const flowRows = document.querySelectorAll('.flow-row');
+            flowRows.forEach(row => {
+                row.addEventListener('click', function() {
+                    const flowId = this.getAttribute('data-flow-id');
+                    if (flowId) {
+                        window.location.href = `/flow/${flowId}`;
+                    }
+                });
+            });
+        }
+        
+        // Update "Showing X - Y of Z records"
+        document.getElementById('filteredStart').textContent = startIdx + 1;
+        document.getElementById('filteredEnd').textContent = Math.min(endIdx, filteredFlows.length);
+        document.getElementById('filteredTotal').textContent = filteredFlows.length;
+    }
+    
+    // Generate pagination buttons for filtered flows
+    function generateFilteredPagination(totalFlows, totalPages, currentPage) {
+        const paginationList = document.getElementById('filteredPaginationList');
+        paginationList.innerHTML = '';
+        
+        // Previous button
+        const prevItem = document.createElement('li');
+        prevItem.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
+        prevItem.innerHTML = `<a class="page-link" href="#" onclick="goToFilteredPage(${currentPage - 1}); return false;"><i class="fas fa-chevron-left"></i></a>`;
+        paginationList.appendChild(prevItem);
+        
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            // Show first page, last page, and pages around current
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                const pageItem = document.createElement('li');
+                pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                pageItem.innerHTML = `<a class="page-link" href="#" onclick="goToFilteredPage(${i}); return false;">${i}</a>`;
+                paginationList.appendChild(pageItem);
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                const dotItem = document.createElement('li');
+                dotItem.className = 'page-item disabled';
+                dotItem.innerHTML = '<span class="page-link">...</span>';
+                paginationList.appendChild(dotItem);
+            }
+        }
+        
+        // Next button
+        const nextItem = document.createElement('li');
+        nextItem.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
+        nextItem.innerHTML = `<a class="page-link" href="#" onclick="goToFilteredPage(${currentPage + 1}); return false;"><i class="fas fa-chevron-right"></i></a>`;
+        paginationList.appendChild(nextItem);
+    }
+    
+    // Go to specific page of filtered flows
+    function goToFilteredPage(pageNum) {
+        const itemsPerPage = 10;
+        let filteredFlows = allFlowsData;
+        
+        if (currentFilter !== 'all') {
+            filteredFlows = allFlowsData.filter(flow => flow.status === currentFilter);
+        }
+        
+        const totalPages = Math.ceil(filteredFlows.length / itemsPerPage);
+        
+        if (pageNum >= 1 && pageNum <= totalPages) {
+            displayFilteredPage(filteredFlows, pageNum, itemsPerPage);
+            generateFilteredPagination(filteredFlows.length, totalPages, pageNum);
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeFilterCounts();
+        
+        // Add click handler to flow rows
+        const flowRows = document.querySelectorAll('.flow-row');
+        flowRows.forEach(row => {
+            row.addEventListener('click', function() {
+                const flowId = this.getAttribute('data-flow-id');
+                if (flowId) {
+                    window.location.href = `/flow/${flowId}`;
+                }
+            });
+        });
+    });
+
+    function copySnippet() {
+        const text = document.getElementById('deploy-snippet').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelector('button[onclick="copySnippet()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        });
+    }
+
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+        
+        // Initialize filter counts
+        initializeFilterCounts();
+    });
+</script>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
+{% endblock %}

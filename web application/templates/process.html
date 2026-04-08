@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+
+{% block title %}Process Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .process-container {
+        padding: 30px;
+    }
+
+    .process-header {
+        margin-bottom: 30px;
+    }
+
+    .process-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 10px;
+    }
+
+    .process-header p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+    }
+
+    /* Agent Selector */
+    .agent-selector {
+        margin-bottom: 25px;
+    }
+
+    .agent-selector .form-label {
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .agent-selector select {
+        border: 1.5px solid var(--border-default);
+        border-radius: 6px;
+        padding: 10px 14px;
+        background-color: var(--bg-surface);
+        color: var(--text-main);
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+
+    .agent-selector select:hover {
+        border-color: var(--accent-primary);
+    }
+
+    .agent-selector select:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+    }
+
+    /* Control Buttons */
+    .process-controls {
+        margin-bottom: 25px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-refresh {
+        background-color: var(--accent-primary);
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-refresh:hover {
+        background-color: #0860ca;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(9, 105, 218, 0.3);
+    }
+
+    .btn-refresh:active {
+        transform: translateY(0);
+    }
+
+    .btn-refresh.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .btn-refresh.loading i {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-badge.established {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge.listening {
+        background-color: #cfe2ff;
+        color: #055160;
+    }
+
+    .status-badge.bound {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+
+    .status-badge.time-wait {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    /* Table Styling */
+    .process-table-container {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .process-table {
+        width: 100%;
+        margin-bottom: 0;
+        border-collapse: collapse;
+    }
+
+    .process-table thead {
+        background-color: var(--bg-hover);
+        border-bottom: 2px solid var(--border-default);
+    }
+
+    .process-table thead th {
+        padding: 15px;
+        color: var(--text-main);
+        font-weight: 600;
+        text-align: left;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .process-table tbody tr {
+        border-bottom: 1px solid var(--border-default);
+        transition: background-color 0.2s ease;
+    }
+
+    .process-table tbody tr:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .process-table tbody td {
+        padding: 12px 15px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .process-table tbody td:first-child {
+        font-weight: 500;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 30px;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        opacity: 0.3;
+        margin-bottom: 15px;
+    }
+
+    .empty-state p {
+        margin: 0;
+    }
+
+    /* Loading State */
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 60px 30px;
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border: 4px solid var(--bg-hover);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    /* Info Box */
+    .process-info-box {
+        background-color: #e7f3ff;
+        border-left: 4px solid var(--accent-primary);
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        color: #00384d;
+        font-size: 0.9rem;
+    }
+
+    body[data-theme="dark"] .process-info-box {
+        background-color: rgba(9, 105, 218, 0.1);
+        color: #58a6ff;
+    }
+
+    .process-info-box i {
+        margin-right: 10px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .process-container {
+            padding: 15px;
+        }
+
+        .process-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .process-table {
+            font-size: 0.8rem;
+        }
+
+        .process-table thead th,
+        .process-table tbody td {
+            padding: 10px 8px;
+        }
+
+        .process-controls {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* IP Address Styling */
+    .ip-address {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+
+    .port-number {
+        background-color: var(--bg-hover);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 600;
+    }
+
+    /* Process Name Styling */
+    .process-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .process-icon {
+        width: 20px;
+        text-align: center;
+        color: var(--accent-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="process-container">
+    <!-- Header -->
+    <div class="process-header">
+        <h1>
+            <i class="fas fa-window-maximize" style="color: var(--accent-primary); margin-right: 12px;"></i>
+            Process Monitor
+        </h1>
+        <p>Thực thời theo dõi các tiến trình và kết nối mạng trên các agent</p>
+    </div>
+
+    <!-- Info Box -->
+    <div class="process-info-box">
+        <i class="fas fa-info-circle"></i>
+        Chọn một agent để xem danh sách tất cả các tiến trình đang chạy và các kết nối mạng của nó
+    </div>
+
+    <!-- Agent Selector -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="agent-selector">
+                <label class="form-label" for="agentSelect">Chọn Agent</label>
+                <select id="agentSelect" class="form-select">
+                    <option value="">-- Vui lòng chọn một agent --</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="process-controls">
+        <button class="btn-refresh" id="refreshBtn">
+            <i class="fas fa-sync-alt"></i>
+            <span>Làm mới dữ liệu</span>
+        </button>
+    </div>
+
+    <!-- Process Table -->
+    <div class="process-table-container" style="display: none;" id="processTableContainer">
+        <table class="process-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Process Name</th>
+                    <th style="width: 15%;">Local Address</th>
+                    <th style="width: 10%;">Local Port</th>
+                    <th style="width: 15%;">Remote Address</th>
+                    <th style="width: 10%;">Remote Port</th>
+                    <th style="width: 12%;">State</th>
+                    <th style="width: 23%;">Details</th>
+                </tr>
+            </thead>
+            <tbody id="processTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+        <i class="fas fa-inbox"></i>
+        <p>Chọn một agent để bắt đầu</p>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-spinner" style="display: none;" id="loadingState">
+        <div class="spinner-border"></div>
+        <span style="margin-left: 15px; color: var(--text-muted);">Đang tải dữ liệu...</span>
+    </div>
+
+    <!-- Error State -->
+    <div class="empty-state" style="display: none;" id="errorState">
+        <i class="fas fa-exclamation-triangle" style="color: #d1242f;"></i>
+        <p id="errorMessage">Có lỗi xảy ra</p>
+    </div>
+</div>
+
+<script>
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAgents();
+        
+        document.getElementById('agentSelect').addEventListener('change', function() {
+            if (this.value) {
+                loadProcesses(this.value);
+            } else {
+                showEmptyState();
+            }
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            const agentId = document.getElementById('agentSelect').value;
+            if (agentId) {
+                loadProcesses(agentId);
+            }
+        });
+    });
+
+    // Load available agents
+    function loadAgents() {
+        fetch('/api/agents/status')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('agentSelect');
+                const options = select.querySelectorAll('option');
+                
+                // Clear existing options (keep first one)
+                for (let i = options.length - 1; i > 0; i--) {
+                    options[i].remove();
+                }
+
+                // Handle both array and object response formats
+                let agents = [];
+                if (Array.isArray(data)) {
+                    agents = data;
+                } else if (data.agents && Array.isArray(data.agents)) {
+                    agents = data.agents;
+                }
+
+                if (agents.length > 0) {
+                    agents.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = String(agent.agent_id || '');
+                        const hostname = String(agent.hostname || 'Unknown');
+                        const ip = String(agent.ip_address || 'N/A');
+                        option.textContent = `${hostname} (${ip})`;
+                        select.appendChild(option);
+                    });
+                    console.log(`Loaded ${agents.length} agents`);
+                } else {
+                    console.warn('No agents found');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading agents:', error);
+            });
+    }
+
+    // Load processes for selected agent
+    function loadProcesses(agentId) {
+        showLoadingState();
+        
+        const btn = document.getElementById('refreshBtn');
+        btn.classList.add('loading');
+
+        console.log(`Fetching processes for agent: ${agentId}`);
+
+        fetch(`/api/get_processes/${agentId}`)
+            .then(response => {
+                console.log(`Response status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Processes response:', data);
+                btn.classList.remove('loading');
+                
+                if (data.success && data.processes) {
+                    displayProcesses(data.processes);
+                } else {
+                    showError(data.message || 'Không thể lấy dữ liệu tiến trình');
+                }
+            })
+            .catch(error => {
+                btn.classList.remove('loading');
+                console.error('Error loading processes:', error);
+                showError('Lỗi khi kết nối đến server: ' + error.message);
+            });
+    }
+
+    // Display processes in table
+    function displayProcesses(processes) {
+        const tbody = document.getElementById('processTableBody');
+        tbody.innerHTML = '';
+
+        if (!processes || processes.length === 0) {
+            showEmptyState('Không có tiến trình nào');
+            return;
+        }
+
+        processes.forEach((proc, index) => {
+            const row = document.createElement('tr');
+            
+            // Ensure all values are strings and safe
+            const processName = String(proc.ProcessName || '').trim() || 'Unknown';
+            const localAddr = String(proc.LocalAddress || '0.0.0.0').trim();
+            const remoteAddr = String(proc.RemoteAddress || '0.0.0.0').trim();
+            const localPort = proc.LocalPort !== undefined && proc.LocalPort !== null ? String(proc.LocalPort) : '-';
+            const remotePort = proc.RemotePort !== undefined && proc.RemotePort !== null ? String(proc.RemotePort) : '-';
+            const state = String(proc.State || 'Unknown').trim();
+
+            // Get status badge color
+            const statusClass = getStatusClass(state);
+            
+            row.innerHTML = `
+                <td>
+                    <div class="process-name">
+                        <span class="process-icon"><i class="fas fa-cogs"></i></span>
+                        <span>${escapeHtml(processName)}</span>
+                    </div>
+                </td>
+                <td><span class="ip-address">${escapeHtml(localAddr)}</span></td>
+                <td><span class="port-number">${escapeHtml(localPort)}</span></td>
+                <td><span class="ip-address">${escapeHtml(remoteAddr)}</span></td>
+                <td><span class="port-number">${escapeHtml(remotePort)}</span></td>
+                <td><span class="status-badge ${statusClass}">${escapeHtml(state)}</span></td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">
+                    ${getConnectionType(localPort, remotePort, state)}
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        // Show table, hide others
+        document.getElementById('processTableContainer').style.display = 'block';
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'none';
+    }
+
+    // Get status badge class
+    function getStatusClass(state) {
+        const stateUpper = String(state || '').toUpperCase();
+        
+        if (stateUpper.includes('ESTABLISHED')) return 'established';
+        if (stateUpper.includes('LISTENING')) return 'listening';
+        if (stateUpper.includes('BOUND')) return 'bound';
+        if (stateUpper.includes('TIME_WAIT')) return 'time-wait';
+        
+        return 'bound';
+    }
+
+    // Get connection type description
+    function getConnectionType(localPort, remotePort, state) {
+        const stateUpper = String(state || '').toUpperCase();
+        
+        if (stateUpper.includes('LISTENING')) {
+            return `<i class="fas fa-ear"></i> Nghe trên port ${escapeHtml(String(localPort))}`;
+        }
+        
+        if (stateUpper.includes('ESTABLISHED')) {
+            return `<i class="fas fa-link"></i> Kết nối tới port ${escapeHtml(String(remotePort))}`;
+        }
+        
+        if (localPort && remotePort && remotePort !== '-') {
+            return `Từ port ${escapeHtml(String(localPort))} đến ${escapeHtml(String(remotePort))}`;
+        }
+        
+        return escapeHtml(stateUpper);
+    }
+
+    // Show empty state
+    function showEmptyState(message = 'Chọn một agent để bắt đầu') {
+        document.getElementById('processTableContainer').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('emptyState').querySelector('p').textContent = message;
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'none';
+    }
+
+    // Show loading state
+    function showLoadingState() {
+        document.getElementById('processTableContainer').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('loadingState').style.display = 'flex';
+        document.getElementById('errorState').style.display = 'none';
+    }
+
+    // Show error state
+    function showError(message) {
+        document.getElementById('processTableContainer').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorMessage').textContent = message;
+    }
+
+    // Escape HTML special characters
+    function escapeHtml(text) {
+        if (text === null || text === undefined) {
+            return '';
+        }
+        
+        // Convert to string if not already
+        text = String(text);
+        
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Auto-refresh every 30 seconds if agent is selected
+    setInterval(function() {
+        const agentId = document.getElementById('agentSelect').value;
+        if (agentId && document.getElementById('processTableContainer').style.display !== 'none') {
+            loadProcesses(agentId);
+        }
+    }, 30000); // 30 seconds
+</script>
+{% endblock %}

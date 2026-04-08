@@ -1,0 +1,868 @@
+{% extends "base.html" %}
+
+{% block title %}Hệ thống Giám sát An ninh Mạng - Network Flow Collector{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Real-time Update Indicator -->
+<div class="no-reload-message" id="updateIndicator" style="display: none;">
+    <i class="fas fa-wifi"></i>
+    <span>Live updates active - No page refresh needed</span>
+    <span class="live-data-dot"></span>
+</div>
+
+<!-- Cybersecurity Command Center Dashboard -->
+<div class="cybersec-dashboard">
+
+    <!-- Top Status Bar -->
+    <div class="top-status-bar">
+        <div class="system-status">
+            <div class="status-item">
+                <div class="status-icon pulse-green">
+                    <i class="fas fa-wifi"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">NPCAP STATUS</span>
+                    <span class="value">ĐANG CHẠY</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-blue">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">WINDOWS AGENTS</span>
+                    <span class="value" id="live-sensor-count">{{ active_agents }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-purple">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">FLOW ANALYSIS</span>
+                    <span class="value">79 FEATURES</span>
+                </div>
+            </div>
+        </div>
+        <div class="real-time-counter">
+            <div class="counter-display">
+                <span class="counter-label">FLOWS THU THẬP</span>
+                <span class="counter-value" id="flows-per-sec">{{ total_flows_collected }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Metrics Cards - Full Width Row -->
+    <div class="metrics-section-full">
+        <div class="metrics-grid">
+            <!-- Windows Collectors Card -->
+            <div class="metric-card threat-low">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <div class="card-title">Windows Collectors</div>
+                </div>
+                <div class="card-body">
+                    <div class="primary-metric">
+                        <span class="metric-value" data-counter-end="{{ active_agents }}">0</span>
+                        <span class="metric-total">/ {{ total_agents }}</span>
+                    </div>
+                    <div class="metric-label">Agents đang hoạt động</div>
+                    <div class="metric-progress">
+                        {% set progress_percentage = ((active_agents / total_agents * 100) if total_agents > 0 else
+                        0)|round|int %}
+                        <div class="progress-bar" style="width: 0%;" data-progress="{{ progress_percentage }}"></div>
+                    </div>
+                    <div class="metric-status">
+                        {% set online_dots = 5 if active_agents > 5 else active_agents %}
+                        {% set offline_dots = 5 if (total_agents - active_agents) > 5 else (total_agents -
+                        active_agents) %}
+                        {% for i in range(online_dots) %}
+                        <div class="status-indicator online"></div>
+                        {% endfor %}
+                        {% for i in range(offline_dots) %}
+                        <div class="status-indicator offline"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Intrusion Detection Card -->
+            <div class="metric-card {{ 'threat-high' if recent_alerts|length > 0 else 'threat-low' }}">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-shield-virus"></i>
+                    </div>
+                    <div class="card-title">Phát hiện Xâm nhập</div>
+                </div>
+                <div class="card-body">
+                    <div class="primary-metric">
+                        <span class="metric-value" data-counter-end="{{ recent_alerts|length }}">0</span>
+                    </div>
+                    <div class="metric-label">Cảnh báo chưa giải quyết</div>
+                    <div class="threat-breakdown">
+                        <div class="threat-item critical">
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'critical')|list|length }}</span>
+                            <span class="threat-type">Nghiêm trọng</span>
+                        </div>
+                        <div class="threat-item high">
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'high')|list|length }}</span>
+                            <span class="threat-type">Cao</span>
+                        </div>
+                        <div class="threat-item medium">
+                            <span class="threat-count">{{ recent_alerts|selectattr('severity', 'equalto',
+                                'medium')|list|length }}</span>
+                            <span class="threat-type">Trung bình</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Flow Analysis Card -->
+            <div class="metric-card threat-medium">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-stream"></i>
+                    </div>
+                    <div class="card-title">Phân tích Network Flow</div>
+                </div>
+                <div class="card-body">
+                    <div class="primary-metric">
+                        <span class="metric-value" data-counter-end="{{ threat_flows|length }}">0</span>
+                    </div>
+                    <div class="metric-label">Flows đáng ngờ</div>
+                    <div class="flow-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">{{ ((threat_flows|length / 1000 * 100)|round) }}%</span>
+                            <span class="stat-label">Độ rủi ro</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">79</span>
+                            <span class="stat-label">Features ML</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Performance Card -->
+            <div class="metric-card threat-low">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div class="card-title">System Health</div>
+                </div>
+                <div class="card-body">
+                    <div class="primary-metric">
+                        <span class="metric-value">98</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-label">System Performance</div>
+                    <div class="health-indicators">
+                        <div class="health-item">
+                            <div class="health-bar cpu">
+                                <div class="health-fill" style="width: 65%"></div>
+                            </div>
+                            <span class="health-label">CPU</span>
+                        </div>
+                        <div class="health-item">
+                            <div class="health-bar memory">
+                                <div class="health-fill" style="width: 78%"></div>
+                            </div>
+                            <span class="health-label">RAM</span>
+                        </div>
+                        <div class="health-item">
+                            <div class="health-bar disk">
+                                <div class="health-fill" style="width: 42%"></div>
+                            </div>
+                            <span class="health-label">Disk</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Flows Section - Full Width -->
+    <div class="flows-section-full">
+        <!-- Recent Network Flows -->
+        <div class="flows-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-stream"></i>
+                    Network Flows gần đây
+                </h3>
+                <div class="panel-controls">
+                    <select class="filter-select">
+                        <option>Tất cả Protocols</option>
+                        <option>Chỉ TCP</option>
+                        <option>Chỉ UDP</option>
+                        <option>RDP/SMB</option>
+                        <option>Đáng ngờ</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="flows-table">
+                    <div class="table-header">
+                        <div class="col-src">Nguồn</div>
+                        <div class="col-dst">Đích</div>
+                        <div class="col-proto">Protocol</div>
+                        <div class="col-bytes">Bytes</div>
+                        <div class="col-risk">Rủi ro</div>
+                    </div>
+                    <div class="table-body">
+                        {% for flow in threat_flows[:10] %}
+                        <div class="flow-row {{ 'malicious' if flow.is_malicious else 'normal' }}"
+                            data-flow-id="{{ flow.id }}">
+                            <div class="col-src">{{ flow.src_ip[:12] }}</div>
+                            <div class="col-dst">{{ flow.dst_ip[:12] }}</div>
+                            <div class="col-proto">
+                                <span class="protocol-tag">{{ flow.protocol|upper }}</span>
+                            </div>
+                            <div class="col-bytes">{{ (flow.payload_content|length if flow.payload_content else 0) }}
+                            </div>
+                            <div class="col-risk">
+                                <div class="risk-indicator {{ 'high' if flow.is_malicious else 'low' }}"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Demo flow data với Windows services -->
+                        {% set demo_flows = [
+                        {'src': '192.168.1.100', 'dst': '8.8.8.8', 'proto': 'DNS', 'bytes': 512, 'risk': 'low'},
+                        {'src': '10.0.0.45', 'dst': '192.168.1.10', 'proto': 'RDP', 'bytes': 4096, 'risk': 'medium'},
+                        {'src': '172.16.0.25', 'dst': '172.16.0.1', 'proto': 'SMB', 'bytes': 2048, 'risk': 'low'},
+                        {'src': '192.168.1.200', 'dst': '1.1.1.1', 'proto': 'HTTPS', 'bytes': 1024, 'risk': 'low'},
+                        {'src': '10.0.0.89', 'dst': '10.0.0.5', 'proto': 'NetBIOS', 'bytes': 256, 'risk': 'high'}
+                        ] %}
+                        {% for flow in demo_flows %}
+                        <div class="flow-row normal">
+                            <div class="col-src">{{ flow.src }}</div>
+                            <div class="col-dst">{{ flow.dst }}</div>
+                            <div class="col-proto">
+                                <span class="protocol-tag">{{ flow.proto }}</span>
+                            </div>
+                            <div class="col-bytes">{{ flow.bytes }}</div>
+                            <div class="col-risk">
+                                <div class="risk-indicator {{ flow.risk }}"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Security Alerts - Full Width Row -->
+    <div class="alerts-section-full">
+        <!-- Recent Threats Table -->
+        <div class="threats-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-shield-virus"></i>
+                    Active Security Alerts
+                    <span class="alerts-count">{{ recent_alerts|length }}</span>
+                </h3>
+                <div class="panel-controls">
+                    <!-- Filter Buttons -->
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">Tất cả</button>
+                        <button class="filter-btn" data-filter="critical">Critical</button>
+                        <button class="filter-btn" data-filter="high">High</button>
+                        <button class="filter-btn" data-filter="medium">Medium</button>
+                    </div>
+                    <button class="control-btn" onclick="refreshThreats()" title="Refresh Alerts">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="control-btn" onclick="exportAlerts()" title="Export Data">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="threats-table-container">
+                    <div class="threats-table">
+                        <div class="table-header">
+                            <div class="col-time">
+                                <i class="fas fa-clock"></i>
+                                <span>Thời gian</span>
+                            </div>
+                            <div class="col-type">
+                                <i class="fas fa-bug"></i>
+                                <span>Loại mối đe dọa</span>
+                            </div>
+                            <div class="col-source">
+                                <i class="fas fa-network-wired"></i>
+                                <span>Nguồn / Agent</span>
+                            </div>
+                            <div class="col-severity">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Mức độ nghiêm trọng</span>
+                            </div>
+                            <div class="col-status">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Trạng thái</span>
+                            </div>
+                            <div class="col-actions">
+                                <i class="fas fa-cogs"></i>
+                                <span>Hành động</span>
+                            </div>
+                        </div>
+                        <div class="table-body">
+                            {% for alert in recent_alerts[:10] %}
+                            <div class="threat-row severity-{{ alert.severity }} {{ 'resolved' if alert.is_resolved else 'active' }}"
+                                data-alert-id="{{ alert.id }}" data-severity="{{ alert.severity }}">
+
+                                <div class="col-time">
+                                    <div class="time-display">
+                                        <span class="time-main">{{ alert.created_at.strftime('%H:%M:%S') }}</span>
+                                        <span class="time-date">{{ alert.created_at.strftime('%d/%m') }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-type">
+                                    <div class="threat-info">
+                                        <span class="threat-badge {{ alert.alert_type.lower() }}">
+                                            <i
+                                                class="fas fa-{{ 'virus' if alert.alert_type.lower() == 'trojan' else 'shield-virus' }}"></i>
+                                            {{ alert.alert_type|title }}
+                                        </span>
+                                        {% if alert.description %}
+                                        <span class="threat-desc">{{ alert.description[:50] }}{{ '...' if
+                                            alert.description|length > 50 else '' }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-source">
+                                    <div class="source-info">
+                                        <span class="source-agent">
+                                            <i class="fas fa-desktop"></i>
+                                            {{ alert.agent_id or 'Unknown' }}
+                                        </span>
+                                        {% if alert.flow_id %}
+                                        <span class="source-flow">Flow: {{ alert.flow_id[:8] }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-severity">
+                                    <div class="severity-container">
+                                        <span class="severity-badge {{ alert.severity }}">
+                                            <i
+                                                class="fas fa-{{ 'exclamation-triangle' if alert.severity in ['critical', 'high'] else 'exclamation-circle' }}"></i>
+                                            {{ alert.severity|upper }}
+                                        </span>
+                                        <div class="severity-indicator">
+                                            <div class="severity-bar {{ alert.severity }}"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-status">
+                                    <div class="status-container">
+                                        <span class="status-badge {{ 'resolved' if alert.is_resolved else 'active' }}">
+                                            <i
+                                                class="fas fa-{{ 'check-circle' if alert.is_resolved else 'clock' }}"></i>
+                                            {{ 'Đã giải quyết' if alert.is_resolved else 'Đang xử lý' }}
+                                        </span>
+                                        <span class="status-time">{{ ((get_utc7_now() -
+                                            alert.created_at).total_seconds() / 3600)|round }}h ago</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-actions">
+                                    <div class="action-buttons">
+                                        {% if not alert.is_resolved %}
+                                        <button class="action-btn primary" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.viewAlertDetails(this.dataset.alertId)"
+                                            title="Chi tiết">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="action-btn success" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.resolveAlert(this.dataset.alertId)"
+                                            title="Giải quyết">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="action-btn warning" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.escalateAlert(this.dataset.alertId)"
+                                            title="Nâng cấp">
+                                            <i class="fas fa-arrow-up"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="action-btn secondary" data-alert-id="{{ alert.id }}"
+                                            onclick="if(window.dashboard) window.dashboard.viewAlertDetails(this.dataset.alertId)"
+                                            title="Xem chi tiết">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        {% endif %}
+                                        <div class="dropdown">
+                                            <button class="action-btn dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.exportAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-download me-2"></i>Export
+                                                    </a></li>
+                                                <li><a class="dropdown-item" href="#" data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.shareAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-share me-2"></i>Share
+                                                    </a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li><a class="dropdown-item text-danger" href="#"
+                                                        data-alert-id="{{ alert.id }}"
+                                                        onclick="if(window.dashboard) window.dashboard.deleteAlert(this.dataset.alertId)">
+                                                        <i class="fas fa-trash me-2"></i>Delete
+                                                    </a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="no-threats">
+                                <div class="no-threats-content">
+                                    <i class="fas fa-shield-check"></i>
+                                    <h4>Hệ thống an toàn</h4>
+                                    <p>Không phát hiện mối đe dọa nào trong thời gian gần đây</p>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="runSecurityScan()">
+                                        <i class="fas fa-search"></i> Quét bảo mật thủ công
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Footer with Pagination and Actions -->
+                <div class="table-footer">
+                    <div class="footer-info">
+                        <span class="results-info">
+                            Hiển thị {{ recent_alerts[:10]|length }} trong {{ recent_alerts|length }} alerts
+                        </span>
+                    </div>
+                    <div class="footer-actions">
+                        {% if recent_alerts|length > 10 %}
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewAllAlerts()">
+                            <i class="fas fa-list"></i> Xem tất cả ({{ recent_alerts|length }})
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-primary btn-sm" data-url="{{ url_for('alerts_list') }}"
+                            onclick="window.location.href=this.dataset.url;">
+                            <i class="fas fa-external-link-alt"></i> Trang quản lý Alerts
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid Layout với 2 cột cho các panels còn lại -->
+    <div class="dashboard-grid-two-col">
+
+        <!-- Left Column -->
+        <div class="left-column">
+
+            <!-- Windows Protocol Distribution -->
+            <div class="protocol-panel minimized" id="protocolPanel">
+                <div class="panel-header" onclick="toggleProtocolPanel()">
+                    <h3 class="panel-title">
+                        <i class="fas fa-layer-group"></i>
+                        Phân tích Protocol Windows
+                    </h3>
+                    <button class="toggle-btn" onclick="event.stopPropagation(); toggleProtocolPanel();">
+                        <span class="toggle-text">Mở rộng</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <canvas id="protocolChart" width="300" height="300"></canvas>
+                    <div class="protocol-stats">
+                        <div class="protocol-item">
+                            <div class="protocol-color tcp"></div>
+                            <span class="protocol-name">TCP (HTTP/HTTPS)</span>
+                            <span class="protocol-percentage">68%</span>
+                        </div>
+                        <div class="protocol-item">
+                            <div class="protocol-color udp"></div>
+                            <span class="protocol-name">UDP (DNS)</span>
+                            <span class="protocol-percentage">24%</span>
+                        </div>
+                        <div class="protocol-item">
+                            <div class="protocol-color icmp"></div>
+                            <span class="protocol-name">RDP</span>
+                            <span class="protocol-percentage">5%</span>
+                        </div>
+                        <div class="protocol-item">
+                            <div class="protocol-color other"></div>
+                            <span class="protocol-name">SMB/NetBIOS</span>
+                            <span class="protocol-percentage">3%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Source IPs -->
+            <div class="sources-panel">
+                <div class="panel-header">
+                    <h3 class="panel-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Top Traffic Sources
+                    </h3>
+                </div>
+                <div class="panel-body">
+                    <div class="sources-list">
+                        {% set demo_ips = ['192.168.1.100', '10.0.0.45', '172.16.0.25', '192.168.1.200', '10.0.0.89'] %}
+                        {% set demo_countries = ['🇺🇸', '🇩🇪', '🇬🇧', '🇯🇵', '🇨🇦'] %}
+                        {% set demo_packets = [15420, 12890, 9875, 7234, 5632] %}
+                        {% set demo_risks = ['low', 'medium', 'low', 'high', 'low'] %}
+
+                        {% for i in range(5) %}
+                        <div class="source-item risk-{{ demo_risks[i] }}">
+                            <div class="source-info">
+                                <div class="source-flag">{{ demo_countries[i] }}</div>
+                                <div class="source-details">
+                                    <div class="source-ip">{{ demo_ips[i] }}</div>
+                                    <div class="source-packets">{{ demo_packets[i] }} packets</div>
+                                </div>
+                            </div>
+                            <div class="source-bar">
+                                {% set source_width_calc = ((demo_packets[i] / demo_packets[0] * 100)|int) %}
+                                <div class="source-fill risk-{{ demo_risks[i] }}" style="width: 0%;"
+                                    data-progress="{{ source_width_calc }}"></div>
+                            </div>
+                            <div class="source-risk">
+                                <span class="risk-badge {{ demo_risks[i] }}">{{ demo_risks[i]|upper }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-column">
+
+            <!-- Network Flow Radar -->
+            <div class="radar-panel">
+                <div class="panel-header">
+                    <h3 class="panel-title">
+                        <i class="fas fa-wifi"></i>
+                        Giám sát Network Flow Radar
+                    </h3>
+                    <div class="radar-controls">
+                        <div class="sweep-indicator">
+                            <span class="sweep-dot"></span>
+                            <span class="sweep-text">THU THẬP</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="radar-container">
+                        <div class="radar-grid">
+                            <!-- Radar circles -->
+                            <div class="radar-circle circle-1"></div>
+                            <div class="radar-circle circle-2"></div>
+                            <div class="radar-circle circle-3"></div>
+                            <div class="radar-circle circle-4"></div>
+
+                            <!-- Radar lines -->
+                            <div class="radar-line horizontal"></div>
+                            <div class="radar-line vertical"></div>
+
+                            <!-- Radar sweep -->
+                            <div class="radar-sweep"></div>
+
+                            <!-- Network nodes -->
+                            <div class="network-nodes">
+                                {% for agent in critical_agents[:12] %}
+                                <div class="network-node {{ agent.threat_level }}"
+                                    style="--node-x: {{ (loop.index * 30) % 300 }}px; --node-y: {{ (loop.index * 40) % 280 }}px;">
+                                    <div class="node-pulse"></div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Direction labels -->
+                            <div class="radar-label north">NORTH</div>
+                            <div class="radar-label south">SOUTH</div>
+                            <div class="radar-label east">EAST</div>
+                            <div class="radar-label west">WEST</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/cybersec-dashboard.js') }}"></script>
+<script>
+    // Enhanced dashboard initialization with error protection
+    document.addEventListener('DOMContentLoaded', function () {
+        try {
+            console.log('📊 Starting dashboard initialization...');
+
+            // Check if CyberSecDashboard class is available
+            if (typeof CyberSecDashboard !== 'undefined') {
+                window.dashboard = new CyberSecDashboard();
+                console.log('✅ Dashboard instance created successfully');
+            } else {
+                throw new Error('CyberSecDashboard class not found');
+            }
+
+            // Show live updates indicator with safety checks
+            const updateIndicator = document.getElementById('updateIndicator');
+            if (updateIndicator) {
+                setTimeout(() => {
+                    if (updateIndicator) {
+                        updateIndicator.style.display = 'block';
+                    }
+                }, 2000);
+
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    if (updateIndicator) {
+                        updateIndicator.style.animation = 'fadeOut 0.5s ease-out forwards';
+                        setTimeout(() => {
+                            if (updateIndicator) {
+                                updateIndicator.style.display = 'none';
+                            }
+                        }, 500);
+                    }
+                }, 7000);
+            }
+
+            // Add live update status to title with protection
+            const currentTitle = document.title || 'Network Security Dashboard';
+            document.title = '🟢 LIVE | ' + currentTitle.replace(/^🔴 LIVE \| |^🟢 LIVE \| /, '');
+
+            // Add connectivity indicator
+            window.addEventListener('online', function () {
+                document.title = document.title.replace('🔴', '🟢');
+                if (window.dashboard) {
+                    window.dashboard.realTimeUpdates = true;
+                }
+                console.log('🌐 Connection restored');
+            });
+
+            window.addEventListener('offline', function () {
+                document.title = document.title.replace('🟢', '🔴');
+                if (window.dashboard) {
+                    window.dashboard.realTimeUpdates = false;
+                }
+                console.log('📡 Connection lost - Updates paused');
+            });
+
+        } catch (error) {
+            console.error('❌ Dashboard initialization failed:', error);
+
+            // Use global error handler if available
+            if (window.handleJavaScriptError) {
+                window.handleJavaScriptError(error, 'dashboard-initialization');
+            } else {
+                // Fallback error handling
+                setTimeout(() => {
+                    console.log('🔄 Attempting dashboard recovery...');
+                    if (window.attemptRecovery) {
+                        window.attemptRecovery();
+                    } else {
+                        location.reload();
+                    }
+                }, 3000);
+            }
+        }
+    });
+
+    // Fullscreen Toggle Function
+    function toggleFullScreen() {
+        try {
+            const dashboard = document.querySelector('.cybersec-dashboard');
+            const fabButton = document.querySelector('.fab.primary i');
+
+            if (!dashboard) {
+                console.error('Dashboard element not found');
+                return;
+            }
+
+            // Toggle fullscreen mode class
+            dashboard.classList.toggle('fullscreen-mode');
+
+            // Update button icon
+            if (dashboard.classList.contains('fullscreen-mode')) {
+                if (fabButton) {
+                    fabButton.className = 'fas fa-compress';
+                }
+                console.log('🖥️ Fullscreen mode activated');
+            } else {
+                if (fabButton) {
+                    fabButton.className = 'fas fa-expand';
+                }
+                console.log('📱 Centered mode activated');
+            }
+
+            // Optional: Request browser fullscreen
+            if (dashboard.classList.contains('fullscreen-mode')) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log('Browser fullscreen not available or denied');
+                    });
+                }
+            } else {
+                if (document.exitFullscreen && document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => {
+                        console.log('Exit fullscreen failed');
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling fullscreen:', error);
+            if (window.trackError) {
+                window.trackError(error, 'toggleFullScreen');
+            }
+        }
+    }
+
+    // Handle browser fullscreen exit
+    document.addEventListener('fullscreenchange', function () {
+        const dashboard = document.querySelector('.cybersec-dashboard');
+        const fabButton = document.querySelector('.fab.primary i');
+
+        if (!document.fullscreenElement && dashboard) {
+            dashboard.classList.remove('fullscreen-mode');
+            if (fabButton) {
+                fabButton.className = 'fas fa-expand';
+            }
+        }
+    });
+
+    // Toggle Protocol Panel
+    function toggleProtocolPanel() {
+        try {
+            const panel = document.getElementById('protocolPanel');
+            const toggleText = panel.querySelector('.toggle-text');
+            const toggleIcon = panel.querySelector('.toggle-btn i');
+
+            if (!panel) {
+                console.error('Protocol panel not found');
+                return;
+            }
+
+            // Toggle minimized class
+            panel.classList.toggle('minimized');
+
+            // Update button text and icon
+            if (panel.classList.contains('minimized')) {
+                if (toggleText) toggleText.textContent = 'Mở rộng';
+                console.log('📊 Protocol panel minimized');
+            } else {
+                if (toggleText) toggleText.textContent = 'Thu nhỏ';
+                console.log('📊 Protocol panel expanded');
+            }
+        } catch (error) {
+            console.error('Error toggling protocol panel:', error);
+            if (window.trackError) {
+                window.trackError(error, 'toggleProtocolPanel');
+            }
+        }
+    }
+
+    // Add CSS for fadeOut animation with safety check
+    if (!document.querySelector('#fadeOutStyle')) {
+        const style = document.createElement('style');
+        style.id = 'fadeOutStyle';
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            /* Prevent flash of unstyled content */
+            .cybersec-dashboard {
+                opacity: 0;
+                animation: fadeIn 0.5s ease-out 0.3s forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Initialize data-progress elements
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(() => {
+            document.querySelectorAll('[data-progress]').forEach(el => {
+                const progress = el.getAttribute('data-progress');
+                if (progress && (el.style.width === '0%' || !el.style.width)) {
+                    el.style.width = progress + '%';
+                }
+            });
+        }, 800);
+
+        // Initialize theme from localStorage
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
+
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        // Set theme attribute
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Update localStorage
+        localStorage.setItem('theme', theme);
+        
+        // Update button icon
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            // Update title
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+        
+        console.log('🌓 Theme changed to:', theme);
+    }
+</script>
+{% endblock %}

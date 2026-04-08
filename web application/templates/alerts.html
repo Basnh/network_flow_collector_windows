@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Security Alerts - Network Security Management{% endblock %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4 fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 gradient-text">Security Alerts</h1>
+        <div class="btn-toolbar">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshAlertsData()">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Statistics -->
+    <div class="row g-3 mb-4">
+        {% set critical_count = alerts|selectattr('severity', 'equalto', 'critical')|selectattr('is_resolved',
+        'equalto', False)|list|length %}
+        {% set high_count = alerts|selectattr('severity', 'equalto', 'high')|selectattr('is_resolved', 'equalto',
+        False)|list|length %}
+        {% set unresolved_count = alerts|selectattr('is_resolved', 'equalto', False)|list|length %}
+        {% set resolved_count = alerts|selectattr('is_resolved', 'equalto', True)|list|length %}
+
+        <div class="col-md-3">
+            <div class="card p-3 text-center border-0 shadow-sm"
+                style="background-color: #fff8f8; border-bottom: 3px solid #cf222e !important;">
+                <div class="small fw-bold mb-1" style="color: #cf222e;">CRITICAL</div>
+                <div class="h4 mb-0" style="color: #cf222e;">{{ critical_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center border-0 shadow-sm"
+                style="background-color: #fffdf5; border-bottom: 3px solid #9a6700 !important;">
+                <div class="small fw-bold mb-1" style="color: #9a6700;">HIGH RISK</div>
+                <div class="h4 mb-0" style="color: #9a6700;">{{ high_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center border-0 shadow-sm"
+                style="background-color: #f6f8fa; border-bottom: 3px solid #0969da !important;">
+                <div class="small fw-bold mb-1" style="color: #0969da;">UNRESOLVED</div>
+                <div class="h4 mb-0" style="color: #0969da;">{{ unresolved_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center border-0 shadow-sm"
+                style="background-color: #f0fff4; border-bottom: 3px solid #1a7f37 !important;">
+                <div class="small fw-bold mb-1" style="color: #1a7f37;">RESOLVED</div>
+                <div class="h4 mb-0" style="color: #1a7f37;">{{ resolved_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert List (Terminal Aesthetic) -->
+    <div class="card shadow-sm border-0 bg-transparent">
+        <div class="card-header border-0 bg-transparent px-0 pb-3 d-flex justify-content-between align-items-center">
+            <span class="text-muted small fw-bold"><i class="fas fa-terminal me-2"></i> SECURITY_LOG_FEED</span>
+        </div>
+
+        {% if alerts %}
+        <div class="list-group list-group-flush rounded border" style="border-color: var(--border-default) !important;">
+            {% for alert in alerts %}
+            <div class="list-group-item bg-transparent border-0 px-4 py-3"
+                style="border-bottom: 1px solid var(--border-default) !important;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex gap-3">
+                        <div class="mt-1">
+                            {% if alert.severity == 'critical' %}
+                            <i class="fas fa-exclamation-triangle text-danger"></i>
+                            {% elif alert.severity == 'high' %}
+                            <i class="fas fa-exclamation-circle text-warning"></i>
+                            {% else %}
+                            <i class="fas fa-info-circle text-info"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge badge-{{ alert.severity }}">{{ alert.severity|upper }}</span>
+                                <span class="text-muted small">[{{ alert.created_at.strftime('%H:%M:%S') }}]</span>
+                                <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) }}"
+                                    class="text-decoration-none small text-primary fw-bold">
+                                    @{{ alert.agent.hostname or alert.agent_id[:8] }}
+                                </a>
+                            </div>
+                            <h6 class="mb-1 text-main">{{ alert.title }}</h6>
+                            <p class="small text-muted mb-2">{{ alert.description }}</p>
+
+                            {% if not alert.is_resolved %}
+                            <div class="d-flex gap-2">
+                                <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}">
+                                    <button class="btn btn-sm btn-link text-success text-decoration-none p-0 fw-bold"
+                                        style="font-size: 0.8em;">
+                                        <i class="fas fa-check-circle me-1"></i> MARK AS RESOLVED
+                                    </button>
+                                </form>
+                                <span class="text-muted opacity-25">|</span>
+                                <button class="btn btn-sm btn-link text-muted text-decoration-none p-0"
+                                    style="font-size: 0.8em;">
+                                    <i class="fas fa-search me-1"></i> INVESTIGATE
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="small text-success fw-bold opacity-75">
+                                <i class="fas fa-check-double me-1"></i> RESOLVED
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card-body text-center py-5">
+            <div class="opacity-25 mb-3">
+                <i class="fas fa-shield-check fa-4x"></i>
+            </div>
+            <h5 class="text-muted">No security alerts</h5>
+            <p class="small text-muted">System is currently operating within normal parameters.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .list-group-item:hover {
+        background-color: rgba(240, 246, 252, 0.02) !important;
+    }
+</style>
+
+<!-- Theme Toggle Button -->
+<div class="floating-actions">
+    <button class="fab theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
+
+<script>
+    // Theme Toggle Function
+    function toggleTheme() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    }
+
+    // Apply Theme Function
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            themeToggle.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    });
+</script>
+{% endblock %}
