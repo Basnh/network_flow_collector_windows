@@ -136,7 +136,7 @@ body {
         radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.02) 0%, transparent 50%),
         radial-gradient(circle at 40% 60%, rgba(34, 197, 94, 0.01) 0%, transparent 50%);
     pointer-events: none;
-    z-index: -1;
+    z-index: -10;
     animation: backgroundPulse 20s ease-in-out infinite;
 }
 
@@ -2076,7 +2076,7 @@ body[data-theme="light"] .card-title {
 /* No Page Reload Message */
 .no-reload-message {
     position: fixed;
-    top: 60px;
+    top: 75px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--cybersec-bg-panel);

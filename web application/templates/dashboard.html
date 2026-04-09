@@ -50,6 +50,17 @@
                     <span class="value">79 FEATURES</span>
                 </div>
             </div>
+            <div class="status-item">
+                <div class="status-icon pulse-yellow">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div class="status-text" style="display: flex; flex-direction: column;">
+                    <span class="label">AI MODEL</span>
+                    <select id="modelSelector" onchange="changeModel(this.value)" style="background: rgba(0,0,0,0.5); color: #00ffcc; border: 1px solid #00ffcc; border-radius: 4px; font-size: 12px; padding: 2px 5px; outline: none; cursor: pointer;">
+                        <option value="best_model.pkl">Loading...</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="real-time-counter">
             <div class="counter-display">
@@ -625,8 +636,58 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/cybersec-dashboard.js') }}"></script>
 <script>
+    // System AI Model Management
+    function loadAvailableModels() {
+        const selector = document.getElementById('modelSelector');
+        if (!selector) return;
+
+        fetch('/api/models')
+            .then(res => res.json())
+            .then(data => {
+                selector.innerHTML = '';
+                data.available_models.forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = model;
+                    opt.textContent = model;
+                    if (model === data.current_model) {
+                        opt.selected = true;
+                    }
+                    selector.appendChild(opt);
+                });
+            })
+            .catch(err => console.error('Error loading AI models:', err));
+    }
+
+    function changeModel(newModelName) {
+        if (!newModelName) return;
+        
+        fetch('/api/select_model', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ model_name: newModelName })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.error) {
+                alert('Lỗi khi đổi mô hình: ' + data.error);
+                loadAvailableModels(); // Reset to current
+            } else {
+                // Hiển thị thông báo Toast nếu muốn, hoặc reload nhẹ
+                const toast = document.createElement('div');
+                toast.style.cssText = "position:fixed;bottom:20px;right:20px;background:#00ffcc;color:#000;padding:10px 20px;border-radius:4px;z-index:9999;";
+                toast.innerText = "✅ AI Model Switched to: " + data.current_model;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+        })
+        .catch(err => alert('Network error when switching model.'));
+    }
+
     // Enhanced dashboard initialization with error protection
     document.addEventListener('DOMContentLoaded', function () {
+        loadAvailableModels();
         try {
             console.log('📊 Starting dashboard initialization...');
 

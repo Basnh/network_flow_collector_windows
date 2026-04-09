@@ -15,6 +15,7 @@ import hashlib
 import subprocess
 import uuid
 import ctypes
+import configparser
 from datetime import datetime, timedelta
 from pytz import timezone
 from collections import deque
@@ -76,6 +77,9 @@ class SecurityAgentClient:
         # Setup logging
         self.logger = logging.getLogger(f'SecurityAgent-{self.agent_id[:8]}')
         
+        # Load constraints from config file
+        self.load_config()
+        
         # System info
         self.hostname = socket.gethostname()
         self.ip_address = self.get_local_ip()
@@ -114,6 +118,31 @@ class SecurityAgentClient:
             'python_version': platform.python_version(),
         }
         return json.dumps(info, indent=2)
+    
+    def load_config(self, config_path='config.ini'):
+        """Load optional configuration file if it exists"""
+        if os.path.exists(config_path):
+            try:
+                config = configparser.ConfigParser()
+                config.read(config_path)
+                
+                if 'Agent' in config:
+                    if 'server_url' in config['Agent'] and config['Agent']['server_url']:
+                        # Prefer config's server_url if the instance was initialized with default
+                        if self.server_url == 'http://localhost:5000':
+                            self.server_url = config['Agent']['server_url'].rstrip('/')
+                    if 'agent_id' in config['Agent'] and config['Agent']['agent_id']:
+                        self.agent_id = config['Agent']['agent_id']
+                    if 'batch_size' in config['Agent'] and config['Agent']['batch_size'].isdigit():
+                        self.batch_size = int(config['Agent']['batch_size'])
+                    if 'upload_interval' in config['Agent'] and config['Agent']['upload_interval'].isdigit():
+                        self.upload_interval = int(config['Agent']['upload_interval'])
+                        
+                self.logger.info(f"Loaded config parameters from {config_path}")
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to load config: {e}")
+        return False
     
     def register_agent(self):
         """Register agent with the management server"""
@@ -967,13 +996,30 @@ def integrate_with_flow_collector(collector_instance, server_url='http://localho
 # Example usage script
 if __name__ == '__main__':
     import argparse
+    import os
     
     parser = argparse.ArgumentParser(description='Security Agent Client')
-    parser.add_argument('--server', default='http://localhost:5000', help='Security management server URL')
+    parser.add_argument('--server', help='Security management server URL (overrides config.ini)')
     parser.add_argument('--agent-id', help='Custom agent ID')
     parser.add_argument('--test-flows', type=int, default=0, help='Generate test flows for testing')
     
     args = parser.parse_args()
+    
+    # Helper to check config
+    def get_server_url(args_url, config_path='config.ini'):
+        if args_url:
+            return args_url
+        if os.path.exists(config_path):
+            try:
+                config = configparser.ConfigParser()
+                config.read(config_path)
+                if 'Agent' in config and 'server_url' in config['Agent']:
+                    return config['Agent']['server_url']
+            except Exception:
+                pass
+        return 'http://localhost:5000'
+        
+    server_url = get_server_url(args.server)
     
     # Setup logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -988,7 +1034,7 @@ if __name__ == '__main__':
     print("[✓] Running as Administrator - network isolation will work.")
     
     # Create and start agent
-    agent = SecurityAgentClient(args.server, args.agent_id)
+    agent = SecurityAgentClient(server_url, args.agent_id)
     agent.start()
     
     # Generate test flows if requested

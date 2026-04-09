@@ -3,389 +3,141 @@
 {% block title %}Process Monitor{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
 <style>
-    .process-container {
-        padding: 30px;
+    /* Styling specifically for Process Monitor that might be missing in dashboard css */
+    .agent-selector-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
     }
-
-    .process-header {
-        margin-bottom: 30px;
-    }
-
-    .process-header h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-bottom: 10px;
-    }
-
-    .process-header p {
-        color: var(--text-muted);
-        font-size: 0.95rem;
-    }
-
-    /* Agent Selector */
-    .agent-selector {
-        margin-bottom: 25px;
-    }
-
-    .agent-selector .form-label {
-        font-weight: 600;
-        color: var(--text-main);
-        margin-bottom: 8px;
-        display: block;
-    }
-
-    .agent-selector select {
-        border: 1.5px solid var(--border-default);
+    
+    .agent-selector-wrapper select {
+        background: rgba(13, 25, 41, 0.7);
+        border: 1px solid rgba(0, 255, 204, 0.3);
+        color: #e0f2fe;
+        padding: 8px 15px;
         border-radius: 6px;
-        padding: 10px 14px;
-        background-color: var(--bg-surface);
-        color: var(--text-main);
-        font-size: 0.95rem;
-        transition: all 0.2s ease;
-    }
-
-    .agent-selector select:hover {
-        border-color: var(--accent-primary);
-    }
-
-    .agent-selector select:focus {
         outline: none;
-        border-color: var(--accent-primary);
-        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+        font-size: 0.95rem;
+        min-width: 300px;
     }
 
-    /* Control Buttons */
-    .process-controls {
-        margin-bottom: 25px;
-        display: flex;
-        gap: 10px;
+    .agent-selector-wrapper select:focus {
+        border-color: #00ffcc;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
     }
-
-    .btn-refresh {
-        background-color: var(--accent-primary);
-        color: white;
-        border: none;
-        padding: 10px 18px;
-        border-radius: 6px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .btn-refresh:hover {
-        background-color: #0860ca;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(9, 105, 218, 0.3);
-    }
-
-    .btn-refresh:active {
-        transform: translateY(0);
-    }
-
-    .btn-refresh.loading {
-        opacity: 0.7;
-        pointer-events: none;
-    }
-
-    .btn-refresh.loading i {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    /* Status Badge */
+    
     .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
     }
-
-    .status-badge.established {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .status-badge.listening {
-        background-color: #cfe2ff;
-        color: #055160;
-    }
-
-    .status-badge.bound {
-        background-color: #fff3cd;
-        color: #664d03;
-    }
-
-    .status-badge.time-wait {
-        background-color: #e2e3e5;
-        color: #383d41;
-    }
-
-    /* Table Styling */
-    .process-table-container {
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .process-table {
-        width: 100%;
-        margin-bottom: 0;
-        border-collapse: collapse;
-    }
-
-    .process-table thead {
-        background-color: var(--bg-hover);
-        border-bottom: 2px solid var(--border-default);
-    }
-
-    .process-table thead th {
-        padding: 15px;
-        color: var(--text-main);
-        font-weight: 600;
-        text-align: left;
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
-        white-space: nowrap;
-    }
-
-    .process-table tbody tr {
-        border-bottom: 1px solid var(--border-default);
-        transition: background-color 0.2s ease;
-    }
-
-    .process-table tbody tr:hover {
-        background-color: var(--bg-hover);
-    }
-
-    .process-table tbody td {
-        padding: 12px 15px;
-        color: var(--text-main);
-        font-size: 0.9rem;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    .process-table tbody td:first-child {
-        font-weight: 500;
-    }
-
-    /* Empty State */
-    .empty-state {
-        text-align: center;
-        padding: 60px 30px;
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: 8px;
-        color: var(--text-muted);
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        opacity: 0.3;
-        margin-bottom: 15px;
-    }
-
-    .empty-state p {
-        margin: 0;
-    }
-
-    /* Loading State */
-    .loading-spinner {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 60px 30px;
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: 8px;
-    }
-
-    .spinner-border {
-        width: 3rem;
-        height: 3rem;
-        border: 4px solid var(--bg-hover);
-        border-top-color: var(--accent-primary);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    /* Info Box */
-    .process-info-box {
-        background-color: #e7f3ff;
-        border-left: 4px solid var(--accent-primary);
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-        color: #00384d;
-        font-size: 0.9rem;
-    }
-
-    body[data-theme="dark"] .process-info-box {
-        background-color: rgba(9, 105, 218, 0.1);
-        color: #58a6ff;
-    }
-
-    .process-info-box i {
-        margin-right: 10px;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .process-container {
-            padding: 15px;
-        }
-
-        .process-header h1 {
-            font-size: 1.5rem;
-        }
-
-        .process-table {
-            font-size: 0.8rem;
-        }
-
-        .process-table thead th,
-        .process-table tbody td {
-            padding: 10px 8px;
-        }
-
-        .process-controls {
-            flex-wrap: wrap;
-        }
-    }
-
-    /* IP Address Styling */
-    .ip-address {
-        font-weight: 500;
-        letter-spacing: 0.5px;
-    }
-
-    .port-number {
-        background-color: var(--bg-hover);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-weight: 600;
-    }
-
-    /* Process Name Styling */
-    .process-name {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .process-icon {
-        width: 20px;
-        text-align: center;
-        color: var(--accent-primary);
-    }
-
-    /* Kill Button */
+    .status-badge.established { background: rgba(0, 255, 204, 0.15); color: #00ffcc; border: 1px solid rgba(0, 255, 204, 0.3); }
+    .status-badge.listening { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .status-badge.close_wait, .status-badge.time-wait { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .status-badge.syn_sent, .status-badge.syn_recv { background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); }
+    .status-badge.bound { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.3); }
+    
     .btn-kill {
-        background-color: #dc3545;
-        color: white;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 3px;
+        background: rgba(255, 71, 87, 0.15);
+        color: #ff4757;
+        border: 1px solid rgba(255, 71, 87, 0.3);
+        padding: 4px 10px;
+        border-radius: 4px;
         cursor: pointer;
-        font-size: 0.8rem;
         transition: all 0.2s ease;
+        font-size: 0.8rem;
     }
-
     .btn-kill:hover {
-        background-color: #c82333;
-        transform: scale(1.05);
-    }
-
-    .btn-kill:active {
-        transform: scale(0.95);
+        background: rgba(255, 71, 87, 0.3);
+        box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="process-container">
-    <!-- Header -->
-    <div class="process-header">
-        <h1>
-            <i class="fas fa-window-maximize" style="color: var(--accent-primary); margin-right: 12px;"></i>
-            Process Monitor
-        </h1>
-        <p>Thực thời theo dõi các tiến trình và kết nối mạng trên các agent</p>
-    </div>
-
-    <!-- Info Box -->
-    <div class="process-info-box">
-        <i class="fas fa-info-circle"></i>
-        Chọn một agent để xem danh sách tất cả các tiến trình đang chạy và các kết nối mạng của nó
-    </div>
-
-    <!-- Agent Selector -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="agent-selector">
-                <label class="form-label" for="agentSelect">Chọn Agent</label>
+<div class="cybersec-dashboard">
+    <!-- Top Status Bar -->
+    <div class="top-status-bar">
+        <div class="system-status">
+            <div class="status-item">
+                <div class="status-icon pulse-blue">
+                    <i class="fas fa-window-maximize"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">MODULE</span>
+                    <span class="value">PROCESS MONITOR</span>
+                </div>
+            </div>
+            
+            <!-- Agent Selector in Top Bar -->
+            <div class="agent-selector-wrapper" style="margin-left: 20px;">
                 <select id="agentSelect" class="form-select">
-                    <option value="">-- Vui lòng chọn một agent --</option>
+                    <option value="">-- Chọn Agent để xem tiến trình --</option>
                 </select>
             </div>
         </div>
+        
+        <div class="real-time-counter">
+            <button class="control-btn" id="refreshBtn" title="Làm mới dữ liệu">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
     </div>
 
-    <!-- Control Buttons -->
-    <div class="process-controls">
-        <button class="btn-refresh" id="refreshBtn">
-            <i class="fas fa-sync-alt"></i>
-            <span>Làm mới dữ liệu</span>
-        </button>
-    </div>
+    <!-- Main Content Panel -->
+    <div class="alerts-section-full">
+        <div class="threats-panel" id="mainPanel">
+            <div class="panel-header">
+                <h3 class="panel-title">
+                    <i class="fas fa-microchip"></i>
+                    Processes & Network Connections
+                    <span class="alerts-count" id="processCount">0</span>
+                </h3>
+            </div>
+            
+            <div class="panel-body">
+                <!-- Loading State -->
+                <div id="loadingState" style="display: none; padding: 40px; text-align: center; color: #38bdf8;">
+                    <i class="fas fa-circle-notch fa-spin fa-2x mb-3"></i>
+                    <p>Đang tải dữ liệu tiến trình từ Agent...</p>
+                </div>
+                
+                <!-- Error Base -->
+                <div id="errorState" style="display: none; padding: 40px; text-align: center; color: #ff4757;">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <p id="errorMessage">Có lỗi xảy ra kết nối tới Agent!</p>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" style="padding: 60px; text-align: center; color: #94a3b8;">
+                    <i class="fas fa-mouse-pointer fa-3x mb-3" style="opacity: 0.5;"></i>
+                    <p>Vui lòng chọn một Agent bên trên để bắt đầu theo dõi.</p>
+                </div>
 
-    <!-- Process Table -->
-    <div class="process-table-container" style="display: none;" id="processTableContainer">
-        <table class="process-table">
-            <thead>
-                <tr>
-                    <th style="width: 15%;">Process Name</th>
-                    <th style="width: 15%;">Local Address</th>
-                    <th style="width: 10%;">Local Port</th>
-                    <th style="width: 15%;">Remote Address</th>
-                    <th style="width: 10%;">Remote Port</th>
-                    <th style="width: 12%;">State</th>
-                    <th style="width: 15%;">Details</th>
-                    <th style="width: 8%;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="processTableBody">
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Empty State -->
-    <div class="empty-state" id="emptyState">
-        <i class="fas fa-inbox"></i>
-        <p>Chọn một agent để bắt đầu</p>
-    </div>
-
-    <!-- Loading State -->
-    <div class="loading-spinner" style="display: none;" id="loadingState">
-        <div class="spinner-border"></div>
-        <span style="margin-left: 15px; color: var(--text-muted);">Đang tải dữ liệu...</span>
-    </div>
-
-    <!-- Error State -->
-    <div class="empty-state" style="display: none;" id="errorState">
-        <i class="fas fa-exclamation-triangle" style="color: #d1242f;"></i>
-        <p id="errorMessage">Có lỗi xảy ra</p>
+                <!-- Data Table -->
+                <div class="threats-table-container" id="processTableContainer" style="display: none;">
+                    <div class="threats-table">
+                        <div class="table-header">
+                            <div style="flex: 2"><i class="fas fa-cogs"></i> Process Name</div>
+                            <div style="flex: 2"><i class="fas fa-network-wired"></i> Local Address</div>
+                            <div style="flex: 1"><i class="fas fa-plug"></i> Local Port</div>
+                            <div style="flex: 2"><i class="fas fa-globe"></i> Remote Address</div>
+                            <div style="flex: 1"><i class="fas fa-plug"></i> Remote Port</div>
+                            <div style="flex: 1.5"><i class="fas fa-heartbeat"></i> State</div>
+                            <div style="flex: 1"><i class="fas fa-tools"></i> Actions</div>
+                        </div>
+                        <div class="table-body" id="processTableBody">
+                            <!-- Process rows injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -492,7 +244,8 @@
         }
 
         processes.forEach((proc, index) => {
-            const row = document.createElement('tr');
+            const row = document.createElement('div');
+            row.className = 'table-row';
             
             // Ensure all values are strings and safe
             const processName = String(proc.ProcessName || '').trim() || 'Unknown';
@@ -507,23 +260,24 @@
             const statusClass = getStatusClass(state);
             
             row.innerHTML = `
-                <td>
-                    <div class="process-name">
-                        <span class="process-icon"><i class="fas fa-cogs"></i></span>
-                        <span>${escapeHtml(processName)}</span>
-                    </div>
-                </td>
-                <td><span class="ip-address">${escapeHtml(localAddr)}</span></td>
-                <td><span class="port-number">${escapeHtml(localPort)}</span></td>
-                <td><span class="ip-address">${escapeHtml(remoteAddr)}</span></td>
-                <td><span class="port-number">${escapeHtml(remotePort)}</span></td>
-                <td><span class="status-badge ${statusClass}">${escapeHtml(state)}</span></td>
-                <td style="font-size: 0.85rem; color: var(--text-muted);">
-                    ${getConnectionType(localPort, remotePort, state)}
-                </td>
-                <td>
-                    ${pid > 0 ? `<button class="btn-kill" onclick="killProcess(${pid}, '${escapeHtml(processName)}')" title="Kill this process"><i class="fas fa-times"></i></button>` : '-'}
-                </td>
+                <div style="flex: 2" class="text-truncate" title="${escapeHtml(processName)}">
+                    <i class="col-icon fas fa-cogs" style="margin-right: 8px;"></i>
+                    ${escapeHtml(processName)} (PID: ${pid})
+                </div>
+                <div style="flex: 2; font-family: monospace; color: #38bdf8;">${escapeHtml(localAddr)}</div>
+                <div style="flex: 1; font-family: monospace;">
+                    ${localPort !== '-' ? `<span style="background: rgba(148, 163, 184, 0.15); padding: 2px 6px; border-radius: 4px;">${escapeHtml(localPort)}</span>` : '-'}
+                </div>
+                <div style="flex: 2; font-family: monospace; color: #38bdf8;">${escapeHtml(remoteAddr)}</div>
+                <div style="flex: 1; font-family: monospace;">
+                    ${remotePort !== '-' ? `<span style="background: rgba(148, 163, 184, 0.15); padding: 2px 6px; border-radius: 4px;">${escapeHtml(remotePort)}</span>` : '-'}
+                </div>
+                <div style="flex: 1.5">
+                    <span class="status-badge ${statusClass}">${escapeHtml(state)}</span>
+                </div>
+                <div style="flex: 1">
+                    ${pid > 0 ? `<button class="btn-kill" onclick="killProcess(${pid}, '${escapeHtml(processName.replace(/'/g, "\\'"))}')" title="Kill this process"><i class="fas fa-times"></i> END</button>` : '-'}
+                </div>
             `;
 
             tbody.appendChild(row);

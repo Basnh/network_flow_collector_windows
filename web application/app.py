@@ -215,7 +215,8 @@ class ThreatDetector:
         'Idle Mean', 'Idle Std', 'Idle Max', 'Idle Min'
     ]
     
-    def __init__(self):
+    def __init__(self, default_model='best_model.pkl'):
+        self.model_filename = default_model
         self.model = None
         self.scaler = None
         self.label_encoder = None
@@ -236,9 +237,11 @@ class ThreatDetector:
     def _build_candidate_paths(self, file_name, env_var_name=None):
         app_dir = os.path.dirname(os.path.abspath(__file__))
         project_dir = os.path.dirname(app_dir)
+        model_dir = os.path.join(project_dir, 'model') # Point to the new 'model' folder
         env_path = os.environ.get(env_var_name, '').strip() if env_var_name else ''
         candidates = [
             env_path,
+            os.path.join(model_dir, file_name), # Prioritize 'model' folder
             os.path.join(app_dir, file_name),
             os.path.join(project_dir, file_name),
             os.path.join(os.getcwd(), file_name)
@@ -250,16 +253,21 @@ class ThreatDetector:
         found = next((p for p in candidates if os.path.exists(p)), None)
         return found, candidates
         
+    def change_model(self, new_model_filename):
+        """Switch to a new model dynamically"""
+        self.model_filename = new_model_filename
+        return self.load_model()
+
     def load_model(self):
         """Load model and optional preprocessing artifacts from PKL files."""
         try:
-            model_path, candidate_paths = self._find_existing_path('best_model.pkl', 'THREAT_MODEL_PATH')
+            model_path, candidate_paths = self._find_existing_path(self.model_filename, 'THREAT_MODEL_PATH')
             if not model_path:
-                logger.error("Model file best_model.pkl not found. Checked paths: %s", candidate_paths)
+                logger.error(f"Model file {self.model_filename} not found. Checked paths: %s", candidate_paths)
                 self.model_path = None
                 self.is_trained = False
                 self.model = None
-                self.last_error = "best_model.pkl not found"
+                self.last_error = f"{self.model_filename} not found"
                 return False
 
             with open(model_path, 'rb') as f:
@@ -564,18 +572,80 @@ class ThreatDetector:
         logger.info("Using pre-trained model from best_model.pkl - no additional training needed")
     
     def predict_threat(self, flow, raw_ml_features=None):
-        """Predict if a flow is a threat using Signature-based rules + loaded ML model"""
+        """Predict if a flow is a threat using ML model + Payload/Port Signatures"""
         threats_found = []
         threat_score = 0.0
         scaler_used = False
         encoder_used = False
         
         # ---------------------------------------------------------
-        # 1. RULE-BASED / SIGNATURE DETECTION (Optional Payload check)
+        # TẦNG 1: MACHINE LEARNING DETECTION (Lõi phân tích hành vi mạng)
+        # Bắt các thay đổi dị thường về luồng dữ liệu trước tiên
+        # ---------------------------------------------------------
+        if self.is_trained and self.model is not None:
+            try:
+                # Extract all features from flow
+                all_features = self.extract_flow_features(flow, raw_ml_features)
+                model_features = all_features[:68]
+
+                X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
+                X_np = np.array([model_features])
+
+                X_scaled = None
+                if self.scaler is not None and hasattr(self.scaler, 'transform'):
+                    try:
+                        X_scaled = self.scaler.transform(X_df)
+                        scaler_used = True
+                    except Exception:
+                        try:
+                            X_scaled = self.scaler.transform(X_np)
+                            scaler_used = True
+                        except Exception:
+                            X_scaled = None
+
+                prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
+
+                prediction = None
+                for X in prediction_inputs:
+                    try:
+                        prediction = self.model.predict(X)
+                        break
+                    except Exception:
+                        continue
+
+                if prediction is not None:
+                    pred_label = prediction[0]
+                    decoded_label = pred_label
+
+                    if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
+                        try:
+                            decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
+                            decoded_label = decoded[0]
+                            encoder_used = True
+                        except Exception:
+                            pass
+
+                    is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
+                    # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
+                    ml_score = 1.0 if is_malicious else 0.0
+
+                    threat_score = max(threat_score, ml_score)
+                    if is_malicious:
+                        threats_found.append(f"Threat detected by ML model (Score: {ml_score:.2f})")
+                    
+                    self.prediction_count += 1
+                    if scaler_used:
+                        self.scaler_used_count += 1
+                    if encoder_used:
+                        self.encoder_used_count += 1
+            except Exception as e:
+                logger.error(f"Error in ML prediction: {e}")
+
+        # ---------------------------------------------------------
+        # TẦNG 2: PAYLOAD SIGNATURE (Deep Packet Inspection)
+        # Kiểm tra nội dung mã hóa/lệnh hack bên trong gói tin
         # ---------------------------------------------------------
         payload_str = str(flow.payload_content or '').lower()
-        
-        # Chữ ký Payload độc hại phổ biến của Trojan
         bad_patterns = [
             'cmd.exe', 'powershell', 'nc -e', '/bin/sh', '/bin/bash', 
             'eval(base64', 'meterpreter', 'reverse_tcp', 'mimikatz',
@@ -585,126 +655,25 @@ class ThreatDetector:
             if pat in payload_str:
                 threats_found.append(f"Malicious payload signature matched: '{pat}'")
                 threat_score = max(threat_score, 0.95)
-        
-        # Nếu đã phát hiện rõ ràng bằng Signature -> Trả về luôn
-        if threat_score >= 0.85:
-            self.last_threat_score = threat_score
-            return threat_score, threats_found
 
         # ---------------------------------------------------------
-        # 2. MACHINE LEARNING DETECTION (Fallback)
+        # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
+        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
         # ---------------------------------------------------------
-        if not self.is_trained or self.model is None:
-            logger.warning("Model not loaded - returning default prediction")
-            return 0.0, ["Model not available"]
-        
-        try:
-            # Extract all 79 features from flow
-            all_features = self.extract_flow_features(flow, raw_ml_features)
+        suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
+        if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
+            susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
+            threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
+            threat_score = max(threat_score, 0.85)
             
-            # Use only first 68 features for model prediction
-            # Features 69-79 are collected but not used by the current model
-            model_features = all_features[:68]
+        # ---------------------------------------------------------
+        # KẾT LUẬN CUỐI CÙNG
+        # ---------------------------------------------------------
+        if not threats_found and threat_score < 0.7:
+            threats_found.append("Normal traffic detected")
 
-            # Prefer DataFrame with feature names to support models trained with named columns.
-            X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
-            X_np = np.array([model_features])
-
-            X_scaled = None
-            if self.scaler is not None and hasattr(self.scaler, 'transform'):
-                try:
-                    # Most sklearn scalers can accept DataFrame and return ndarray.
-                    X_scaled = self.scaler.transform(X_df)
-                    scaler_used = True
-                except Exception:
-                    try:
-                        X_scaled = self.scaler.transform(X_np)
-                        scaler_used = True
-                    except Exception:
-                        X_scaled = None
-
-            prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
-
-            prediction = None
-            predict_error = None
-            for X in prediction_inputs:
-                try:
-                    prediction = self.model.predict(X)
-                    predict_error = None
-                    break
-                except Exception as e:
-                    predict_error = e
-
-            if prediction is None:
-                raise predict_error if predict_error else RuntimeError("Model prediction failed")
-
-            pred_label = prediction[0]
-            decoded_label = pred_label
-
-            # If model outputs encoded integer labels, decode via label encoder when available.
-            if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
-                try:
-                    decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
-                    decoded_label = decoded[0]
-                    encoder_used = True
-                except Exception:
-                    decoded_label = pred_label
-
-            is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-            threat_score = 1.0 if is_malicious else 0.0
-
-            # Use probability when available for better confidence scoring.
-            if hasattr(self.model, 'predict_proba'):
-                proba = None
-                for X in prediction_inputs:
-                    try:
-                        proba = self.model.predict_proba(X)[0]
-                        break
-                    except Exception:
-                        continue
-
-                if proba is not None:
-                    classes = list(getattr(self.model, 'classes_', []))
-                    malicious_index = None
-
-                    if classes:
-                        for idx, cls in enumerate(classes):
-                            if self._is_malicious_label(cls):
-                                malicious_index = idx
-                                break
-
-                    if malicious_index is None:
-                        if len(proba) == 2:
-                            malicious_index = 1
-                        elif len(proba) > 0:
-                            malicious_index = int(np.argmax(proba))
-
-                    if malicious_index is not None and malicious_index < len(proba):
-                        threat_score = float(proba[malicious_index])
-
-            if is_malicious:
-                threats_found.append("Threat detected by model")
-            else:
-                threats_found.append("Normal traffic detected")
-
-            self.prediction_count += 1
-            if scaler_used:
-                self.scaler_used_count += 1
-            if encoder_used:
-                self.encoder_used_count += 1
-            self.last_prediction_label = str(pred_label)
-            self.last_decoded_label = str(decoded_label)
-            self.last_threat_score = float(threat_score)
-            self.last_error = ''
-                
-            return threat_score, threats_found
-            
-        except Exception as e:
-            logger.error(f"❌ Error in model prediction: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            self.last_error = str(e)
-            return 0.0, ["Error during prediction"]
+        self.last_threat_score = float(threat_score)
+        return threat_score, threats_found
 
 # Initialize threat detector
 threat_detector = ThreatDetector()
@@ -719,6 +688,45 @@ def model_pipeline_status():
         return jsonify({'error': str(e)}), 500
 
 # ==================== API ENDPOINTS ====================
+
+@app.route('/api/models', methods=['GET'])
+def list_models():
+    """Find all .pkl files in the model directory"""
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(app_dir)
+    model_dir = os.path.join(project_dir, 'model') # Point strictly to the 'model' directory
+    
+    models = set()
+    # Danh sách các file pkl nội bộ/đóng vai trò phụ trợ không được phép chọn
+    ignore_list = {'scaler.pkl', 'mahoa_nhan.pkl', 'processed_data.pkl'}
+    
+    # Chỉ quét bên trong thư mục model
+    if os.path.exists(model_dir):
+        for file in os.listdir(model_dir):
+            if file.endswith('.pkl') and file not in ignore_list:
+                models.add(file)
+    else:
+        logger.warning(f"Model directory not found at: {model_dir}")
+                
+    return jsonify({
+        'current_model': threat_detector.model_filename,
+        'available_models': list(models)
+    })
+
+@app.route('/api/select_model', methods=['POST'])
+@csrf.exempt
+def select_model():
+    """Load a new model file"""
+    data = request.get_json()
+    model_name = data.get('model_name')
+    if not model_name or not model_name.endswith('.pkl'):
+        return jsonify({'error': 'Invalid model name'}), 400
+        
+    success = threat_detector.change_model(model_name)
+    if success:
+        return jsonify({'message': f'Successfully switched to {model_name}', 'current_model': model_name})
+    else:
+        return jsonify({'error': f'Failed to load {model_name}. Check logs.'}), 500
 
 @app.route('/api/register_agent', methods=['POST'])
 @csrf.exempt

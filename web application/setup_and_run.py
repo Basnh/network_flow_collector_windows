@@ -9,6 +9,25 @@ import subprocess
 import time
 import threading
 import argparse
+import configparser
+
+def get_server_url(args_url, config_path='config.ini'):
+    """Get server URL from args, config.ini, or default"""
+    if args_url:
+        return args_url
+        
+    try:
+        if os.path.exists(config_path):
+            config = configparser.ConfigParser()
+            config.read(config_path)
+            if 'Agent' in config and 'server_url' in config['Agent']:
+                return config['Agent']['server_url']
+            elif 'Server' in config and 'server_url' in config['Server']:
+                return config['Server']['server_url']
+    except Exception as e:
+        print(f"Error reading config file: {e}")
+        
+    return 'http://localhost:5000'
 
 def install_dependencies():
     """Install required Python packages"""
@@ -155,8 +174,8 @@ def main():
     parser = argparse.ArgumentParser(description='Security Management System Setup and Runner')
     parser.add_argument('command', choices=['setup', 'server', 'agent', 'integrate'], 
                        help='Command to run')
-    parser.add_argument('--server-url', default='http://localhost:5000', 
-                       help='Security management server URL')
+    parser.add_argument('--server-url', 
+                       help='Security management server URL (overrides config.ini)')
     parser.add_argument('--collector-path', 
                        help='Path to network flow collector script (for integrate command)')
     parser.add_argument('--install-deps', action='store_true',
@@ -167,6 +186,8 @@ def main():
     # Change to script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
+    
+    server_url = get_server_url(args.server_url)
     
     if args.command == 'setup':
         print("=== Security Management System Setup ===")
@@ -209,7 +230,7 @@ def main():
         print("=== Starting Security Agent Client ===")
         
         try:
-            run_agent_client(args.server_url)
+            run_agent_client(server_url)
         except KeyboardInterrupt:
             print("\nAgent stopped")
     
@@ -228,7 +249,7 @@ def main():
         print("=== Integrating with Network Flow Collector ===")
         
         try:
-            integrate_with_existing_collector(args.collector_path, args.server_url)
+            integrate_with_existing_collector(args.collector_path, server_url)
         except KeyboardInterrupt:
             print("\nIntegrated collector stopped")
 

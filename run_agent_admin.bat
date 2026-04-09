@@ -1,0 +1,3 @@
+﻿@echo off
+echo Dang yeu cau quyen Administrator de thu thap goi tin...
+powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', '& "F:\Real Project trust\.venv\Scripts\Activate.ps1"; Set-Location "F:\Real Project trust\network_flow_collector_windows"; python "web application\setup_and_run.py" integrate --collector-path "network_flow_collector_windows.py"' -Verb RunAs"
