@@ -1121,7 +1121,8 @@ class WindowsNetworkFlowCollector:
             capture_params = {
                 'prn': self.process_packet,
                 'store': 0,
-                'stop_filter': lambda x: not self.running
+                'stop_filter': lambda x: not self.running,
+                'filter': 'not port 5000' # Bỏ qua hoàn toàn dữ liệu giao tiếp với Server để tránh vòng lặp tự bắt gói tin
             }
             
             # Add promiscuous mode if enabled
