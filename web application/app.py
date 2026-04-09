@@ -571,18 +571,10 @@ class ThreatDetector:
         encoder_used = False
         
         # ---------------------------------------------------------
-        # 1. RULE-BASED / SIGNATURE DETECTION (Trojan/Malware Catch)
-        # Lớp bảo vệ bổ sung để bắt Trojan khi ML bị thiếu features
+        # 1. RULE-BASED / SIGNATURE DETECTION (Optional Payload check)
         # ---------------------------------------------------------
         payload_str = str(flow.payload_content or '').lower()
         
-        # Các port mờ ám thường dùng cho C2/Reverse Shell
-        suspicious_ports = {2404, 4444, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999}
-        if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
-            susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
-            threats_found.append(f"Suspicious port {susp_port} (Trojan/C2 Indicator)")
-            threat_score = max(threat_score, 0.85)
-
         # Chữ ký Payload độc hại phổ biến của Trojan
         bad_patterns = [
             'cmd.exe', 'powershell', 'nc -e', '/bin/sh', '/bin/bash', 
@@ -594,7 +586,7 @@ class ThreatDetector:
                 threats_found.append(f"Malicious payload signature matched: '{pat}'")
                 threat_score = max(threat_score, 0.95)
         
-        # Nếu đã phát hiện rõ ràng bằng Signature -> Trả về luôn để khỏi tính qua ML thiếu feature bị lệch điểm
+        # Nếu đã phát hiện rõ ràng bằng Signature -> Trả về luôn
         if threat_score >= 0.85:
             self.last_threat_score = threat_score
             return threat_score, threats_found
@@ -856,9 +848,9 @@ def submit_flow():
         
         db.session.commit()
         
-        # Auto-isolation for critical threats
-        if threats_detected > 5 or agent.threat_level == 'critical':
-            isolate_agent_network(agent_id, f"Auto-isolation: {threats_detected} threats detected")
+        # Tự động cách ly ngay lập tức khi phát hiện bất kỳ mối đe dọa nào >= 0.85 (Trojan)
+        if threats_detected > 0 and agent.threat_level in ['high', 'critical']:
+            isolate_agent_network(agent_id, f"Auto-isolation: {threats_detected} threats detected (Score >= 0.85)")
         
         logger.info(f"Processed {len(flows)} flows from agent {agent_id}, {threats_detected} threats detected")
         
