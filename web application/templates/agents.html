@@ -18,7 +18,7 @@
                     <i class="fas fa-desktop"></i>
                 </div>
                 <div class="status-text">
-                    <span class="label">TOTAL AGENTS</span>
+                    <span class="label">Tổng số Agent</span>
                     <span class="value">{{ agents|length }}</span>
                 </div>
             </div>
@@ -27,7 +27,7 @@
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="status-text">
-                    <span class="label">ACTIVE AGENTS</span>
+                    <span class="label">Agent đang hoạt động</span>
                     <span class="value">{{ agents|selectattr('status', 'equalto', 'active')|list|length }}</span>
                 </div>
             </div>
@@ -36,7 +36,7 @@
                     <i class="fas fa-shield-virus"></i>
                 </div>
                 <div class="status-text">
-                    <span class="label">ISOLATED</span>
+                    <span class="label">Agent đã bị cách ly</span>
                     <span class="value">{{ agents|selectattr('status', 'equalto', 'isolated')|list|length }}</span>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                     <i class="fas fa-power-off"></i>
                 </div>
                 <div class="status-text">
-                    <span class="label">OFFLINE</span>
+                    <span class="label">Agent đã offline</span>
                     <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length
                         }}</span>
                 </div>
@@ -95,23 +95,23 @@
                             </div>
                             <div class="col-agent-ip">
                                 <i class="fas fa-network-wired"></i>
-                                <span>IP Address</span>
+                                <span>Địa chỉ IP</span>
                             </div>
                             <div class="col-agent-status">
                                 <i class="fas fa-heartbeat"></i>
-                                <span>Status</span>
+                                <span>Trạng thái</span>
                             </div>
                             <div class="col-agent-threat">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <span>Threat Level</span>
+                                <span>Mức độ nguy hiểm</span>
                             </div>
                             <div class="col-agent-time">
                                 <i class="fas fa-clock"></i>
-                                <span>Last Seen</span>
+                                <span>Thời gian cuối cùng</span>
                             </div>
                             <div class="col-agent-actions">
                                 <i class="fas fa-cogs"></i>
-                                <span>Actions</span>
+                                <span>Hành động</span>
                             </div>
                         </div>
                         <div class="table-body">

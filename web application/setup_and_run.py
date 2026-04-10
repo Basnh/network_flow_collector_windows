@@ -42,7 +42,7 @@ def install_dependencies():
 
 def setup_database():
     """Initialize the database"""
-    print("Setting up database...")
+    print("Bắt đầu cài đặt cơ sở dữ liệu...")
     try:
         # Import here to avoid issues if dependencies aren't installed yet
         from app import app, db
@@ -64,8 +64,6 @@ def setup_database():
                         conn.execute(text("ALTER TABLE agent ADD COLUMN isolated_until TIMESTAMP"))
                         conn.commit()
                         print("Successfully added 'isolated_until' column")
-                    else:
-                        print("Agent table 'isolated_until' column exists")
                     
                     # Check agent table for pending_command column
                     if 'pending_command' not in agent_columns:
@@ -73,8 +71,6 @@ def setup_database():
                         conn.execute(text("ALTER TABLE agent ADD COLUMN pending_command TEXT"))
                         conn.commit()
                         print("Successfully added 'pending_command' column")
-                    else:
-                        print("Agent table 'pending_command' column exists")
                     
                     # Check agent table for network_adapter_name column
                     if 'network_adapter_name' not in agent_columns:
@@ -82,8 +78,6 @@ def setup_database():
                         conn.execute(text("ALTER TABLE agent ADD COLUMN network_adapter_name VARCHAR(100)"))
                         conn.commit()
                         print("Successfully added 'network_adapter_name' column")
-                    else:
-                        print("Agent table 'network_adapter_name' column exists")
                         
                     # Check network_flow table for classification column
                     flow_columns = [col['name'] for col in inspector.get_columns('network_flow')]
@@ -93,14 +87,12 @@ def setup_database():
                         conn.execute(text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
                         conn.commit()
                         print("Successfully added 'classification' column")
-                    else:
-                        print("Network flow table 'classification' column exists")
                         
             except Exception as e:
                 print(f"Error during database migration: {e}")
                 return False
                 
-            print("Database initialized successfully")
+            print("Cơ sở dữ liệu đã cài đặt thành công.")
             return True
     except Exception as e:
         print(f"Error setting up database: {e}")
@@ -108,7 +100,7 @@ def setup_database():
 
 def run_web_server():
     """Run the Flask web server"""
-    print("Starting Security Management Web Server...")
+    print("Bắt đầu web server......")
     try:
         from app import app
         app.run(host='0.0.0.0', port=5000, debug=False)
@@ -150,9 +142,13 @@ def integrate_with_existing_collector(collector_script_path, server_url):
         
         from network_flow_collector_windows import WindowsNetworkFlowCollector
         
-        # Create collector instance
+        # Ensure logs directory exists
+        logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Create collector instance that drops output into logs/ 
         collector = WindowsNetworkFlowCollector(
-            output_file="network_flows_with_security.csv",
+            output_file=os.path.join(logs_dir, "network_flows_with_security.csv"),
             timeout=120,
             hex_payload=True
         )
@@ -211,12 +207,22 @@ def main():
             install_dependencies()
         
         # Always run database setup to ensure schema is up-to-date
-        print("Checking database...")
+        print("Đang kiểm tra cơ sở dữ liệu...")
         setup_database()
         
-        print("=== Starting Security Management Server ===")
-        print("Web interface will be available at: http://localhost:5000")
-        print("Press Ctrl+C to stop the server")
+        print("=== Bắt đầu chạy chương trình ===")
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip_addr = s.getsockname()[0]
+            s.close()
+        except Exception:
+            ip_addr = "127.0.0.1"
+            
+        print("Giao diện web hoạt động ở địa chỉ: http://localhost:5000")
+        print(f"Địa chỉ mạng (LAN): http://{ip_addr}:5000")
+        print("Nhấn tổ hợp Ctrl+C để dừng server")
         
         try:
             run_web_server()
@@ -227,7 +233,7 @@ def main():
         if args.install_deps:
             install_dependencies()
         
-        print("=== Starting Security Agent Client ===")
+        print("=== Bắt đầu chạy agent === ===")
         
         try:
             run_agent_client(server_url)

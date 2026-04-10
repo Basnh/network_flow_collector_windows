@@ -10,12 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- Real-time Update Indicator -->
-<div class="no-reload-message" id="updateIndicator" style="display: none;">
-    <i class="fas fa-wifi"></i>
-    <span>Live updates active - No page refresh needed</span>
-    <span class="live-data-dot"></span>
-</div>
+<!-- Deleted Indicator -->
 
 <!-- Cybersecurity Command Center Dashboard -->
 <div class="cybersec-dashboard">
@@ -233,9 +228,11 @@
                         <div class="col-risk">Rủi ro</div>
                     </div>
                     <div class="table-body">
-                        {% for flow in threat_flows[:10] %}
+                        {% for flow in recent_flows %}
                         <div class="flow-row {{ 'malicious' if flow.is_malicious else 'normal' }}"
-                            data-flow-id="{{ flow.id }}">
+                             data-flow-id="{{ flow.id }}"
+                             style="cursor: pointer;"
+                             onclick="window.location.href='{{ url_for('flow_detail', flow_id=flow.id) }}'">
                             <div class="col-src">{{ flow.src_ip[:12] }}</div>
                             <div class="col-dst">{{ flow.dst_ip[:12] }}</div>
                             <div class="col-proto">
@@ -484,46 +481,54 @@
         </div>
     </div>
 
-    <!-- Main Grid Layout với 2 cột cho các panels còn lại -->
-    <div class="dashboard-grid-two-col">
-
-        <!-- Left Column -->
-        <div class="left-column">
-
-            <!-- Windows Protocol Distribution -->
-            <div class="protocol-panel minimized" id="protocolPanel">
-                <div class="panel-header" onclick="toggleProtocolPanel()">
+    <!-- Stacked Layout cho các panels còn lại -->
+    <div class="dashboard-stacked-col" style="display: flex; flex-direction: column; gap: 1rem; padding: 0 1rem 1rem 1rem; max-width: 1400px; margin: 0 auto; width: 100%;">
+        
+        <!-- Windows Protocol Distribution -->
+            <div class="protocol-panel" id="protocolPanel">
+                <div class="panel-header">
                     <h3 class="panel-title">
                         <i class="fas fa-layer-group"></i>
                         Phân tích Protocol Windows
                     </h3>
-                    <button class="toggle-btn" onclick="event.stopPropagation(); toggleProtocolPanel();">
-                        <span class="toggle-text">Mở rộng</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
                 </div>
-                <div class="panel-body">
-                    <canvas id="protocolChart" width="300" height="300"></canvas>
+                <div class="panel-body" style="display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                    <div style="position: relative; width: 300px; height: 300px;">
+                        <canvas id="protocolChart" width="300" height="300"
+                            data-tcp="{{ protocol_percentages.tcp }}"
+                            data-udp="{{ protocol_percentages.udp }}"
+                            data-rdp="{{ protocol_percentages.rdp }}"
+                            data-other="{{ protocol_percentages.other }}">
+                        </canvas>
+                    </div>
                     <div class="protocol-stats">
                         <div class="protocol-item">
                             <div class="protocol-color tcp"></div>
-                            <span class="protocol-name">TCP (HTTP/HTTPS)</span>
-                            <span class="protocol-percentage">68%</span>
+                            <span class="protocol-name">TCP (HTTP/HTTPS) 
+                                <span style="margin-left: 5px; font-size: 0.75rem; color: #64748b;">({{ protocol_stats.tcp }}/{{ total_proto_flows }})</span>
+                            </span>
+                            <span class="protocol-percentage">{{ protocol_percentages.tcp }}%</span>
                         </div>
                         <div class="protocol-item">
                             <div class="protocol-color udp"></div>
-                            <span class="protocol-name">UDP (DNS)</span>
-                            <span class="protocol-percentage">24%</span>
+                            <span class="protocol-name">UDP (DNS)
+                                <span style="margin-left: 5px; font-size: 0.75rem; color: #64748b;">({{ protocol_stats.udp }}/{{ total_proto_flows }})</span>
+                            </span>
+                            <span class="protocol-percentage">{{ protocol_percentages.udp }}%</span>
                         </div>
                         <div class="protocol-item">
                             <div class="protocol-color icmp"></div>
-                            <span class="protocol-name">RDP</span>
-                            <span class="protocol-percentage">5%</span>
+                            <span class="protocol-name">RDP/ICMP
+                                <span style="margin-left: 5px; font-size: 0.75rem; color: #64748b;">({{ protocol_stats.rdp }}/{{ total_proto_flows }})</span>
+                            </span>
+                            <span class="protocol-percentage">{{ protocol_percentages.rdp }}%</span>
                         </div>
                         <div class="protocol-item">
                             <div class="protocol-color other"></div>
-                            <span class="protocol-name">SMB/NetBIOS</span>
-                            <span class="protocol-percentage">3%</span>
+                            <span class="protocol-name">Other/SMB/NetBIOS
+                                <span style="margin-left: 5px; font-size: 0.75rem; color: #64748b;">({{ protocol_stats.other }}/{{ total_proto_flows }})</span>
+                            </span>
+                            <span class="protocol-percentage">{{ protocol_percentages.other }}%</span>
                         </div>
                     </div>
                 </div>
@@ -539,88 +544,35 @@
                 </div>
                 <div class="panel-body">
                     <div class="sources-list">
-                        {% set demo_ips = ['192.168.1.100', '10.0.0.45', '172.16.0.25', '192.168.1.200', '10.0.0.89'] %}
-                        {% set demo_countries = ['🇺🇸', '🇩🇪', '🇬🇧', '🇯🇵', '🇨🇦'] %}
-                        {% set demo_packets = [15420, 12890, 9875, 7234, 5632] %}
-                        {% set demo_risks = ['low', 'medium', 'low', 'high', 'low'] %}
-
-                        {% for i in range(5) %}
-                        <div class="source-item risk-{{ demo_risks[i] }}">
-                            <div class="source-info">
-                                <div class="source-flag">{{ demo_countries[i] }}</div>
-                                <div class="source-details">
-                                    <div class="source-ip">{{ demo_ips[i] }}</div>
-                                    <div class="source-packets">{{ demo_packets[i] }} packets</div>
+                        {% if top_sources %}
+                            {% set max_count = top_sources[0].count %}
+                            {% for source, count in top_sources %}
+                            <div class="source-item risk-low">
+                                <div class="source-info">
+                                    <div class="source-flag">🌐</div>
+                                    <div class="source-details">
+                                        <div class="source-ip">{{ source }}</div>
+                                        <div class="source-packets">{{ count }} flows</div>
+                                    </div>
+                                </div>
+                                <div class="source-bar">
+                                    {% set source_width_calc = ((count / max_count * 100)|int) %}
+                                    <div class="source-fill risk-low" style="width: 0%;"
+                                        data-progress="{{ source_width_calc }}"></div>
+                                </div>
+                                <div class="source-risk">
+                                    <span class="risk-badge low">NORM</span>
                                 </div>
                             </div>
-                            <div class="source-bar">
-                                {% set source_width_calc = ((demo_packets[i] / demo_packets[0] * 100)|int) %}
-                                <div class="source-fill risk-{{ demo_risks[i] }}" style="width: 0%;"
-                                    data-progress="{{ source_width_calc }}"></div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="text-align: center; color: #888; padding: 20px;">
+                                Chưa có lưu lượng mạng.
                             </div>
-                            <div class="source-risk">
-                                <span class="risk-badge {{ demo_risks[i] }}">{{ demo_risks[i]|upper }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Right Column -->
-        <div class="right-column">
-
-            <!-- Network Flow Radar -->
-            <div class="radar-panel">
-                <div class="panel-header">
-                    <h3 class="panel-title">
-                        <i class="fas fa-wifi"></i>
-                        Giám sát Network Flow Radar
-                    </h3>
-                    <div class="radar-controls">
-                        <div class="sweep-indicator">
-                            <span class="sweep-dot"></span>
-                            <span class="sweep-text">THU THẬP</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="panel-body">
-                    <div class="radar-container">
-                        <div class="radar-grid">
-                            <!-- Radar circles -->
-                            <div class="radar-circle circle-1"></div>
-                            <div class="radar-circle circle-2"></div>
-                            <div class="radar-circle circle-3"></div>
-                            <div class="radar-circle circle-4"></div>
-
-                            <!-- Radar lines -->
-                            <div class="radar-line horizontal"></div>
-                            <div class="radar-line vertical"></div>
-
-                            <!-- Radar sweep -->
-                            <div class="radar-sweep"></div>
-
-                            <!-- Network nodes -->
-                            <div class="network-nodes">
-                                {% for agent in critical_agents[:12] %}
-                                <div class="network-node {{ agent.threat_level }}"
-                                    style="--node-x: {{ (loop.index * 30) % 300 }}px; --node-y: {{ (loop.index * 40) % 280 }}px;">
-                                    <div class="node-pulse"></div>
-                                </div>
-                                {% endfor %}
-                            </div>
-
-                            <!-- Direction labels -->
-                            <div class="radar-label north">NORTH</div>
-                            <div class="radar-label south">SOUTH</div>
-                            <div class="radar-label east">EAST</div>
-                            <div class="radar-label west">WEST</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -721,13 +673,8 @@
                 }, 7000);
             }
 
-            // Add live update status to title with protection
-            const currentTitle = document.title || 'Network Security Dashboard';
-            document.title = '🟢 LIVE | ' + currentTitle.replace(/^🔴 LIVE \| |^🟢 LIVE \| /, '');
-
             // Add connectivity indicator
             window.addEventListener('online', function () {
-                document.title = document.title.replace('🔴', '🟢');
                 if (window.dashboard) {
                     window.dashboard.realTimeUpdates = true;
                 }
@@ -735,7 +682,6 @@
             });
 
             window.addEventListener('offline', function () {
-                document.title = document.title.replace('🟢', '🔴');
                 if (window.dashboard) {
                     window.dashboard.realTimeUpdates = false;
                 }

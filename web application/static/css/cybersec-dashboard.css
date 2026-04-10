@@ -1593,10 +1593,15 @@ body[data-theme="light"] .card-title {
    PROTOCOL ANALYTICS
 ======================================== */
 .protocol-stats {
-    margin-top: 1rem;
+    margin-top: 0; /* Bo margin-top do da dung flex gap 2rem voi chart */
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    min-width: 250px;
+    background: rgba(56, 189, 248, 0.05);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.1);
 }
 
 .protocol-item {

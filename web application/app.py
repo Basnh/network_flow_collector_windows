@@ -275,16 +275,16 @@ class ThreatDetector:
 
             self.model_path = model_path
             self.is_trained = True
-            logger.warning(f"✅ Successfully loaded model from {model_path}")
+            logger.warning(f"✅ Đã load thành công model từ {model_path}")
 
             # Optional scaler for feature preprocessing
             scaler_path, scaler_candidates = self._find_existing_path('scaler.pkl', 'THREAT_SCALER_PATH')
             if scaler_path:
                 try:
-                    with open(scaler_path, 'rb') as f:
-                        self.scaler = pickle.load(f)
+                    import joblib
+                    self.scaler = joblib.load(scaler_path)
                     self.scaler_path = scaler_path
-                    logger.warning(f"✅ Loaded scaler from {scaler_path}")
+                    logger.warning(f"✅ Đã load thành công scaler từ {scaler_path}")
                 except Exception as scaler_error:
                     self.scaler = None
                     self.scaler_path = None
@@ -298,10 +298,10 @@ class ThreatDetector:
             encoder_path, encoder_candidates = self._find_existing_path('mahoa_nhan.pkl', 'THREAT_LABEL_ENCODER_PATH')
             if encoder_path:
                 try:
-                    with open(encoder_path, 'rb') as f:
-                        self.label_encoder = pickle.load(f)
+                    import joblib
+                    self.label_encoder = joblib.load(encoder_path)
                     self.label_encoder_path = encoder_path
-                    logger.warning(f"✅ Loaded label encoder from {encoder_path}")
+                    logger.warning(f"✅ Đã load thành công label encoder từ {encoder_path}")
                 except Exception as encoder_error:
                     self.label_encoder = None
                     self.label_encoder_path = None
@@ -1246,6 +1246,9 @@ def dashboard():
     # Critical agents
     critical_agents = Agent.query.filter_by(threat_level='critical').all()
     
+    # Recent flows for dashboard (mix of normal and malicious)
+    recent_flows = NetworkFlow.query.order_by(NetworkFlow.created_at.desc()).limit(10).all()
+    
     # Recent flows with threats
     threat_flows = NetworkFlow.query.filter_by(is_malicious=True)\
         .order_by(NetworkFlow.created_at.desc()).limit(5).all()
@@ -1253,6 +1256,35 @@ def dashboard():
     # Total flows since installation
     total_flows_collected = NetworkFlow.query.count()
     
+    # Calculate Protocol Stats
+    protocol_counts = db.session.query(
+        NetworkFlow.protocol, db.func.count(NetworkFlow.id)
+    ).group_by(NetworkFlow.protocol).all()
+    
+    protocol_stats = {'tcp': 0, 'udp': 0, 'rdp': 0, 'other': 0}
+    total_proto_flows = 0
+    for proto, count in protocol_counts:
+        p = (str(proto) or '').lower().strip()
+        if p in ['tcp', '6']: protocol_stats['tcp'] += count
+        elif p in ['udp', '17']: protocol_stats['udp'] += count
+        elif p in ['rdp', 'icmp', '1', '3389']: protocol_stats['rdp'] += count # Mapping ICMP/RDP here for dashboard
+        else: protocol_stats['other'] += count
+        total_proto_flows += count
+        
+    if total_proto_flows == 0:
+        protocol_percentages = {'tcp': 68, 'udp': 24, 'rdp': 5, 'other': 3} # Fallback to default
+    else:
+        protocol_percentages = {
+            k: int((v / total_proto_flows) * 100) 
+            for k, v in protocol_stats.items()
+        }
+        
+    # Calculate Top Traffic Sources
+    top_sources = db.session.query(
+        NetworkFlow.src_ip, 
+        db.func.count(NetworkFlow.id).label('count')
+    ).group_by(NetworkFlow.src_ip).order_by(db.desc('count')).limit(5).all()
+        
     return render_template('dashboard.html',
                          total_agents=total_agents,
                          active_agents=active_agents,
@@ -1260,7 +1292,12 @@ def dashboard():
                          recent_alerts=recent_alerts,
                          critical_agents=critical_agents,
                          threat_flows=threat_flows,
-                         total_flows_collected=total_flows_collected)
+                         recent_flows=recent_flows,
+                         total_flows_collected=total_flows_collected,
+                         protocol_percentages=protocol_percentages,
+                         protocol_stats=protocol_stats,
+                         total_proto_flows=total_proto_flows,
+                         top_sources=top_sources)
 
 @app.route('/agents')
 def agents_list():
@@ -1923,11 +1960,21 @@ def api_threats_summary():
 def delete_all_data():
     """Delete all data from database"""
     try:
-        # Delete all records from all tables
-        SecurityAlert.query.delete()
-        NetworkFlow.query.delete()
-        IsolationAction.query.delete()
-        Agent.query.delete()
+        # Check if using PostgreSQL to use TRUNCATE RESTART IDENTITY
+        if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
+            db.session.execute(db.text('TRUNCATE TABLE security_alert, network_flow, isolation_action, agent RESTART IDENTITY CASCADE;'))
+        else:
+            # Fallback for SQLite or others
+            SecurityAlert.query.delete()
+            NetworkFlow.query.delete()
+            IsolationAction.query.delete()
+            Agent.query.delete()
+            
+            # If SQLite, try to reset sqlite_sequence
+            try:
+                db.session.execute(db.text("DELETE FROM sqlite_sequence;"))
+            except Exception:
+                pass
         
         # Commit the changes
         db.session.commit()
@@ -1991,49 +2038,6 @@ def cleanup_old_data():
         except Exception as e:
             logger.error(f"Error in cleanup: {e}")
 
-# ==================== DATABASE MIGRATION HELPER ====================
-
-def migrate_database():
-    """Handle database migrations for schema changes"""
-    try:
-        with db.engine.connect() as conn:
-            # Detect database type
-            db_url = str(db.engine.url)
-            is_postgres = 'postgresql' in db_url
-            
-            if is_postgres:
-                # PostgreSQL migration - check information_schema
-                logger.info("Detected PostgreSQL database - skipping migration (tables created via db.create_all())")
-                return
-            else:
-                # SQLite migration using PRAGMA
-                # Check agent table for isolated_until column
-                result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
-                agent_columns = [row[1] for row in result]  # Column names are in index 1
-                
-                if 'isolated_until' not in agent_columns:
-                    logger.info("Adding missing 'isolated_until' column to agent table")
-                    conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
-                    conn.commit()
-                    logger.info("Successfully added 'isolated_until' column")
-                else:
-                    logger.info("Agent table 'isolated_until' column exists")
-                    
-                # Check network_flow table for classification column
-                result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
-                flow_columns = [row[1] for row in result]  # Column names are in index 1
-                
-                if 'classification' not in flow_columns:
-                    logger.info("Adding missing 'classification' column to network_flow table")
-                    conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
-                    conn.commit()
-                    logger.info("Successfully added 'classification' column")
-                else:
-                    logger.info("Network flow table 'classification' column exists")
-                
-    except Exception as e:
-        logger.error(f"Error during database migration: {e}")
-        # Don't raise - migration is optional
 
 # ==================== APPLICATION STARTUP ====================
 
@@ -2043,7 +2047,7 @@ if __name__ == '__main__':
         db.create_all()
         # Run database migrations
         migrate_database()
-        logger.info("Database initialized and migrated")
+        logger.info("Đã cài đặt thành công cơ sở dữ liệu cần thiết.")
     
     # Start background threads
     model_thread = threading.Thread(target=train_detection_model, daemon=True)

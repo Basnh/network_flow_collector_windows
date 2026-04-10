@@ -266,24 +266,8 @@ class DashboardEffects {
 
         // Show subtle update indicator
         this.showUpdateIndicator = () => {
-            const indicator = document.createElement('div');
-            indicator.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 80px;
-                background: rgba(34, 197, 94, 0.9);
-                color: white;
-                padding: 8px 16px;
-                border-radius: 20px;
-                font-size: 0.85rem;
-                z-index: 1000;
-                animation: slideInFromRight 0.3s ease, fadeOut 0.3s ease 2s;
-                backdrop-filter: blur(10px);
-            `;
-            indicator.innerHTML = '<i class="fas fa-check-circle me-1"></i> Updated';
-            document.body.appendChild(indicator);
-
-            setTimeout(() => indicator.remove(), 2500);
+            // Disabled notification per user request
+            // const indicator = ...
         };
 
         // Update page timestamp without reload

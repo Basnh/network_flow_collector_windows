@@ -188,13 +188,22 @@ class CyberSecDashboard {
         const ctx = document.getElementById('protocolChart');
         if (!ctx) return;
 
-        const protocolData = [68, 24, 5, 3]; // TCP, UDP, ICMP, Other
+        let tcpVal = parseInt(ctx.dataset.tcp);
+        if (isNaN(tcpVal)) tcpVal = 68;
+        let udpVal = parseInt(ctx.dataset.udp);
+        if (isNaN(udpVal)) udpVal = 24;
+        let rdpVal = parseInt(ctx.dataset.rdp);
+        if (isNaN(rdpVal)) rdpVal = 5;
+        let otherVal = parseInt(ctx.dataset.other);
+        if (isNaN(otherVal)) otherVal = 3;
+
+        const protocolData = [tcpVal, udpVal, rdpVal, otherVal]; // TCP, UDP, RDP, Other
         const protocolColors = ['#3b82f6', '#f59e0b', '#ef4444', '#64748b'];
 
         this.charts.protocol = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['TCP', 'UDP', 'ICMP', 'Other'],
+                labels: ['TCP', 'UDP', 'RDP/ICMP', 'Other'],
                 datasets: [{
                     data: protocolData,
                     backgroundColor: protocolColors,
@@ -647,18 +656,7 @@ class CyberSecDashboard {
         }
     }
 
-    updateFlowsCounter() {
-        const element = document.getElementById('flows-per-sec');
-        if (!element) return;
-
-        // Generate realistic flow rate
-        const baseRate = 75;
-        const variation = Math.sin(Date.now() * 0.001) * 30;
-        const noise = (Math.random() - 0.5) * 20;
-        const newRate = Math.max(0, Math.floor(baseRate + variation + noise));
-        
-        this.animateNumberTo(element, newRate, 1000);
-    }
+    
 
     /* ========================================
        UI INTERACTIONS
