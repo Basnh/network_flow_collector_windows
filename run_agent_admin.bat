@@ -10,9 +10,12 @@ echo.
 echo Dang yeu cau quyen Administrator de khoi dong Agent...
 echo Se gui du lieu bao mat ve: %SERVER_URL%
 
-:: Dat bien duong dan
-set "VENV_PATH=F:\Real Project trust\.venv\Scripts\Activate.ps1"
-set "WORKING_DIR=F:\Real Project trust\network_flow_collector_windows\web application"
+:: Dat bien duong dan dong (tu dong nhan dien o dia va thu muc)
+set "CURRENT_DIR=%~dp0"
+:: Xoa dau backslash o cuoi chuoi
+set "CURRENT_DIR=%CURRENT_DIR:~0,-1%"
+
+set "WORKING_DIR=%CURRENT_DIR%\web application"
 
 :: Chay PowerShell voi quyen admin vao dung thu muc web application va chay python setup_and_run.py
-powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', '& ''%VENV_PATH%''; Set-Location ''%WORKING_DIR%''; python setup_and_run.py integrate --collector-path ''../network_flow_collector_windows/network_flow_collector_windows.py'' --server-url ''%SERVER_URL%''' -Verb RunAs"
+powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location ''%WORKING_DIR%''; python setup_and_run.py integrate --collector-path ''../network_flow_collector_windows.py'' --server-url ''%SERVER_URL%''' -Verb RunAs"
