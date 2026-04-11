@@ -1,133 +1,168 @@
 {% extends "base.html" %}
 
-{% block title %}Security Alerts - Network Security Management{% endblock %}
+{% block title %}Thông tin cảnh báo - Network Security Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="pt-4 pb-2 mb-4 fade-in">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h2 gradient-text">Security Alerts</h1>
-        <div class="btn-toolbar">
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshAlertsData()">
-                <i class="fas fa-sync-alt me-1"></i> Refresh
-            </button>
-        </div>
-    </div>
+<!-- Cybersecurity Command Center Dashboard -->
+<div class="cybersec-dashboard">
 
-    <!-- Alert Statistics -->
-    <div class="row g-3 mb-4">
-        {% set critical_count = alerts|selectattr('severity', 'equalto', 'critical')|selectattr('is_resolved',
-        'equalto', False)|list|length %}
-        {% set high_count = alerts|selectattr('severity', 'equalto', 'high')|selectattr('is_resolved', 'equalto',
-        False)|list|length %}
-        {% set unresolved_count = alerts|selectattr('is_resolved', 'equalto', False)|list|length %}
-        {% set resolved_count = alerts|selectattr('is_resolved', 'equalto', True)|list|length %}
+    <!-- Alerts Section - Full Width -->
+    <div class="alerts-section-full">
+        <!-- Threats Panel -->
+        <div class="threats-panel" style="margin-bottom: 2rem;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="panel-title" style="margin: 0;">
+                    <i class="fas fa-shield-virus"></i>
+                    Trung Tâm Cảnh Báo
+                    <span class="alerts-count">{{ alerts|length }}</span>
+                </h3>
+                <button class="control-btn" onclick="refreshAlertsData()" title="Refresh Alerts">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            
+            <!-- Alert Statistics -->
+            <div class="panel-body" style="padding: 20px;">
+                <div class="row g-3">
+                    {% set critical_count = alerts|selectattr('severity', 'equalto', 'critical')|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set high_count = alerts|selectattr('severity', 'equalto', 'high')|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set unresolved_count = alerts|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set resolved_count = alerts|selectattr('is_resolved', 'equalto', True)|list|length %}
 
-        <div class="col-md-3">
-            <div class="card p-3 text-center border-0 shadow-sm"
-                style="background-color: #fff8f8; border-bottom: 3px solid #cf222e !important;">
-                <div class="small fw-bold mb-1" style="color: #cf222e;">CRITICAL</div>
-                <div class="h4 mb-0" style="color: #cf222e;">{{ critical_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3 text-center border-0 shadow-sm"
-                style="background-color: #fffdf5; border-bottom: 3px solid #9a6700 !important;">
-                <div class="small fw-bold mb-1" style="color: #9a6700;">HIGH RISK</div>
-                <div class="h4 mb-0" style="color: #9a6700;">{{ high_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3 text-center border-0 shadow-sm"
-                style="background-color: #f6f8fa; border-bottom: 3px solid #0969da !important;">
-                <div class="small fw-bold mb-1" style="color: #0969da;">UNRESOLVED</div>
-                <div class="h4 mb-0" style="color: #0969da;">{{ unresolved_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card p-3 text-center border-0 shadow-sm"
-                style="background-color: #f0fff4; border-bottom: 3px solid #1a7f37 !important;">
-                <div class="small fw-bold mb-1" style="color: #1a7f37;">RESOLVED</div>
-                <div class="h4 mb-0" style="color: #1a7f37;">{{ resolved_count }}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Alert List (Terminal Aesthetic) -->
-    <div class="card shadow-sm border-0 bg-transparent">
-        <div class="card-header border-0 bg-transparent px-0 pb-3 d-flex justify-content-between align-items-center">
-            <span class="text-muted small fw-bold"><i class="fas fa-terminal me-2"></i> SECURITY_LOG_FEED</span>
-        </div>
-
-        {% if alerts %}
-        <div class="list-group list-group-flush rounded border" style="border-color: var(--border-default) !important;">
-            {% for alert in alerts %}
-            <div class="list-group-item bg-transparent border-0 px-4 py-3"
-                style="border-bottom: 1px solid var(--border-default) !important;">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="d-flex gap-3">
-                        <div class="mt-1">
-                            {% if alert.severity == 'critical' %}
-                            <i class="fas fa-exclamation-triangle text-danger"></i>
-                            {% elif alert.severity == 'high' %}
-                            <i class="fas fa-exclamation-circle text-warning"></i>
-                            {% else %}
-                            <i class="fas fa-info-circle text-info"></i>
-                            {% endif %}
+                    <div class="col-md-3">
+                        <div class="metric-card threat-high" style="margin: 0; height: 100%;">
+                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
+                                <div class="metric-label" style="color: var(--danger-color);">Nghiêm trọng</div>
+                                <div class="primary-metric" style="justify-content: center;">
+                                    <span class="metric-value">{{ critical_count }}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <span class="badge badge-{{ alert.severity }}">{{ alert.severity|upper }}</span>
-                                <span class="text-muted small">[{{ alert.created_at.strftime('%H:%M:%S') }}]</span>
-                                <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) }}"
-                                    class="text-decoration-none small text-primary fw-bold">
-                                    @{{ alert.agent.hostname or alert.agent_id[:8] }}
-                                </a>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card threat-medium" style="margin: 0; height: 100%;">
+                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
+                                <div class="metric-label" style="color: var(--warning-color);">Nguy hiểm</div>
+                                <div class="primary-metric" style="justify-content: center;">
+                                    <span class="metric-value">{{ high_count }}</span>
+                                </div>
                             </div>
-                            <h6 class="mb-1 text-main">{{ alert.title }}</h6>
-                            <p class="small text-muted mb-2">{{ alert.description }}</p>
-
-                            {% if not alert.is_resolved %}
-                            <div class="d-flex gap-2">
-                                <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}">
-                                    <button class="btn btn-sm btn-link text-success text-decoration-none p-0 fw-bold"
-                                        style="font-size: 0.8em;">
-                                        <i class="fas fa-check-circle me-1"></i> MARK AS RESOLVED
-                                    </button>
-                                </form>
-                                <span class="text-muted opacity-25">|</span>
-                                <button class="btn btn-sm btn-link text-muted text-decoration-none p-0"
-                                    style="font-size: 0.8em;">
-                                    <i class="fas fa-search me-1"></i> INVESTIGATE
-                                </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card" style="margin: 0; height: 100%; border-top-color: var(--primary-color);">
+                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
+                                <div class="metric-label" style="color: var(--primary-color);">Chưa giải quyết</div>
+                                <div class="primary-metric" style="justify-content: center;">
+                                    <span class="metric-value">{{ unresolved_count }}</span>
+                                </div>
                             </div>
-                            {% else %}
-                            <span class="small text-success fw-bold opacity-75">
-                                <i class="fas fa-check-double me-1"></i> RESOLVED
-                            </span>
-                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card threat-low" style="margin: 0; height: 100%;">
+                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
+                                <div class="metric-label" style="color: var(--success-color);">Đã giải quyết</div>
+                                <div class="primary-metric" style="justify-content: center;">
+                                    <span class="metric-value">{{ resolved_count }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="card-body text-center py-5">
-            <div class="opacity-25 mb-3">
-                <i class="fas fa-shield-check fa-4x"></i>
+
+        <!-- Alert List -->
+        <div class="threats-panel">
+            <div class="panel-header">
+                <span class="text-muted small fw-bold"><i class="fas fa-terminal me-2"></i> Nhật ký hoạt động</span>
             </div>
-            <h5 class="text-muted">No security alerts</h5>
-            <p class="small text-muted">System is currently operating within normal parameters.</p>
+
+            <div class="panel-body">
+                <div class="threats-table-container">
+                    {% if alerts %}
+                    <div class="threats-table">
+                        <div class="table-header">
+                            <div class="col-time"><i class="fas fa-clock"></i> Thời gian</div>
+                            <div class="col-type"><i class="fas fa-bug"></i> Chi tiết cảnh báo</div>
+                            <div class="col-source"><i class="fas fa-network-wired"></i> Agent</div>
+                            <div class="col-severity"><i class="fas fa-exclamation-triangle"></i> Mức độ</div>
+                            <div class="col-status"><i class="fas fa-info-circle"></i> Trạng thái</div>
+                            <div class="col-actions"><i class="fas fa-cogs"></i> Hành động</div>
+                        </div>
+                        <div class="table-body">
+                            {% for alert in alerts %}
+                            <div class="threat-row severity-{{ alert.severity }} {{ 'resolved' if alert.is_resolved else 'active' }}">
+                                <div class="col-time">
+                                    <div class="time-display">
+                                        <span class="time-main">{{ alert.created_at.strftime('%H:%M:%S') }}</span>
+                                        <span class="time-date">{{ alert.created_at.strftime('%d/%m') }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-type">
+                                    <div class="threat-info">
+                                        <h6 class="mb-1 text-main" style="font-size: 0.9rem;">{{ alert.title }}</h6>
+                                        <p class="small text-muted mb-0">{{ alert.description }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-source">
+                                    <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) }}" class="source-agent text-decoration-none">
+                                        <i class="fas fa-desktop"></i>
+                                        {{ alert.agent.hostname or alert.agent_id[:8] }}
+                                    </a>
+                                </div>
+                                <div class="col-severity">
+                                    <span class="severity-badge {{ alert.severity }}">
+                                        {{ alert.severity|upper }}
+                                    </span>
+                                </div>
+                                <div class="col-status">
+                                    {% if not alert.is_resolved %}
+                                    <span class="status-badge active"><i class="fas fa-clock"></i> Đang xử lý</span>
+                                    {% else %}
+                                    <span class="status-badge resolved"><i class="fas fa-check-circle"></i> Đã giải quyết</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-actions">
+                                    <div class="action-buttons">
+                                        {% if not alert.is_resolved %}
+                                        <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}" style="margin: 0;">
+                                            <button type="submit" class="action-btn success" title="Resolve">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="no-threats">
+                        <div class="no-threats-content">
+                            <i class="fas fa-shield-check fa-4x mb-3" style="color: var(--success-color);"></i>
+                            <h4>Hệ thống an toàn</h4>
+                            <p>Không có cảnh báo nào trong thời gian gần đây</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        {% endif %}
     </div>
 </div>
 
-<style>
-    .list-group-item:hover {
-        background-color: rgba(240, 246, 252, 0.02) !important;
+<script>
+    function refreshAlertsData() {
+        location.reload();
     }
-</style>
+</script>
 
 <!-- Theme Toggle Button -->
 <div class="floating-actions">

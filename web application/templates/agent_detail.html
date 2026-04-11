@@ -480,7 +480,7 @@
         <div class="col-lg-4">
             <div class="card mb-4">
                 <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
-                    <small class="text-muted fw-bold text-uppercase">Agent Metadata</small>
+                    <small class="text-muted fw-bold text-uppercase">Thông tin của Agent</small>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -488,15 +488,15 @@
                         <code class="text-primary">{{ agent.agent_id }}</code>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted d-block mb-1">IP ADDRESS</label>
+                        <label class="small text-muted d-block mb-1">Địa chỉ IP</label>
                         <div class="fw-bold">{{ agent.ip_address }}</div>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted d-block mb-1">THREAT LEVEL</label>
+                        <label class="small text-muted d-block mb-1">Mức độ an toàn</label>
                         <span class="badge badge-{{ agent.threat_level }}">{{ agent.threat_level|upper }}</span>
                     </div>
                     <div class="mb-0">
-                        <label class="small text-muted d-block mb-1">LAST SEEN</label>
+                        <label class="small text-muted d-block mb-1">Lần cuối online</label>
                         <div class="small opacity-75">{{ agent.last_seen.strftime('%Y-%m-%d %H:%M:%S UTC+7') }}</div>
                     </div>
                 </div>
@@ -505,7 +505,7 @@
             <!-- Connectivity & Control -->
             <div class="card">
                 <div class="card-header border-0 pb-0">
-                    <small class="text-muted fw-bold text-uppercase">Connectivity & Control</small>
+                    <small class="text-muted fw-bold text-uppercase">Kết nối & Điều khiển</small>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
@@ -519,13 +519,13 @@
                         <span class="pulse-offline"></span>
                         <div>
                             <div class="fw-bold text-secondary">Offline</div>
-                            <small class="text-muted">No heartbeat detected</small>
+                            <small class="text-muted">Agent không phản hồi</small>
                         </div>
                         {% endif %}
                     </div>
                     
                     <div class="mb-3">
-                        <label class="small text-muted d-block mb-1">ADAPTER</label>
+                        <label class="small text-muted d-block mb-1">Cổng kết nối</label>
                         <div class="small fw-bold">
                             <i class="fas fa-network-wired me-1"></i>
                             {{ agent.network_adapter_name if agent.network_adapter_name else 'Detection Pending...' }}
@@ -551,14 +551,13 @@
         <div class="col-lg-8">
             <div class="card h-100">
                 <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
-                    <small class="text-muted fw-bold text-uppercase">Deployment Guide</small>
+                    <small class="text-muted fw-bold text-uppercase">Hướng dẫn triển khai</small>
                     <button class="btn btn-sm btn-link text-decoration-none text-muted p-0" onclick="copySnippet()">
                         <i class="fas fa-copy me-1"></i> Copy
                     </button>
                 </div>
                 <div class="card-body">
-                    <p class="small text-muted mb-3">Run this PowerShell snippet on the target host to reconnect or
-                        update this agent configuration.</p>
+                    <p class="small text-muted mb-3">Chạy đoạn lệnh PowerShell này trên máy đích để kết nối lại hoặc cập nhật cấu hình của agent.</p>
                     <div class="position-relative">
                         <pre class="mb-0 p-3 rounded shadow-sm code-block"
                             style="border: 1px solid var(--border-default);"><code id="deploy-snippet" style="color: var(--syntax-blue); font-family: 'JetBrains Mono', monospace;"># Connect Agent to Central Hub
@@ -579,7 +578,7 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
     <!-- System Info -->
     <div class="card mb-4">
         <div class="card-header border-0 pb-0 shadow-none">
-            <small class="text-muted fw-bold text-uppercase">System Information</small>
+            <small class="text-muted fw-bold text-uppercase">Thông tin hệ thống</small>
         </div>
         <div class="card-body">
             {% if agent.os_info %}
@@ -596,7 +595,7 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
         <li class="nav-item">
             <a class="nav-link active bg-transparent border-0 text-primary fw-bold"
                 style="margin-bottom: -2px; border-bottom: 3px solid var(--accent-primary) !important;" href="#">
-                <i class="fas fa-network-wired me-2"></i> Network Traffic
+                <i class="fas fa-network-wired me-2"></i> Lưu lượng mạng
             </a>
         </li>
     </ul>
@@ -638,11 +637,11 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
                 <table class="table table-hover mb-0" style="color: var(--text-main);" id="flowsTable">
                     <thead style="background-color: rgba(240, 246, 252, 0.02);">
                         <tr>
-                            <th class="border-0 px-4 py-3 small text-muted">TIMESTAMP</th>
-                            <th class="border-0 px-4 py-3 small text-muted">DESTINATION</th>
-                            <th class="border-0 px-4 py-3 small text-muted text-center">THREAT SCORE</th>
-                            <th class="border-0 px-4 py-3 small text-muted text-center">STATUS</th>
-                            <th class="border-0 px-4 py-3 small text-muted">PAYLOAD ANALYSIS</th>
+                            <th class="border-0 px-4 py-3 small text-muted">Thời gian</th>
+                            <th class="border-0 px-4 py-3 small text-muted">IP đích</th>
+                            <th class="border-0 px-4 py-3 small text-muted text-center">Điểm rủi ro</th>
+                            <th class="border-0 px-4 py-3 small text-muted text-center">Trạng thái</th>
+                            <th class="border-0 px-4 py-3 small text-muted">Thông tin Payload</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -749,9 +748,6 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
 
     <!-- Filtered Pagination -->
     <div id="filteredPagination" style="display: none;" class="d-flex justify-content-between align-items-center px-0 py-3 border-top" style="border-color: var(--border-default) !important;">
-        <div class="small text-muted">
-            Showing <span id="filteredStart">1</span> - <span id="filteredEnd">10</span> of <span id="filteredTotal">0</span> records
-        </div>
         <nav aria-label="Filtered flows pagination">
             <ul class="pagination pagination-sm mb-0" id="filteredPaginationList">
                 <!-- Generated dynamically -->
@@ -894,10 +890,10 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
             });
         }
         
-        // Update "Showing X - Y of Z records"
-        document.getElementById('filteredStart').textContent = startIdx + 1;
-        document.getElementById('filteredEnd').textContent = Math.min(endIdx, filteredFlows.length);
-        document.getElementById('filteredTotal').textContent = filteredFlows.length;
+        // Update "Showing X - Y of Z records" (HTML elements removed per user request)
+        // document.getElementById('filteredStart').textContent = startIdx + 1;
+        // document.getElementById('filteredEnd').textContent = Math.min(endIdx, filteredFlows.length);
+        // document.getElementById('filteredTotal').textContent = filteredFlows.length;
     }
     
     // Generate pagination buttons for filtered flows
