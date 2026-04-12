@@ -16,6 +16,7 @@ set "CURRENT_DIR=%~dp0"
 set "CURRENT_DIR=%CURRENT_DIR:~0,-1%"
 
 set "WORKING_DIR=%CURRENT_DIR%\web application"
+set "COLLECTOR_PATH=%CURRENT_DIR%\network_flow_collector_windows.py"
 
 :: Chay PowerShell voi quyen admin vao dung thu muc web application va chay python setup_and_run.py
-powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location ''%WORKING_DIR%''; python setup_and_run.py integrate --collector-path ''../network_flow_collector_windows.py'' --server-url ''%SERVER_URL%''' -Verb RunAs"
+powershell -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location ''%WORKING_DIR%''; python setup_and_run.py integrate --collector-path ''%COLLECTOR_PATH%'' --server-url ''%SERVER_URL%''' -Verb RunAs"
