@@ -545,7 +545,7 @@
                 <div class="panel-body">
                     <div class="sources-list">
                         {% if top_sources %}
-                            {% set max_count = top_sources[0].count %}
+                            {% set max_count = top_sources[0][1] %}
                             {% for source, count in top_sources %}
                             <div class="source-item risk-low">
                                 <div class="source-info">
@@ -557,7 +557,7 @@
                                 </div>
                                 <div class="source-bar">
                                     {% set source_width_calc = ((count / max_count * 100)|int) %}
-                                    <div class="source-fill risk-low" style="width: 0%;"
+                                    <div class="source-fill risk-low" style="width: {{ source_width_calc }}%;"
                                         data-progress="{{ source_width_calc }}"></div>
                                 </div>
                                 <div class="source-risk">

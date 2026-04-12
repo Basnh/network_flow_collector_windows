@@ -271,11 +271,15 @@ class ThreatDetector:
                 return False
 
             with open(model_path, 'rb') as f:
-                self.model = pickle.load(f)
+                try:
+                    self.model = pickle.load(f)
+                except Exception as e:
+                    import joblib
+                    self.model = joblib.load(model_path)
 
             self.model_path = model_path
             self.is_trained = True
-            logger.warning(f"✅ Đã load thành công model từ {model_path}")
+            logger.warning(f"✅ Successfully loaded model from {model_path}")
 
             # Optional scaler for feature preprocessing
             scaler_path, scaler_candidates = self._find_existing_path('scaler.pkl', 'THREAT_SCALER_PATH')
@@ -284,7 +288,7 @@ class ThreatDetector:
                     import joblib
                     self.scaler = joblib.load(scaler_path)
                     self.scaler_path = scaler_path
-                    logger.warning(f"✅ Đã load thành công scaler từ {scaler_path}")
+                    logger.warning(f"✅ Loaded scaler from {scaler_path}")
                 except Exception as scaler_error:
                     self.scaler = None
                     self.scaler_path = None
@@ -301,7 +305,7 @@ class ThreatDetector:
                     import joblib
                     self.label_encoder = joblib.load(encoder_path)
                     self.label_encoder_path = encoder_path
-                    logger.warning(f"✅ Đã load thành công label encoder từ {encoder_path}")
+                    logger.warning(f"✅ Loaded label encoder from {encoder_path}")
                 except Exception as encoder_error:
                     self.label_encoder = None
                     self.label_encoder_path = None
@@ -573,8 +577,6 @@ class ThreatDetector:
     
     def predict_threat(self, flow, raw_ml_features=None):
         """Predict if a flow is a threat using ML model + Payload/Port Signatures"""
-        import warnings
-        
         threats_found = []
         threat_score = 0.0
         scaler_used = False
@@ -585,79 +587,69 @@ class ThreatDetector:
         # Bắt các thay đổi dị thường về luồng dữ liệu trước tiên
         # ---------------------------------------------------------
         if self.is_trained and self.model is not None:
-            # Tắt cảnh báo feature names của sklearn để console gọn gàng hơn
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
-                
-                try:
-                    # Extract all features from flow
-                    all_features = self.extract_flow_features(flow, raw_ml_features)
-                    model_features = all_features[:68]
+            try:
+                # Extract all features from flow
+                all_features = self.extract_flow_features(flow, raw_ml_features)
+                model_features = all_features[:68]
 
-                    X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
-                    X_np = np.array([model_features])
+                X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
+                X_np = np.array([model_features])
 
-                    X_scaled = None
-                    if self.scaler is not None and hasattr(self.scaler, 'transform'):
+                X_scaled = None
+                if self.scaler is not None and hasattr(self.scaler, 'transform'):
+                    try:
+                        X_scaled = self.scaler.transform(X_df)
+                        scaler_used = True
+                    except Exception:
                         try:
-                            X_scaled = self.scaler.transform(X_df)
+                            X_scaled = self.scaler.transform(X_np)
                             scaler_used = True
                         except Exception:
-                            try:
-                                X_scaled = self.scaler.transform(X_np)
-                                scaler_used = True
-                            except Exception:
-                                X_scaled = None
+                            X_scaled = None
 
-                    prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
+                prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
 
-                    prediction = None
-                    for X in prediction_inputs:
+                prediction = None
+                for X in prediction_inputs:
+                    try:
+                        prediction = self.model.predict(X)
+                        break
+                    except Exception:
+                        continue
+
+                if prediction is not None:
+                    pred_label = prediction[0]
+                    decoded_label = pred_label
+
+                    if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
                         try:
-                            prediction = self.model.predict(X)
-                            break
+                            decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
+                            decoded_label = decoded[0]
+                            encoder_used = True
                         except Exception:
-                            continue
+                            pass
 
-                    if prediction is not None:
-                        pred_label = prediction[0]
-                        decoded_label = pred_label
+                    is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
+                    # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
+                    ml_score = 1.0 if is_malicious else 0.0
 
-                        if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
-                            try:
-                                decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
-                                decoded_label = decoded[0]
-                                encoder_used = True
-                            except Exception:
-                                pass
-
-                        is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                        
-                        # --- IN RA CONSOLE ĐỂ KIỂM CHỨNG DỮ LIỆU ĐÃ QUA FILE MÁY HỌC (best_model.pkl) ---
-                        logger.warning(f"👉 [File Máy Học] IP Nguồn: {flow.src_ip} -> Đích: {flow.dst_ip} | Label gốc từ file pkl: '{decoded_label}' | Trạng thái độc hại: {is_malicious}")
-                        
-                        # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
-                        ml_score = 1.0 if is_malicious else 0.0
-
-                        threat_score = max(threat_score, ml_score)
-                        if is_malicious:
-                            threats_found.append(f"Threat detected by ML model (Score: {ml_score:.2f})")
-                        
-                        self.prediction_count += 1
-                        if scaler_used:
-                            self.scaler_used_count += 1
-                        if encoder_used:
-                            self.encoder_used_count += 1
-                except Exception as e:
-                    logger.error(f"Error in ML prediction: {e}")
-
-        # (Đã tắt TẦNG 2: PAYLOAD SIGNATURE theo yêu cầu. Dữ liệu sẽ tin tưởng vào ML model)
+                    threat_score = max(threat_score, ml_score)
+                    if is_malicious:
+                        threats_found.append(f"Threat detected by ML model (Score: {ml_score:.2f})")
+                    
+                    self.prediction_count += 1
+                    if scaler_used:
+                        self.scaler_used_count += 1
+                    if encoder_used:
+                        self.encoder_used_count += 1
+            except Exception as e:
+                logger.error(f"Error in ML prediction: {e}")
 
         # ---------------------------------------------------------
         # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
-        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua ML model
+        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
         # ---------------------------------------------------------
-        suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
+        suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4782, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
             susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
             threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
@@ -770,28 +762,6 @@ def register_agent():
         logger.error(f"Error registering agent: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-def is_whitelisted_traffic(src_ip, dst_ip):
-    """
-    Check if the traffic involves trusted services like Microsoft/Azure or Google 
-    to prevent false positives from background OS traffic.
-    """
-    src = str(src_ip)
-    dst = str(dst_ip)
-    
-    # Common prefixes for Microsoft (Azure), Google, Cloudflare
-    whitelist_prefixes = (
-        # Microsoft / Azure common prefixes
-        '4.', '13.', '20.', '23.', '40.', '51.', '52.', '104.', '137.', '191.', 
-        # Google
-        '8.8.', '34.', '35.', '142.', '172.217.', '173.194.', '216.58.',
-        # Local / Private / Multicast / Broadcast
-        '127.0.0.1', '224.0.0.', '239.255.'
-    )
-    
-    if src.startswith(whitelist_prefixes) or dst.startswith(whitelist_prefixes):
-        return True
-    return False
-
 @app.route('/api/submit_flow', methods=['POST'])
 @csrf.exempt
 def submit_flow():
@@ -835,11 +805,6 @@ def submit_flow():
                 threat_score, payload_threats = threat_detector.predict_threat(flow, raw_ml_features)
                 if is_icmp_echo_traffic(flow.protocol, flow.payload_content, flow.src_port, flow.dst_port):
                     # Ignore ping request/reply from alerting pipeline to avoid false positives.
-                    flow.threat_score = 0.0
-                    flow.is_malicious = False
-                    flow.classification = 'Benign'
-                elif is_whitelisted_traffic(flow.src_ip, flow.dst_ip):
-                    # Ignore known good IPs (Microsoft/Google) to prevent 100% false positives
                     flow.threat_score = 0.0
                     flow.is_malicious = False
                     flow.classification = 'Benign'
@@ -1122,7 +1087,7 @@ def kill_process(agent_id):
         # Check if agent is online
         last_seen_threshold = get_utc7_now() - timedelta(seconds=120)
         if not agent.last_seen or agent.last_seen < last_seen_threshold:
-            return jsonify({'success': False, 'error': 'Agent is offline'}), 503
+            return jsonify({'success': False, 'error': 'Agent đang ngoại tuyến.'}), 503
         
         # Send kill_process command via pending_command
         command = {
@@ -1270,9 +1235,6 @@ def dashboard():
     # Critical agents
     critical_agents = Agent.query.filter_by(threat_level='critical').all()
     
-    # Recent flows for dashboard (mix of normal and malicious)
-    recent_flows = NetworkFlow.query.order_by(NetworkFlow.created_at.desc()).limit(10).all()
-    
     # Recent flows with threats
     threat_flows = NetworkFlow.query.filter_by(is_malicious=True)\
         .order_by(NetworkFlow.created_at.desc()).limit(5).all()
@@ -1280,35 +1242,50 @@ def dashboard():
     # Total flows since installation
     total_flows_collected = NetworkFlow.query.count()
     
-    # Calculate Protocol Stats
-    protocol_counts = db.session.query(
-        NetworkFlow.protocol, db.func.count(NetworkFlow.id)
-    ).group_by(NetworkFlow.protocol).all()
-    
+    # Calculate protocol percentages
+    protocol_percentages = {'tcp': 0, 'udp': 0, 'rdp': 0, 'other': 100}
     protocol_stats = {'tcp': 0, 'udp': 0, 'rdp': 0, 'other': 0}
-    total_proto_flows = 0
-    for proto, count in protocol_counts:
-        p = (str(proto) or '').lower().strip()
-        if p in ['tcp', '6']: protocol_stats['tcp'] += count
-        elif p in ['udp', '17']: protocol_stats['udp'] += count
-        elif p in ['rdp', 'icmp', '1', '3389']: protocol_stats['rdp'] += count # Mapping ICMP/RDP here for dashboard
-        else: protocol_stats['other'] += count
-        total_proto_flows += count
+    total_proto_flows = total_flows_collected
+    
+    if total_flows_collected > 0:
+        # Cast to text and then use ilike for protocol because protocol is string
+        tcp_count = NetworkFlow.query.filter(
+            db.or_(NetworkFlow.protocol.ilike('%tcp%'), NetworkFlow.protocol == '6')
+        ).count()
         
-    if total_proto_flows == 0:
-        protocol_percentages = {'tcp': 68, 'udp': 24, 'rdp': 5, 'other': 3} # Fallback to default
-    else:
-        protocol_percentages = {
-            k: int((v / total_proto_flows) * 100) 
-            for k, v in protocol_stats.items()
+        udp_count = NetworkFlow.query.filter(
+            db.or_(NetworkFlow.protocol.ilike('%udp%'), NetworkFlow.protocol == '17')
+        ).count()
+        
+        rdp_count = NetworkFlow.query.filter(
+            db.or_(
+                NetworkFlow.dst_port == 3389,
+                NetworkFlow.protocol.ilike('%icmp%'), 
+                NetworkFlow.protocol == '1'
+            )
+        ).count()
+        
+        other_count = max(0, total_flows_collected - (tcp_count + udp_count + rdp_count))
+        
+        protocol_stats = {
+            'tcp': tcp_count,
+            'udp': udp_count,
+            'rdp': rdp_count,
+            'other': other_count
         }
         
-    # Calculate Top Traffic Sources
-    top_sources = db.session.query(
-        NetworkFlow.src_ip, 
-        db.func.count(NetworkFlow.id).label('count')
+        protocol_percentages['tcp'] = round((tcp_count / total_flows_collected) * 100)
+        protocol_percentages['udp'] = round((udp_count / total_flows_collected) * 100)
+        protocol_percentages['rdp'] = round((rdp_count / total_flows_collected) * 100)
+        protocol_percentages['other'] = max(0, 100 - (protocol_percentages['tcp'] + protocol_percentages['udp'] + protocol_percentages['rdp']))
+    
+    # Calculate top traffic sources
+    top_sources_query = db.session.query(
+        NetworkFlow.src_ip, db.func.count(NetworkFlow.id).label('count')
     ).group_by(NetworkFlow.src_ip).order_by(db.desc('count')).limit(5).all()
-        
+    
+    top_sources = [(row.src_ip, row.count) for row in top_sources_query]
+    
     return render_template('dashboard.html',
                          total_agents=total_agents,
                          active_agents=active_agents,
@@ -1316,7 +1293,6 @@ def dashboard():
                          recent_alerts=recent_alerts,
                          critical_agents=critical_agents,
                          threat_flows=threat_flows,
-                         recent_flows=recent_flows,
                          total_flows_collected=total_flows_collected,
                          protocol_percentages=protocol_percentages,
                          protocol_stats=protocol_stats,
@@ -1517,13 +1493,33 @@ def restore_agent_web(agent_id):
     return redirect(url_for('agent_detail', agent_id=agent_id))
 
 @app.route('/resolve_alert/<int:alert_id>', methods=['POST'])
+@csrf.exempt
 def resolve_alert(alert_id):
     """Mark alert as resolved"""
     alert = SecurityAlert.query.get_or_404(alert_id)
     alert.is_resolved = True
     db.session.commit()
     
-    flash('Alert marked as resolved.', 'success')
+    if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return jsonify({'success': True, 'message': 'Đã đánh dấu đã giải quyết'})
+        
+    flash('Đã đánh dấu đã giải quyết.', 'success')
+    return redirect(url_for('alerts_list'))
+
+@app.route('/resolve_all_alerts', methods=['POST'])
+@csrf.exempt
+def resolve_all_alerts():
+    """Mark all active alerts as resolved"""
+    alerts = SecurityAlert.query.filter_by(is_resolved=False).all()
+    count = len(alerts)
+    for alert in alerts:
+        alert.is_resolved = True
+    db.session.commit()
+    
+    if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
+        
+    flash(f'Đã giải quyết {count} cảnh báo.', 'success')
     return redirect(url_for('alerts_list'))
 
 # ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================
@@ -1755,7 +1751,7 @@ def get_agent_processes(agent_id):
         if not agent.is_online:
             return jsonify({
                 'success': False,
-                'message': 'Agent is offline'
+                'message': 'Agent đang ngoại tuyến.'
             }), 503
 
         request_id = uuid.uuid4().hex
@@ -1984,21 +1980,11 @@ def api_threats_summary():
 def delete_all_data():
     """Delete all data from database"""
     try:
-        # Check if using PostgreSQL to use TRUNCATE RESTART IDENTITY
-        if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
-            db.session.execute(db.text('TRUNCATE TABLE security_alert, network_flow, isolation_action, agent RESTART IDENTITY CASCADE;'))
-        else:
-            # Fallback for SQLite or others
-            SecurityAlert.query.delete()
-            NetworkFlow.query.delete()
-            IsolationAction.query.delete()
-            Agent.query.delete()
-            
-            # If SQLite, try to reset sqlite_sequence
-            try:
-                db.session.execute(db.text("DELETE FROM sqlite_sequence;"))
-            except Exception:
-                pass
+        # Delete all records from all tables
+        SecurityAlert.query.delete()
+        NetworkFlow.query.delete()
+        IsolationAction.query.delete()
+        Agent.query.delete()
         
         # Commit the changes
         db.session.commit()
@@ -2062,6 +2048,49 @@ def cleanup_old_data():
         except Exception as e:
             logger.error(f"Error in cleanup: {e}")
 
+# ==================== DATABASE MIGRATION HELPER ====================
+
+def migrate_database():
+    """Handle database migrations for schema changes"""
+    try:
+        with db.engine.connect() as conn:
+            # Detect database type
+            db_url = str(db.engine.url)
+            is_postgres = 'postgresql' in db_url
+            
+            if is_postgres:
+                # PostgreSQL migration - check information_schema
+                logger.info("Detected PostgreSQL database - skipping migration (tables created via db.create_all())")
+                return
+            else:
+                # SQLite migration using PRAGMA
+                # Check agent table for isolated_until column
+                result = conn.execute(db.text("PRAGMA table_info(agent)")).fetchall()
+                agent_columns = [row[1] for row in result]  # Column names are in index 1
+                
+                if 'isolated_until' not in agent_columns:
+                    logger.info("Adding missing 'isolated_until' column to agent table")
+                    conn.execute(db.text("ALTER TABLE agent ADD COLUMN isolated_until DATETIME"))
+                    conn.commit()
+                    logger.info("Successfully added 'isolated_until' column")
+                else:
+                    logger.info("Agent table 'isolated_until' column exists")
+                    
+                # Check network_flow table for classification column
+                result = conn.execute(db.text("PRAGMA table_info(network_flow)")).fetchall()
+                flow_columns = [row[1] for row in result]  # Column names are in index 1
+                
+                if 'classification' not in flow_columns:
+                    logger.info("Adding missing 'classification' column to network_flow table")
+                    conn.execute(db.text("ALTER TABLE network_flow ADD COLUMN classification VARCHAR(20) DEFAULT 'Benign'"))
+                    conn.commit()
+                    logger.info("Successfully added 'classification' column")
+                else:
+                    logger.info("Network flow table 'classification' column exists")
+                
+    except Exception as e:
+        logger.error(f"Error during database migration: {e}")
+        # Don't raise - migration is optional
 
 # ==================== APPLICATION STARTUP ====================
 
@@ -2069,7 +2098,9 @@ if __name__ == '__main__':
     # Create database tables
     with app.app_context():
         db.create_all()
-        logger.info("Đã cài đặt thành công cơ sở dữ liệu cần thiết.")
+        # Run database migrations
+        migrate_database()
+        logger.info("Database initialized and migrated")
     
     # Start background threads
     model_thread = threading.Thread(target=train_detection_model, daemon=True)
@@ -2082,4 +2113,3 @@ if __name__ == '__main__':
     
     # Run Flask app
     app.run(host='0.0.0.0', port=5000, debug=True)
-

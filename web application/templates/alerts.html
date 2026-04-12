@@ -79,8 +79,17 @@
 
         <!-- Alert List -->
         <div class="threats-panel">
-            <div class="panel-header">
-                <span class="text-muted small fw-bold"><i class="fas fa-terminal me-2"></i> Nhật ký hoạt động</span>
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="panel-title">
+                    <i class="fas fa-terminal" style="color: var(--primary-color);"></i>
+                    Nhật ký hoạt động
+                </h3>
+                <form method="POST" action="{{ url_for('resolve_all_alerts') }}" style="margin: 0; display: inline-block;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Bạn có chắc chắn muốn giải quyết tất cả cảnh báo hiện tại?');" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-weight: 500; letter-spacing: 0.5px;">
+                        <i class="fas fa-check-double"></i> Giải quyết tất cả
+                    </button>
+                </form>
             </div>
 
             <div class="panel-body">
@@ -132,6 +141,7 @@
                                     <div class="action-buttons">
                                         {% if not alert.is_resolved %}
                                         <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}" style="margin: 0;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="action-btn success" title="Resolve">
                                                 <i class="fas fa-check"></i>
                                             </button>

@@ -3157,21 +3157,21 @@ body[data-theme="light"] .filter-buttons {
     width: fit-content;
 }
 
-.col-agent-status .status-badge.active {
+.status-badge.active {
     background: rgba(34, 197, 94, 0.15);
     color: var(--threat-low);
     border: 1px solid var(--threat-low);
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
 }
 
-.col-agent-status .status-badge.isolated {
+.status-badge.isolated {
     background: rgba(239, 68, 68, 0.15);
     color: var(--threat-critical);
     border: 1px solid var(--threat-critical);
     animation: highRiskPulse 1.5s ease-in-out infinite;
 }
 
-.col-agent-status .status-badge.offline {
+.status-badge.offline {
     background: rgba(100, 116, 139, 0.15);
     color: var(--text-muted);
     border: 1px solid var(--text-muted);

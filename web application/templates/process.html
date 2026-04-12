@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Process Monitor{% endblock %}
 
@@ -56,6 +56,17 @@
         background: rgba(255, 71, 87, 0.3);
         box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
     }
+    
+    /* Override grid layout from cybersec-dashboard.css for this specific table */
+    #processTableContainer .table-header,
+    #processTableContainer .threat-row {
+        display: flex;
+        grid-template-columns: none; /* Disable grid */
+        gap: 15px;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    }
 </style>
 {% endblock %}
 
@@ -66,57 +77,84 @@
         <div class="system-status">
             <div class="status-item">
                 <div class="status-icon pulse-blue">
-                    <i class="fas fa-window-maximize"></i>
+                    <i class="fas fa-desktop"></i>
                 </div>
                 <div class="status-text">
-                    <span class="label">MODULE</span>
-                    <span class="value">PROCESS MONITOR</span>
+                    <span class="label">Tổng số Agent</span>
+                    <span class="value">{{ agents|length }}</span>
                 </div>
             </div>
-            
-            <!-- Agent Selector in Top Bar -->
-            <div class="agent-selector-wrapper" style="margin-left: 20px;">
-                <select id="agentSelect" class="form-select">
-                    <option value="">-- Chọn Agent để xem tiến trình --</option>
-                </select>
+            <div class="status-item">
+                <div class="status-icon pulse-green">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">Agent đang hoạt động</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'active')|list|length }}</span>
+                </div>
             </div>
-        </div>
-        
-        <div class="real-time-counter">
-            <button class="control-btn" id="refreshBtn" title="Làm mới dữ liệu">
-                <i class="fas fa-sync-alt"></i>
-            </button>
+            <div class="status-item">
+                <div class="status-icon pulse-red">
+                    <i class="fas fa-shield-virus"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">Agent đã bị cách ly</span>
+                    <span class="value">{{ agents|selectattr('status', 'equalto', 'isolated')|list|length }}</span>
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-icon pulse-gray">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <div class="status-text">
+                    <span class="label">Agent đã offline</span>
+                    <span class="value">{{ agents|rejectattr('status', 'in', ['active', 'isolated'])|list|length }}</span>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Main Content Panel -->
     <div class="alerts-section-full">
         <div class="threats-panel" id="mainPanel">
-            <div class="panel-header">
-                <h3 class="panel-title">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="panel-title" style="margin: 0;">
                     <i class="fas fa-microchip"></i>
-                    Processes & Network Connections
+                    Tiến trình hoạt động của Agent
                     <span class="alerts-count" id="processCount">0</span>
                 </h3>
+                
+                <div class="real-time-counter" style="display: flex; align-items: center; margin: 0;">
+                    <div style="flex: 1; min-width: 250px; position: relative; margin-right: 15px;">
+                        <select id="agentSelect" class="form-select" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); color: #e0f2fe; padding: 8px 30px 8px 15px; border-radius: 6px; width: 100%; outline: none; appearance: none; cursor: pointer; font-size: 0.95rem;">
+                            <option value="" style="background: var(--bg-dark); color: #fff;">-- Chọn Agent để theo dõi --</option>
+                        </select>
+                        <i class="fas fa-chevron-down" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
+                    </div>
+                    
+                    <button class="control-btn" id="refreshBtn" title="Làm mới dữ liệu">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
             </div>
             
             <div class="panel-body">
                 <!-- Loading State -->
                 <div id="loadingState" style="display: none; padding: 40px; text-align: center; color: #38bdf8;">
                     <i class="fas fa-circle-notch fa-spin fa-2x mb-3"></i>
-                    <p>Đang tải dữ liệu tiến trình từ Agent...</p>
+                    <p>Äang táº£i dá»¯ liá»‡u tiáº¿n trĂ¬nh tá»« Agent...</p>
                 </div>
                 
                 <!-- Error Base -->
                 <div id="errorState" style="display: none; padding: 40px; text-align: center; color: #ff4757;">
                     <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                    <p id="errorMessage">Có lỗi xảy ra kết nối tới Agent!</p>
+                    <p id="errorMessage">CĂ³ lá»—i xáº£y ra káº¿t ná»‘i tá»›i Agent!</p>
                 </div>
                 
                 <!-- Empty State -->
                 <div id="emptyState" style="padding: 60px; text-align: center; color: #94a3b8;">
                     <i class="fas fa-mouse-pointer fa-3x mb-3" style="opacity: 0.5;"></i>
-                    <p>Vui lòng chọn một Agent bên trên để bắt đầu theo dõi.</p>
+                    <p>Vui lòng chọn Agent ở bên trên để xem tiến trình hoạt động.</p>
                 </div>
 
                 <!-- Data Table -->
@@ -223,13 +261,13 @@
                 if (data.success && data.processes) {
                     displayProcesses(data.processes);
                 } else {
-                    showError(data.message || 'Không thể lấy dữ liệu tiến trình');
+                    showError(data.message || 'KhĂ´ng thá»ƒ láº¥y dá»¯ liá»‡u tiáº¿n trĂ¬nh');
                 }
             })
             .catch(error => {
                 btn.classList.remove('loading');
                 console.error('Error loading processes:', error);
-                showError('Lỗi khi kết nối đến server: ' + error.message);
+                showError('Lá»—i khi káº¿t ná»‘i Ä‘áº¿n server: ' + error.message);
             });
     }
 
@@ -239,7 +277,7 @@
         tbody.innerHTML = '';
 
         if (!processes || processes.length === 0) {
-            showEmptyState('Không có tiến trình nào');
+            showEmptyState('KhĂ´ng cĂ³ tiáº¿n trĂ¬nh nĂ o');
             return;
         }
 
@@ -307,22 +345,22 @@
         const stateUpper = String(state || '').toUpperCase();
         
         if (stateUpper.includes('LISTENING')) {
-            return `<i class="fas fa-ear"></i> Nghe trên port ${escapeHtml(String(localPort))}`;
+            return `<i class="fas fa-ear"></i> Nghe trĂªn port ${escapeHtml(String(localPort))}`;
         }
         
         if (stateUpper.includes('ESTABLISHED')) {
-            return `<i class="fas fa-link"></i> Kết nối tới port ${escapeHtml(String(remotePort))}`;
+            return `<i class="fas fa-link"></i> Káº¿t ná»‘i tá»›i port ${escapeHtml(String(remotePort))}`;
         }
         
         if (localPort && remotePort && remotePort !== '-') {
-            return `Từ port ${escapeHtml(String(localPort))} đến ${escapeHtml(String(remotePort))}`;
+            return `Tá»« port ${escapeHtml(String(localPort))} Ä‘áº¿n ${escapeHtml(String(remotePort))}`;
         }
         
         return escapeHtml(stateUpper);
     }
 
     // Show empty state
-    function showEmptyState(message = 'Chọn một agent để bắt đầu') {
+    function showEmptyState(message = 'Chá»n má»™t agent Ä‘á»ƒ báº¯t Ä‘áº§u') {
         document.getElementById('processTableContainer').style.display = 'none';
         document.getElementById('emptyState').style.display = 'block';
         document.getElementById('emptyState').querySelector('p').textContent = message;

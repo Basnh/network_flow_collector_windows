@@ -65,7 +65,7 @@
             <div class="panel-header">
                 <h3 class="panel-title">
                     <i class="fas fa-desktop"></i>
-                    Windows Collectors / Agents
+                    Danh sách các Agent hiện có
                     <span class="alerts-count">{{ agents|length }}</span>
                 </h3>
                 <div class="panel-controls">
@@ -73,7 +73,7 @@
                     <div class="filter-buttons">
                         <button class="filter-btn active" data-filter="all">Tất cả</button>
                         <button class="filter-btn" data-filter="active">Active</button>
-                        <button class="filter-btn" data-filter="isolated">Isolated</button>
+                        <button class="filter-btn" data-filter="isolated">Đã cách ly</button>
                         <button class="filter-btn" data-filter="offline">Offline</button>
                     </div>
                     <button class="control-btn" onclick="refreshAgentsData()" title="Refresh Agents">
@@ -176,7 +176,7 @@
                                             Just now
                                             </span>
                                             {% elif time_diff < 3600 %} <span class="time-main">{{ (time_diff/60)|int
-                                                }}m ago</span>
+                                                }}m trước</span>
                                                 {% else %}
                                                 <span class="time-main">{{ agent.last_seen.strftime('%H:%M:%S')
                                                     }}</span>

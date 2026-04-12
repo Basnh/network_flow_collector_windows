@@ -303,8 +303,8 @@
                     <i class="fas fa-ban"></i>
                 </div>
                 <div class="isolate-header-text">
-                    <h1>Isolate Agent</h1>
-                    <p>Disconnect this agent from the network</p>
+                    <h1>Cách ly Agent</h1>
+                    <p>Ngắt kết nối agent này khỏi hệ thống</p>
                 </div>
             </div>
 
@@ -315,7 +315,7 @@
             </div>
 
             <div class="agent-info-box">
-                <span class="label">Connection Status</span>
+                <span class="label">Tình trạng kết nối</span>
                 <span class="value">
                     {% if agent.is_online %}
                     <span class="text-success"><span class="pulse-online"></span> ONLINE</span>
@@ -326,7 +326,7 @@
             </div>
 
             <div class="agent-info-box">
-                <span class="label">IP Address</span>
+                <span class="label">Địa chỉ IP</span>
                 <span class="value">{{ agent.ip_address }}</span>
             </div>
 
@@ -334,7 +334,7 @@
             <div class="warning-box">
                 <p>
                     <i class="fas fa-shield-alt icon"></i>
-                    This will block all network traffic EXCEPT for communication with this management server.
+                    Sẽ ngắt kết nối từ máy Agent khỏi hệ thống hiện tại và mạng của máy Agent.
                 </p>
             </div>
 
@@ -346,28 +346,28 @@
 
                 <!-- Duration -->
                 <div class="form-group">
-                    <label for="duration">Isolation Duration</label>
+                    <label for="duration">Thời hạn cách ly</label>
                     <select name="duration" id="duration" required>
-                        <option value="1m">1 Minute (Testing)</option>
-                        <option value="1h">1 Hour</option>
-                        <option value="1d">1 Day</option>
-                        <option value="indefinite" selected>Indefinite</option>
+                        <option value="1m">1 Phút </option>
+                        <option value="1h">1 Giờ</option>
+                        <option value="1d">1 Ngày</option>
+                        <option value="indefinite" selected>Vô thời hạn</option>
                     </select>
                 </div>
 
                 <!-- Reason -->
                 <div class="form-group">
-                    <label for="reason">Reason for Isolation</label>
-                    <textarea name="reason" id="reason" placeholder="Enter reason for network isolation..." required>Threat detected via web interface</textarea>
+                    <label for="reason">Lý do cách ly</label>
+                    <textarea name="reason" id="reason" placeholder="Lý do cách ly mạng..." required>Threat detected via web interface</textarea>
                 </div>
 
                 <!-- Actions -->
                 <div class="form-actions">
                     <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn-cancel">
-                        <i class="fas fa-times me-2"></i> Cancel
+                        <i class="fas fa-times me-2"></i> Huỷ bỏ
                     </a>
                     <button type="submit" class="btn-isolate">
-                        <i class="fas fa-ban me-2"></i> Isolate Agent
+                        <i class="fas fa-ban me-2"></i> Cách ly
                     </button>
                 </div>
             </form>
