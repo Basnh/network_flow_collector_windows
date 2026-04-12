@@ -187,6 +187,10 @@ class SecurityAgentClient:
                 'timestamp': flow_data.get('Timestamp', get_utc7_now().isoformat())
             }
             
+            # Khôi phục việc gửi mảng 80+ features từ Agent lên Server thay vì bị drop
+            if 'ml_features' in flow_data:
+                formatted_flow['ml_features'] = flow_data['ml_features']
+            
             self.flow_queue.append(formatted_flow)
             self.logger.debug(f"Added flow to queue: {formatted_flow['flow_id']}")
             

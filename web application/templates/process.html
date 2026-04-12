@@ -245,7 +245,7 @@
 
         processes.forEach((proc, index) => {
             const row = document.createElement('div');
-            row.className = 'table-row';
+            row.className = 'threat-row';
             
             // Ensure all values are strings and safe
             const processName = String(proc.ProcessName || '').trim() || 'Unknown';

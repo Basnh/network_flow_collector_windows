@@ -573,6 +573,8 @@ class ThreatDetector:
     
     def predict_threat(self, flow, raw_ml_features=None):
         """Predict if a flow is a threat using ML model + Payload/Port Signatures"""
+        import warnings
+        
         threats_found = []
         threat_score = 0.0
         scaler_used = False
@@ -583,82 +585,77 @@ class ThreatDetector:
         # Bắt các thay đổi dị thường về luồng dữ liệu trước tiên
         # ---------------------------------------------------------
         if self.is_trained and self.model is not None:
-            try:
-                # Extract all features from flow
-                all_features = self.extract_flow_features(flow, raw_ml_features)
-                model_features = all_features[:68]
+            # Tắt cảnh báo feature names của sklearn để console gọn gàng hơn
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+                
+                try:
+                    # Extract all features from flow
+                    all_features = self.extract_flow_features(flow, raw_ml_features)
+                    model_features = all_features[:68]
 
-                X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
-                X_np = np.array([model_features])
+                    X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
+                    X_np = np.array([model_features])
 
-                X_scaled = None
-                if self.scaler is not None and hasattr(self.scaler, 'transform'):
-                    try:
-                        X_scaled = self.scaler.transform(X_df)
-                        scaler_used = True
-                    except Exception:
+                    X_scaled = None
+                    if self.scaler is not None and hasattr(self.scaler, 'transform'):
                         try:
-                            X_scaled = self.scaler.transform(X_np)
+                            X_scaled = self.scaler.transform(X_df)
                             scaler_used = True
                         except Exception:
-                            X_scaled = None
+                            try:
+                                X_scaled = self.scaler.transform(X_np)
+                                scaler_used = True
+                            except Exception:
+                                X_scaled = None
 
-                prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
+                    prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
 
-                prediction = None
-                for X in prediction_inputs:
-                    try:
-                        prediction = self.model.predict(X)
-                        break
-                    except Exception:
-                        continue
-
-                if prediction is not None:
-                    pred_label = prediction[0]
-                    decoded_label = pred_label
-
-                    if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
+                    prediction = None
+                    for X in prediction_inputs:
                         try:
-                            decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
-                            decoded_label = decoded[0]
-                            encoder_used = True
+                            prediction = self.model.predict(X)
+                            break
                         except Exception:
-                            pass
+                            continue
 
-                    is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                    # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
-                    ml_score = 1.0 if is_malicious else 0.0
+                    if prediction is not None:
+                        pred_label = prediction[0]
+                        decoded_label = pred_label
 
-                    threat_score = max(threat_score, ml_score)
-                    if is_malicious:
-                        threats_found.append(f"Threat detected by ML model (Score: {ml_score:.2f})")
-                    
-                    self.prediction_count += 1
-                    if scaler_used:
-                        self.scaler_used_count += 1
-                    if encoder_used:
-                        self.encoder_used_count += 1
-            except Exception as e:
-                logger.error(f"Error in ML prediction: {e}")
+                        if self.label_encoder is not None and hasattr(self.label_encoder, 'inverse_transform'):
+                            try:
+                                decoded = self.label_encoder.inverse_transform(np.array([pred_label]))
+                                decoded_label = decoded[0]
+                                encoder_used = True
+                            except Exception:
+                                pass
 
-        # ---------------------------------------------------------
-        # TẦNG 2: PAYLOAD SIGNATURE (Deep Packet Inspection)
-        # Kiểm tra nội dung mã hóa/lệnh hack bên trong gói tin
-        # ---------------------------------------------------------
-        payload_str = str(flow.payload_content or '').lower()
-        bad_patterns = [
-            'cmd.exe', 'powershell', 'nc -e', '/bin/sh', '/bin/bash', 
-            'eval(base64', 'meterpreter', 'reverse_tcp', 'mimikatz',
-            'wget ', 'curl ', 'invoke-webrequest'
-        ]
-        for pat in bad_patterns:
-            if pat in payload_str:
-                threats_found.append(f"Malicious payload signature matched: '{pat}'")
-                threat_score = max(threat_score, 0.95)
+                        is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
+                        
+                        # --- IN RA CONSOLE ĐỂ KIỂM CHỨNG DỮ LIỆU ĐÃ QUA FILE MÁY HỌC (best_model.pkl) ---
+                        logger.warning(f"👉 [File Máy Học] IP Nguồn: {flow.src_ip} -> Đích: {flow.dst_ip} | Label gốc từ file pkl: '{decoded_label}' | Trạng thái độc hại: {is_malicious}")
+                        
+                        # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
+                        ml_score = 1.0 if is_malicious else 0.0
+
+                        threat_score = max(threat_score, ml_score)
+                        if is_malicious:
+                            threats_found.append(f"Threat detected by ML model (Score: {ml_score:.2f})")
+                        
+                        self.prediction_count += 1
+                        if scaler_used:
+                            self.scaler_used_count += 1
+                        if encoder_used:
+                            self.encoder_used_count += 1
+                except Exception as e:
+                    logger.error(f"Error in ML prediction: {e}")
+
+        # (Đã tắt TẦNG 2: PAYLOAD SIGNATURE theo yêu cầu. Dữ liệu sẽ tin tưởng vào ML model)
 
         # ---------------------------------------------------------
         # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
-        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
+        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua ML model
         # ---------------------------------------------------------
         suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
@@ -773,6 +770,28 @@ def register_agent():
         logger.error(f"Error registering agent: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+def is_whitelisted_traffic(src_ip, dst_ip):
+    """
+    Check if the traffic involves trusted services like Microsoft/Azure or Google 
+    to prevent false positives from background OS traffic.
+    """
+    src = str(src_ip)
+    dst = str(dst_ip)
+    
+    # Common prefixes for Microsoft (Azure), Google, Cloudflare
+    whitelist_prefixes = (
+        # Microsoft / Azure common prefixes
+        '4.', '13.', '20.', '23.', '40.', '51.', '52.', '104.', '137.', '191.', 
+        # Google
+        '8.8.', '34.', '35.', '142.', '172.217.', '173.194.', '216.58.',
+        # Local / Private / Multicast / Broadcast
+        '127.0.0.1', '224.0.0.', '239.255.'
+    )
+    
+    if src.startswith(whitelist_prefixes) or dst.startswith(whitelist_prefixes):
+        return True
+    return False
+
 @app.route('/api/submit_flow', methods=['POST'])
 @csrf.exempt
 def submit_flow():
@@ -816,6 +835,11 @@ def submit_flow():
                 threat_score, payload_threats = threat_detector.predict_threat(flow, raw_ml_features)
                 if is_icmp_echo_traffic(flow.protocol, flow.payload_content, flow.src_port, flow.dst_port):
                     # Ignore ping request/reply from alerting pipeline to avoid false positives.
+                    flow.threat_score = 0.0
+                    flow.is_malicious = False
+                    flow.classification = 'Benign'
+                elif is_whitelisted_traffic(flow.src_ip, flow.dst_ip):
+                    # Ignore known good IPs (Microsoft/Google) to prevent 100% false positives
                     flow.threat_score = 0.0
                     flow.is_malicious = False
                     flow.classification = 'Benign'
@@ -2045,8 +2069,6 @@ if __name__ == '__main__':
     # Create database tables
     with app.app_context():
         db.create_all()
-        # Run database migrations
-        migrate_database()
         logger.info("Đã cài đặt thành công cơ sở dữ liệu cần thiết.")
     
     # Start background threads
