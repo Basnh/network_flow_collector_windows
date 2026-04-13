@@ -27,6 +27,16 @@ import numpy as np
 # Timezone settings
 UTC_PLUS_7 = timezone('Asia/Bangkok')  # UTC+7
 
+# DANH SÁCH WHITELIST IP (Kết nối đến các IP này không bị coi là Trojan)
+WHITELISTED_IPS = {
+    '8.8.8.8',    # Google DNS
+    '8.8.4.4',    # Google DNS
+    '1.1.1.1',    # Cloudflare DNS
+    '1.0.0.1',    # Cloudflare DNS
+    '224.0.0.252',# Multicast LLMNR
+    '239.255.255.250' # Multicast SSDP
+}
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost/network_db'
@@ -815,7 +825,15 @@ def submit_flow():
                 # Threat analysis
                 raw_ml_features = flow_data.get('ml_features', None)
                 threat_score, payload_threats = threat_detector.predict_threat(flow, raw_ml_features)
-                if is_icmp_echo_traffic(flow.protocol, flow.payload_content, flow.src_port, flow.dst_port):
+                
+                # Bỏ qua ICMP ping echo hoặc các kết nối nằm trong Whitelist
+                is_whitelisted = (flow.dst_ip in WHITELISTED_IPS or flow.src_ip in WHITELISTED_IPS)
+                
+                if is_whitelisted:
+                    flow.threat_score = 0.0
+                    flow.is_malicious = False
+                    flow.classification = 'Benign (Whitelisted)'
+                elif is_icmp_echo_traffic(flow.protocol, flow.payload_content, flow.src_port, flow.dst_port):
                     # Ignore ping request/reply from alerting pipeline to avoid false positives.
                     flow.threat_score = 0.0
                     flow.is_malicious = False

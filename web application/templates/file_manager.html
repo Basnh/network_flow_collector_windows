@@ -89,19 +89,22 @@
         </div>
 
         <div class="file-explorer shadow-sm">
-            <div class="toolbar">
+            <div class="toolbar d-flex align-items-center">
                 <select id="agentSelect" class="agent-select form-control">
                     <option value="">-- Chọn máy tác nhân (Agent) --</option>
                     {% for agent in agents %}
                         {% if agent.last_seen %}
-                            <!-- Chỉ hiện agent gần đây (trong 2 phút)? Không, cứ hiện hết để user chọn -->
                             <option value="{{ agent.agent_id }}">{{ agent.hostname }} ({{ agent.ip_address }})</option>
                         {% endif %}
                     {% endfor %}
                 </select>
-                <button class="btn btn-outline-primary" id="btnRefresh" disabled title="Tải lại thư mục hiện tại">
+                <button class="btn btn-outline-primary ms-2" id="btnRefresh" disabled title="Tải lại thư mục hiện tại">
                     <i class="fas fa-sync-alt"></i> Làm mới
                 </button>
+                <button class="btn btn-outline-success ms-2" id="btnSnapshot" disabled title="Lưu cấu trúc tệp để theo dõi thay đổi">
+                    <i class="fas fa-camera"></i> Snapshot
+                </button>
+                <span id="snapshotInfo" class="ms-3 text-info small fw-bold" style="display:none;"></span>
             </div>
 
             <div class="path-nav">
@@ -141,11 +144,14 @@
 {% block scripts %}
 <script>
     let currentAgentId = '';
+    let currentFiles = [];
     
     const ui = {
         agentSelect: document.getElementById('agentSelect'),
         currentPath: document.getElementById('currentPath'),
         btnRefresh: document.getElementById('btnRefresh'),
+        btnSnapshot: document.getElementById('btnSnapshot'),
+        snapshotInfo: document.getElementById('snapshotInfo'),
         btnUpLevel: document.getElementById('btnUpLevel'),
         btnGo: document.getElementById('btnGo'),
         fileList: document.getElementById('fileList'),
@@ -155,6 +161,7 @@
     function toggleControls(enabled) {
         ui.currentPath.disabled = !enabled;
         ui.btnRefresh.disabled = !enabled;
+        ui.btnSnapshot.disabled = !enabled;
         ui.btnUpLevel.disabled = !enabled;
         ui.btnGo.disabled = !enabled;
     }
@@ -186,6 +193,14 @@
 
                 // Cập nhật đường dẫn hiện tại mà agent trả về
                 ui.currentPath.value = data.current_path;
+                currentFiles = data.files || [];
+
+                if (data.last_snapshot) {
+                    ui.snapshotInfo.style.display = 'inline-block';
+                    ui.snapshotInfo.innerHTML = `<i class="fas fa-clock"></i> Snapshot lúc: ${data.last_snapshot}`;
+                } else {
+                    ui.snapshotInfo.style.display = 'none';
+                }
 
                 renderFileList(data.files);
             })
@@ -216,9 +231,14 @@
             const iconClass = f.is_dir ? 'fas fa-folder' : 'fas fa-file-alt';
             const colClass = f.is_dir ? 'icon-col is-dir' : 'icon-col';
             
+            const isNewBadge = f.is_new ? '<span class="badge bg-success ms-2">Mới/Đã sửa</span>' : '';
+            if (f.is_new) {
+                tr.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
+            }
+
             tr.innerHTML = `
                 <td class="${colClass}"><i class="${iconClass}"></i></td>
-                <td>${f.name}</td>
+                <td>${f.name} ${isNewBadge}</td>
                 <td>${f.size || ''}</td>
                 <td>${f.modified || ''}</td>
             `;
@@ -281,6 +301,45 @@
             loadFiles(newPath);
         } else if (lastIndex === 0) {
             loadFiles('/'); // Root for Linux
+        }
+    });
+
+    ui.btnSnapshot.addEventListener('click', async () => {
+        if (!currentAgentId) {
+            alert('Vui lòng chọn Agent trước.');
+            return;
+        }
+        if (currentFiles.length === 0) {
+             alert('Thư mục trống, không thể tạo snapshot.');
+             return;
+        }
+        
+        try {
+            ui.btnSnapshot.disabled = true;
+            ui.btnSnapshot.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang lưu...';
+
+            const response = await fetch(`/api/snapshot_files/${currentAgentId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: currentFiles })
+            });
+
+            if (!response.ok) throw new Error('Network error');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Tải lại files để xóa bôi xanh (bây giờ tất cả bằng snapshot mới)
+                loadFiles(ui.currentPath.value);
+                alert('Đã tạo Snapshot thành công! Từ giờ mọi thay đổi thêm/sửa tệp sẽ được bôi sáng.');
+            } else {
+                alert('Lỗi khi tạo snapshot: ' + (data.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Snapshot error:', error);
+            alert('Có lỗi xảy ra khi tạo snapshot.');
+        } finally {
+            ui.btnSnapshot.disabled = false;
+            ui.btnSnapshot.innerHTML = '<i class="fas fa-camera"></i> Snapshot';
         }
     });
 </script>

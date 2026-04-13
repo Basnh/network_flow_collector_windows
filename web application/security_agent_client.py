@@ -396,9 +396,9 @@ class SecurityAgentClient:
             self.execute_restoration()
             subprocess.run('netsh advfirewall set allprofiles state on', shell=True, capture_output=True)
 
-            # 2. SET DEFAULT POLICY TO BLOCK ALL FIRST (before creating any rules)
-            result = subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound', shell=True, capture_output=True, text=True)
-            self.logger.info(f"Set firewall policy to blockinbound,blockoutbound: {result.returncode}")
+            # 2. SET DEFAULT POLICY TO SOFT ISOLATION: BLOCK INBOUND, ALLOW OUTBOUND
+            result = subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound', shell=True, capture_output=True, text=True)
+            self.logger.info(f"Set firewall policy to blockinbound,allowoutbound for soft isolation: {result.returncode}")
             
             # 3. COMPLETELY CLEAR old isolation rules first
             ps_cmd = """
@@ -427,20 +427,8 @@ class SecurityAgentClient:
                 result = subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
                 self.logger.info(f"  ✓ Created Allow rules for server {server_ip}: {result.returncode}")
 
-            # 5. Terminate ALL existing connections EXCEPT to Management Server
-            # This ensures immediate isolation
-            if server_ip:
-                subprocess.run(
-                    f'powershell -Command "Get-NetTCPConnection -State Established | Where-Object {{ $_.RemoteAddress -ne \'{server_ip}\' -and $_.RemoteAddress -ne \'127.0.0.1\' }} | Remove-NetTCPConnection -ErrorAction SilentlyContinue"',
-                    shell=True,
-                    capture_output=True
-                )
-            else:
-                subprocess.run(
-                    'powershell -Command "Get-NetTCPConnection -State Established | Remove-NetTCPConnection -ErrorAction SilentlyContinue"',
-                    shell=True,
-                    capture_output=True
-                )
+            # 5. Skip terminating existing connections for soft-isolation
+            self.logger.info("Soft isolation: Skipping termination of established connections.")
 
             # 6. Verify isolation rules were created using PowerShell
             self.logger.info("Verifying firewall rules...")
@@ -457,12 +445,12 @@ class SecurityAgentClient:
             self.logger.info(f"Rules found: {result.stdout if result.stdout else 'None'}")
 
             server_desc = f"server {server_ip}" if server_ip else "management server"
-            self.logger.critical(f"COMPLETE NETWORK ISOLATION ENFORCED")
-            self.logger.critical(f"  ✓ Machine CANNOT connect to any other hosts")
-            self.logger.critical(f"  ✓ Other machines CANNOT ping this machine (ICMP BLOCKED)")
-            self.logger.critical(f"  ✓ ICMP Echo Request rules disabled (4 rules)")
-            self.logger.critical(f"  ✓ Only TCP with {server_desc}:{server_port} is allowed for control channel")
-            self.logger.critical(f"  ✓ Firewall policy: Block Inbound, Block Outbound (except allowed rules)")
+            self.logger.critical(f"SOFT NETWORK ISOLATION ENFORCED")
+            self.logger.critical(f"  ✓ Machine can still connect OUTBOUND to internet (Web, etc.)")
+            self.logger.critical(f"  ✓ Other machines CANNOT connect INBOUND to this machine")
+            self.logger.critical(f"  ✓ ICMP Echo Request rules disabled (Ping blocked)")
+            self.logger.critical(f"  ✓ Management control channel remains active on {server_desc}:{server_port}")
+            self.logger.critical(f"  ✓ Firewall policy: Block Inbound, Allow Outbound")
             return True
             
         except Exception as e:
