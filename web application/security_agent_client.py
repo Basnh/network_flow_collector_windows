@@ -905,7 +905,7 @@ class SecurityAgentClient:
             return []
 
     def poll_and_send_files(self):
-        """Poll server for file requests and submit local file list."""
+        """Poll server for file requests (list or delete) and submit local file result."""
         try:
             response = requests.get(
                 f"{self.server_url}/api/agent/{self.agent_id}/file_request",
@@ -921,15 +921,45 @@ class SecurityAgentClient:
                 return
 
             target_path = payload.get('path', 'C:\\')
-            files = self.collect_files(target_path)
-            
-            result = {
-                'request_id': request_id,
-                'success': True,
-                'files': files,
-                'path': target_path,
-                'timestamp': get_utc7_now().isoformat()
-            }
+            action = payload.get('action', 'list')
+
+            if action == 'delete':
+                success = False
+                message = ''
+                try:
+                    if os.path.exists(target_path):
+                        if os.path.isfile(target_path):
+                            os.remove(target_path)
+                        else:
+                            import shutil
+                            shutil.rmtree(target_path)
+                        success = True
+                        message = f"Xóa thành công {target_path}"
+                    else:
+                        message = f"Tệp/Thư mục không tồn tại: {target_path}"
+                except Exception as e:
+                    message = f"Lỗi khi xóa: {str(e)}"
+                
+                result = {
+                    'request_id': request_id,
+                    'success': success,
+                    'message': message,
+                    'action': 'delete',
+                    'path': target_path,
+                    'timestamp': get_utc7_now().isoformat()
+                }
+            else:
+                # Default is list
+                files = self.collect_files(target_path)
+                result = {
+                    'request_id': request_id,
+                    'success': True,
+                    'files': files,
+                    'action': 'list',
+                    'path': target_path,
+                    'timestamp': get_utc7_now().isoformat()
+                }
+                
             requests.post(
                 f"{self.server_url}/api/agent/{self.agent_id}/file_result",
                 json=result,

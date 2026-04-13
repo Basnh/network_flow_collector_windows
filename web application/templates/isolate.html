@@ -227,8 +227,8 @@
                     <i class="fas fa-undo"></i>
                 </div>
                 <div class="isolate-header-text">
-                    <h1>Restore Agent</h1>
-                    <p>Restore network access for this agent</p>
+                    <h1>KHÔI PHỤC</h1>
+                    <p>Khôi phục kết nối cho agent này</p>
                 </div>
             </div>
 
@@ -244,7 +244,7 @@
             </div>
 
             <div class="agent-info-box">
-                <span class="label">Connection Status</span>
+                <span class="label">Trạng thái kết nối</span>
                 <span class="value">
                     {% if agent.is_online %}
                     <span class="text-success"><span class="pulse-online"></span> ONLINE</span>
@@ -255,13 +255,13 @@
             </div>
 
             <div class="agent-info-box">
-                <span class="label">Administrative Status</span>
-                <span class="value text-danger">ISOLATED</span>
+                <span class="label">Trạng thái quản trị</span>
+                <span class="value text-danger">CÁCH LY</span>
             </div>
 
             {% if agent.isolated_until %}
             <div class="agent-info-box">
-                <span class="label">Isolated Until</span>
+                <span class="label">Thời hạn cách ly</span>
                 <span class="value text-warning">{{ agent.isolated_until.strftime('%Y-%m-%d %H:%M:%S') }}</span>
             </div>
             {% endif %}
@@ -270,7 +270,7 @@
             <div class="warning-box" style="background-color: rgba(35, 134, 54, 0.1); border-left: 4px solid #238636;">
                 <p style="color: #238636;">
                     <i class="fas fa-info-circle icon" style="color: #238636;"></i>
-                    Restoring access will remove the firewall rules and permit all network traffic.
+                    Khôi phục kết nối sẽ loại bỏ các quy tắc tường lửa và cho phép tất cả lưu lượng mạng.
                 </p>
             </div>
 
@@ -282,17 +282,17 @@
 
                 <!-- Reason -->
                 <div class="form-group">
-                    <label for="reason">Reason for Restoration</label>
+                    <label for="reason">Lý do khôi phục</label>
                     <textarea name="reason" id="reason" placeholder="Enter reason for restoration..." required>Threat resolved - restoring network access</textarea>
                 </div>
 
                 <!-- Actions -->
                 <div class="form-actions">
                     <a href="{{ url_for('agent_detail', agent_id=agent.agent_id) }}" class="btn-cancel">
-                        <i class="fas fa-times me-2"></i> Cancel
+                        <i class="fas fa-times me-2"></i> Huỷ bỏ
                     </a>
                     <button type="submit" class="btn-isolate" style="background-color: #238636;">
-                        <i class="fas fa-undo me-2"></i> Restore Access
+                        <i class="fas fa-undo me-2"></i> Khôi phục kết nối
                     </button>
                 </div>
             </form>

@@ -38,7 +38,7 @@ WHITELISTED_IPS = {
 }
 
 # TÙY CHỌN ẨN: Chuyển thành True để TẮT mô hình AI (chỉ báo cáo các Trojan dựa vào Port / Rule-based)
-DISABLE_ML_DETECTION = False
+DISABLE_ML_DETECTION = True
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -406,7 +406,7 @@ class ThreatDetector:
         - Features 1-68: Match CIC-IDS dataset format for model prediction
         - Features 69-79: Activity statistics for extended analysis
         """
-        # Náº¿u Agent/Client Ä‘Ă£ trĂ­ch xuáº¥t sáºµn Ä‘áº§y Ä‘á»§ features (80+ parameters) -> Náº¡p luĂ´n!
+        
         if raw_ml_features and isinstance(raw_ml_features, list) and len(raw_ml_features) > 80:
             try:
                 # 0: flow_id, 1: src_ip, 2: src_port, 3: dst_ip, 4: dst_port, 5: protocol, 6: timestamp
@@ -418,27 +418,27 @@ class ThreatDetector:
                 else:
                     protocol_num = float(protocol_val)
 
-                # Chuyá»ƒn Ä‘á»•i feature tá»« array cá»§a WindowsNetworkFlowCollector thĂ nh máº£ng float
+                # Chuyển đổi feature từ array của WindowsNetworkFlowCollector thành mảng float
                 advanced_features = [
                     float(raw_ml_features[2] or 0),   # Source Port
                     float(raw_ml_features[4] or 0),   # Destination Port
                     float(protocol_num)               # Protocol
                 ]
                 
-                # Tá»« index 7 trá»Ÿ Ä‘i (tá»©c Flow Duration)
-                for val in raw_ml_features[7:83]: # Äáº£m báº£o láº¥y Ä‘á»§ 76 values káº¿ tiáº¿p
+                # Từ index 7 trở đi (tức Flow Duration)
+                for val in raw_ml_features[7:83]: # Đảm bảo lấy đủ 76 values kế tiếp
                     try:
                         advanced_features.append(float(val) if val not in [None, ''] else 0.0)
                     except Exception:
                         advanced_features.append(0.0)
                         
-                # Padding hoáº·c trim Ä‘á»ƒ khá»›p chĂ­nh xĂ¡c 79 features
+                # Padding hoặc trim để khớp chính xác 79 features
                 while len(advanced_features) < 79:
                     advanced_features.append(0.0)
                 return advanced_features[:79]
             except Exception as e:
                 logger.error(f"Error parsing raw_ml_features: {e}")
-                # Fallback xuá»‘ng dummy features náº¿u lá»—i
+                # Fallback xuống dummy features nếu lỗi
 
         payload_length = len(flow.payload_content) if flow.payload_content else 0
         
@@ -654,7 +654,7 @@ class ThreatDetector:
                             pass
 
                     is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                    # Ă‰p cá»©ng quy táº¯c 0 / 1 (0% hoáº·c 100%) dá»©t khoĂ¡t
+                    # Ép cứng quy tắc 0/1 (0% hoặc 100%) dứt khoát
                     ml_score = 1.0 if is_malicious else 0.0
 
                     threat_score = max(threat_score, ml_score)
@@ -670,17 +670,17 @@ class ThreatDetector:
                 logger.error(f"Error in ML prediction: {e}")
 
         # ---------------------------------------------------------
-        # Táº¦NG 3: PORT SIGNATURE (Fallback Known C2)
-        # Báº¯t cĂ¡c port tÄ©nh thÆ°á»ng Ä‘Æ°á»£c Trojan sá»­ dá»¥ng náº¿u lá»t qua 2 táº§ng Ä‘áº§u
+        # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
+        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
         # ---------------------------------------------------------
-        suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4782, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
+        suspicious_ports = {6606, 7707, 8808, 4444, 4782, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
             susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
             threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
             threat_score = max(threat_score, 0.85)
             
         # ---------------------------------------------------------
-        # Káº¾T LUáº¬N CUá»I CĂ™NG
+        # KẾT LUẬN CUỐI CÙNG
         # ---------------------------------------------------------
         if not threats_found and threat_score < 0.7:
             threats_found.append("Normal traffic detected")
@@ -710,10 +710,10 @@ def list_models():
     model_dir = os.path.join(project_dir, 'model') # Point strictly to the 'model' directory
     
     models = set()
-    # Danh sĂ¡ch cĂ¡c file pkl ná»™i bá»™/Ä‘Ă³ng vai trĂ² phá»¥ trá»£ khĂ´ng Ä‘Æ°á»£c phĂ©p chá»n
+    # Danh sách các file pkl nội bộ/đóng vai trò phụ trợ không được phép chọn
     ignore_list = {'scaler.pkl', 'mahoa_nhan.pkl', 'processed_data.pkl'}
     
-    # Chá»‰ quĂ©t bĂªn trong thÆ° má»¥c model
+    # Chỉ quét bên trong thư mục model
     if os.path.exists(model_dir):
         for file in os.listdir(model_dir):
             if file.endswith('.pkl') and file not in ignore_list:
@@ -877,7 +877,7 @@ def submit_flow():
         
         db.session.commit()
         
-        # Tá»± Ä‘á»™ng cĂ¡ch ly ngay láº­p tá»©c khi phĂ¡t hiá»‡n báº¥t ká»³ má»‘i Ä‘e dá»a nĂ o >= 0.85 (Trojan)
+        # Tự động cách ly ngay lập tức khi phát hiện bất kỳ mối đe dọa nào >= 0.85 (Trojan)
         if threats_detected > 0 and agent.threat_level in ['high', 'critical']:
             isolate_agent_network(agent_id, f"Auto-isolation: {threats_detected} threats detected (Score >= 0.85)")
         
@@ -1120,7 +1120,7 @@ def kill_process(agent_id):
         # Check if agent is online
         last_seen_threshold = get_utc7_now() - timedelta(seconds=120)
         if not agent.last_seen or agent.last_seen < last_seen_threshold:
-            return jsonify({'success': False, 'error': 'Agent Ä‘ang ngoáº¡i tuyáº¿n.'}), 503
+            return jsonify({'success': False, 'error': 'Agent đang ngoại tuyến.'}), 503
         
         # Send kill_process command via pending_command
         command = {
@@ -1534,9 +1534,9 @@ def resolve_alert(alert_id):
     db.session.commit()
     
     if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': 'ÄĂ£ Ä‘Ă¡nh dáº¥u Ä‘Ă£ giáº£i quyáº¿t'})
+        return jsonify({'success': True, 'message': 'Đã đánh dấu đã giải quyết'})
         
-    flash('ÄĂ£ Ä‘Ă¡nh dáº¥u Ä‘Ă£ giáº£i quyáº¿t.', 'success')
+    flash('Đã đánh dấu đã giải quyết.', 'success')
     return redirect(url_for('alerts_list'))
 
 @app.route('/resolve_all_alerts', methods=['POST'])
@@ -1550,9 +1550,9 @@ def resolve_all_alerts():
     db.session.commit()
     
     if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': f'ÄĂ£ giáº£i quyáº¿t {count} cáº£nh bĂ¡o'})
+        return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
         
-    flash(f'ÄĂ£ giáº£i quyáº¿t {count} cáº£nh bĂ¡o.', 'success')
+    flash(f'Đã giải quyết {count} cảnh báo.', 'success')
     return redirect(url_for('alerts_list'))
 
 # ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================
@@ -1784,7 +1784,7 @@ def get_agent_processes(agent_id):
         if not agent.is_online:
             return jsonify({
                 'success': False,
-                'message': 'Agent Ä‘ang ngoáº¡i tuyáº¿n.'
+                'message': 'Agent đang ngoại tuyến.'
             }), 503
 
         request_id = uuid.uuid4().hex
@@ -2228,10 +2228,12 @@ def get_file_request(agent_id):
                 FILE_REQUESTS.pop(agent_id, None)
                 return jsonify({'has_request': False}), 200
 
+            action = req.get('action', 'list')
             return jsonify({
                 'has_request': True,
                 'request_id': req['request_id'],
-                'path': req.get('path', 'C:\\')
+                'path': req.get('path', 'C:\\'),
+                'action': action
             }), 200
     except Exception as e:
         return jsonify({'has_request': False}), 200
@@ -2337,6 +2339,48 @@ def get_agent_files(agent_id):
         
     except Exception as e:
         logger.error(f"Error fetching files for agent {agent_id}: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delete_file/<agent_id>', methods=['POST'])
+@csrf.exempt
+def delete_agent_file(agent_id):
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'success': False, 'message': 'Agent not found'}), 404
+            
+        data = request.get_json() or {}
+        target_path = data.get('path')
+        if not target_path:
+            return jsonify({'success': False, 'message': 'Path is required'}), 400
+
+        request_id = uuid.uuid4().hex
+        with FILE_LOCK:
+            FILE_REQUESTS[agent_id] = {
+                'request_id': request_id,
+                'action': 'delete',
+                'path': target_path,
+                'created_at': get_utc7_now()
+            }
+            
+        timeout_at = time.time() + 12
+        while time.time() < timeout_at:
+            with FILE_LOCK:
+                result = FILE_RESULTS.pop(request_id, None)
+            if result:
+                if result.get('success'):
+                    return jsonify({'success': True, 'message': result.get('message', 'Đã xoá tệp thành công.')})
+                else:
+                    return jsonify({'success': False, 'message': result.get('message', 'Lỗi khi xoá.')})
+            time.sleep(0.5)
+            
+        return jsonify({
+            'success': False,
+            'message': 'Timed out waiting for agent to delete file'
+        }), 504
+        
+    except Exception as e:
+        logger.error(f"Error requesting file deletion for agent {agent_id}: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/snapshot_files/<agent_id>', methods=['POST'])

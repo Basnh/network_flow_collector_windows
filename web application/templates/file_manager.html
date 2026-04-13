@@ -123,11 +123,12 @@
                             <th>Tên / Name</th>
                             <th>Kích thước / Size</th>
                             <th>Sửa đổi cuối / Modified</th>
+                            <th>Hành động</th>
                         </tr>
                     </thead>
                     <tbody id="fileList">
                         <tr>
-                            <td colspan="4" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td>
+                            <td colspan="5" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td>
                         </tr>
                     </tbody>
                 </table>
@@ -187,7 +188,7 @@
                 toggleControls(true);
 
                 if (!data.success) {
-                    ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Lỗi: ${data.message}</td></tr>`;
+                    ui.fileList.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Lỗi: ${data.message}</td></tr>`;
                     return;
                 }
 
@@ -207,7 +208,7 @@
             .catch(err => {
                 showLoading(false);
                 toggleControls(true);
-                ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Lỗi kết nối server</td></tr>`;
+                ui.fileList.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Lỗi kết nối server</td></tr>`;
                 console.error(err);
             });
     }
@@ -215,7 +216,7 @@
     function renderFileList(files) {
         ui.fileList.innerHTML = '';
         if (!files || files.length === 0) {
-            ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Thư mục trống</td></tr>`;
+            ui.fileList.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Thư mục trống</td></tr>`;
             return;
         }
 
@@ -241,7 +242,18 @@
                 <td>${f.name} ${isNewBadge}</td>
                 <td>${f.size || ''}</td>
                 <td>${f.modified || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger btn-delete" data-filename="${f.name}" title="Xóa">
+                        <i class="fas fa-trash-alt"></i> Xóa
+                    </button>
+                </td>
             `;
+
+            const btnDelete = tr.querySelector('.btn-delete');
+            btnDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteFile(f.name);
+            });
 
             if (f.is_dir) {
                 tr.addEventListener('dblclick', () => {
@@ -255,6 +267,40 @@
         });
     }
 
+    async function deleteFile(filename) {
+        if (!currentAgentId) return;
+        if (!confirm(`Bạn có chắc chắn muốn xóa "${filename}" không? Hành động này không thể hoàn tác.`)) {
+            return;
+        }
+
+        const current = ui.currentPath.value;
+        let sep = current.includes('\\') ? '\\' : '/';
+        const targetPath = current.endsWith(sep) ? current + filename : current + sep + filename;
+
+        try {
+            showLoading(true);
+            toggleControls(false);
+
+            const response = await fetch(`/api/delete_file/${currentAgentId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: targetPath })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                alert(data.message);
+            } else {
+                alert('Lỗi: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Delete file error:', error);
+            alert('Lỗi kết nối khi xóa tệp.');
+        } finally {
+            loadFiles(ui.currentPath.value);
+        }
+    }
+
     ui.agentSelect.addEventListener('change', (e) => {
         currentAgentId = e.target.value;
         if (currentAgentId) {
@@ -262,7 +308,7 @@
             loadFiles(ui.currentPath.value);
         } else {
             toggleControls(false);
-            ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td></tr>`;
+            ui.fileList.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td></tr>`;
             ui.currentPath.value = '';
         }
     });

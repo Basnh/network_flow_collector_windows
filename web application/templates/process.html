@@ -142,13 +142,13 @@
                 <!-- Loading State -->
                 <div id="loadingState" style="display: none; padding: 40px; text-align: center; color: #38bdf8;">
                     <i class="fas fa-circle-notch fa-spin fa-2x mb-3"></i>
-                    <p>Äang táº£i dá»¯ liá»‡u tiáº¿n trĂ¬nh tá»« Agent...</p>
+                    <p>Đang tải tiến trình của Agent...</p>
                 </div>
                 
                 <!-- Error Base -->
                 <div id="errorState" style="display: none; padding: 40px; text-align: center; color: #ff4757;">
                     <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                    <p id="errorMessage">CĂ³ lá»—i xáº£y ra káº¿t ná»‘i tá»›i Agent!</p>
+                    <p id="errorMessage">Có lỗi xảy ra khi kết nối tới Agent!</p>
                 </div>
                 
                 <!-- Empty State -->
@@ -267,7 +267,7 @@
             .catch(error => {
                 btn.classList.remove('loading');
                 console.error('Error loading processes:', error);
-                showError('Lá»—i khi káº¿t ná»‘i Ä‘áº¿n server: ' + error.message);
+                showError('Lỗi khi kết nối đến server: ' + error.message);
             });
     }
 
@@ -345,11 +345,11 @@
         const stateUpper = String(state || '').toUpperCase();
         
         if (stateUpper.includes('LISTENING')) {
-            return `<i class="fas fa-ear"></i> Nghe trĂªn port ${escapeHtml(String(localPort))}`;
+            return `<i class="fas fa-ear"></i> Nghe tại port ${escapeHtml(String(localPort))}`;
         }
         
         if (stateUpper.includes('ESTABLISHED')) {
-            return `<i class="fas fa-link"></i> Káº¿t ná»‘i tá»›i port ${escapeHtml(String(remotePort))}`;
+            return `<i class="fas fa-link"></i> Kết nối tới port ${escapeHtml(String(remotePort))}`;
         }
         
         if (localPort && remotePort && remotePort !== '-') {
@@ -360,7 +360,7 @@
     }
 
     // Show empty state
-    function showEmptyState(message = 'Chá»n má»™t agent Ä‘á»ƒ báº¯t Ä‘áº§u') {
+    function showEmptyState(message = 'Agent không có tiến trình nào hoặc chưa được chọn.') {
         document.getElementById('processTableContainer').style.display = 'none';
         document.getElementById('emptyState').style.display = 'block';
         document.getElementById('emptyState').querySelector('p').textContent = message;
@@ -414,7 +414,7 @@
 
     // Kill process function
     function killProcess(pid, processName) {
-        if (!confirm(`Are you sure you want to kill process: ${processName} (PID: ${pid})?`)) {
+        if (!confirm(`Bạn có chắc chắn muốn kết thúc tiến trình: ${processName} (PID: ${pid})?`)) {
             return;
         }
         
@@ -437,7 +437,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(`Kill command sent: ${data.message}`);
+                alert(`Đã gửi lênh tắt tiến trình: ${data.message}`);
                 // Refresh process list after 1 second
                 setTimeout(() => loadProcesses(agentId), 1000);
             } else {
