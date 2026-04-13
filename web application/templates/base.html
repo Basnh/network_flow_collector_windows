@@ -533,6 +533,10 @@
                     <i class="fas fa-folder-open"></i>
                     <span>File Manager</span>
                 </a>
+                <a class="sidebar-nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modelConfigModal" onclick="fetchModelList()">
+                    <i class="fas fa-brain"></i>
+                    <span>Cấu hình Model</span>
+                </a>
             </nav>
         </div>
 
@@ -713,6 +717,110 @@
                 icon.className = 'fas fa-sync-alt me-1';
                 button.disabled = false;
             }, 1000);
+        }
+    </script>
+
+    <!-- Modal Cấu hình Model Máy Học -->
+    <div class="modal fade" id="modelConfigModal" tabindex="-1" aria-labelledby="modelConfigModalLabel" aria-hidden="true" data-bs-theme="dark">
+        <div class="modal-dialog">
+            <div class="modal-content text-light" style="background-color: var(--bg-card); border: 1px solid var(--border-default);">
+                <div class="modal-header border-bottom-0">
+                    <h5 class="modal-title" id="modelConfigModalLabel"><i class="fas fa-brain text-primary me-2"></i>Chọn Model Máy Học</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Model hiện tại đang sử dụng: <strong id="currentModelBadge" class="text-info">Đang tải...</strong></p>
+                    <div class="mb-3">
+                        <label for="modelSelectDropdown" class="form-label text-light">Mô hình có sẵn trong thư mục /model</label>
+                        <select class="form-select bg-dark text-light border-secondary" id="modelSelectDropdown">
+                            <option value="">Đang tải danh sách...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" onclick="applySelectedModel()" id="btnApplyModel">
+                        <i class="fas fa-check me-1"></i> Áp dụng Model
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script quản lý Cấu hình Model -->
+    <script>
+        async function fetchModelList() {
+            const dropdown = document.getElementById('modelSelectDropdown');
+            const badge = document.getElementById('currentModelBadge');
+            const btnApply = document.getElementById('btnApplyModel');
+            
+            dropdown.innerHTML = '<option value="">Đang tải...</option>';
+            dropdown.disabled = true;
+            btnApply.disabled = true;
+
+            try {
+                const res = await fetch('/api/models');
+                if (!res.ok) throw new Error('Network error');
+                const data = await res.json();
+                
+                badge.innerText = data.current_model || 'Unknown';
+                
+                dropdown.innerHTML = '';
+                if (data.available_models && data.available_models.length > 0) {
+                    data.available_models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        if (model === data.current_model) {
+                            option.selected = true;
+                        }
+                        dropdown.appendChild(option);
+                    });
+                    dropdown.disabled = false;
+                    btnApply.disabled = false;
+                } else {
+                    dropdown.innerHTML = '<option value="">Không tìm thấy mô hình khả dụng.</option>';
+                }
+            } catch (err) {
+                console.error(err);
+                badge.innerText = 'Lỗi kết nối';
+                dropdown.innerHTML = '<option value="">Không thể tải danh sách</option>';
+            }
+        }
+
+        async function applySelectedModel() {
+            const dropdown = document.getElementById('modelSelectDropdown');
+            const selectedModel = dropdown.value;
+            if (!selectedModel) return;
+
+            const btnApply = document.getElementById('btnApplyModel');
+            const originalText = btnApply.innerHTML;
+            btnApply.disabled = true;
+            btnApply.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang áp dụng...';
+
+            try {
+                const res = await fetch('/api/select_model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_name: selectedModel })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Chuyển đổi Model thành công: ' + selectedModel);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modelConfigModal'));
+                    modal.hide();
+                    location.reload(); // reload to reflect the dashboard properly if needed
+                } else {
+                    alert('Lỗi khi chuyển đổi: ' + (data.error || 'Server error'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối server.');
+            } finally {
+                btnApply.disabled = false;
+                btnApply.innerHTML = originalText;
+            }
         }
     </script>
 

@@ -595,31 +595,39 @@ class ThreatDetector:
                 # Extract all features from flow
                 all_features = self.extract_flow_features(flow, raw_ml_features)
                 model_features = all_features[:68]
-
-                X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
-                X_np = np.array([model_features])
-
-                X_scaled = None
-                if self.scaler is not None and hasattr(self.scaler, 'transform'):
-                    try:
-                        X_scaled = self.scaler.transform(X_df)
-                        scaler_used = True
-                    except Exception:
+                
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    
+                    X_df = pd.DataFrame([model_features], columns=self.FEATURE_NAMES[:68])
+                    X_np = np.array([model_features])
+                    
+                    X_scaled = None
+                    if self.scaler is not None and hasattr(self.scaler, 'transform'):
                         try:
-                            X_scaled = self.scaler.transform(X_np)
+                            # Try to transform with DataFrame
+                            # Wait, the warning might still appear if we fall back to X_np
+                            if hasattr(self.scaler, 'feature_names_in_'):
+                                X_df = pd.DataFrame([model_features], columns=self.scaler.feature_names_in_)
+                            X_scaled = self.scaler.transform(X_df)
                             scaler_used = True
                         except Exception:
-                            X_scaled = None
-
-                prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
-
-                prediction = None
-                for X in prediction_inputs:
-                    try:
-                        prediction = self.model.predict(X)
-                        break
-                    except Exception:
-                        continue
+                            try:
+                                X_scaled = self.scaler.transform(X_np)
+                                scaler_used = True
+                            except Exception:
+                                X_scaled = None
+    
+                    prediction_inputs = [X for X in (X_scaled, X_df, X_np) if X is not None]
+    
+                    prediction = None
+                    for X in prediction_inputs:
+                        try:
+                            prediction = self.model.predict(X)
+                            break
+                        except Exception:
+                            continue
 
                 if prediction is not None:
                     pred_label = prediction[0]
