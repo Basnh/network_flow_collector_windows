@@ -411,8 +411,8 @@ class SecurityAgentClient:
             # 3.5. Disable ONLY the 4 File and Printer Sharing Echo Request inbound rules.
             self.set_file_printer_echo_rules(enable=False)
 
-            # 4. CREATE EXPLICIT ALLOW rules for Management Server.
-            self.logger.info("Creating ALLOW rules using PowerShell...")
+            # 4. CREATE EXPLICIT ALLOW rules for Management Server, AND BLOCK known Trojan ports.
+            self.logger.info("Creating ALLOW/BLOCK rules using PowerShell...")
             
             if server_ip:
                 ps_cmd = f"""
@@ -422,13 +422,33 @@ class SecurityAgentClient:
                 # Allow outbound TCP to Management Server port for agent polling/heartbeat
                 New-NetFirewallRule -DisplayName "Manager_Isolation_Allow_Out_Server_TCP" -Direction Outbound -Action Allow -Protocol TCP -RemoteAddress "{server_ip}" -RemotePort {server_port} -ErrorAction SilentlyContinue | Out-Null
                 
+                # BLOCK outbound TCP/UDP to Known Trojan Ports
+                $TrojanPorts = @("2404","6606","7707","8808","4444","4782","4445","1337","31337","5555","6666","7777","8888","9999","1177")
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Block_Out_Trojan_TCP" -Direction Outbound -Action Block -Protocol TCP -RemotePort $TrojanPorts -ErrorAction SilentlyContinue | Out-Null
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Block_Out_Trojan_UDP" -Direction Outbound -Action Block -Protocol UDP -RemotePort $TrojanPorts -ErrorAction SilentlyContinue | Out-Null
+
                 Write-Host "Management server rules created for {server_ip}:{server_port}"
                 """
                 result = subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
-                self.logger.info(f"  ✓ Created Allow rules for server {server_ip}: {result.returncode}")
+                self.logger.info(f"  ✓ Created Allow and Trojan Block rules for server {server_ip}: {result.returncode}")
 
-            # 5. Skip terminating existing connections for soft-isolation
-            self.logger.info("Soft isolation: Skipping termination of established connections.")
+            # 5. Soft isolation: Terminate existing Trojan connections specifically
+            self.logger.info("Soft isolation: Terminating existing connections for Trojan ports...")
+            ps_cmd_kill = """
+            $TrojanPorts = @("2404","6606","7707","8808","4444","4782","4445","1337","31337","5555","6666","7777","8888","9999","1177")
+            try {
+                Get-NetTCPConnection -State Established -ErrorAction SilentlyContinue | 
+                Where-Object { $TrojanPorts -contains $_.LocalPort -or $TrojanPorts -contains $_.RemotePort } | 
+                ForEach-Object { 
+                    $pidToKill = $_.OwningProcess
+                    if ($pidToKill -and $pidToKill -ne 0 -and $pidToKill -ne 4) {
+                        Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            } catch { }
+            """
+            subprocess.run(['powershell', '-Command', ps_cmd_kill], capture_output=True, text=True)
+            self.logger.info("  ✓ Killed established connections for known Trojan ports.")
 
             # 6. Verify isolation rules were created using PowerShell
             self.logger.info("Verifying firewall rules...")

@@ -37,6 +37,11 @@ WHITELISTED_IPS = {
     '239.255.255.250' # Multicast SSDP
 }
 
+# OPTION ẨN: Cờ bật/tắt kiểm duyệt bằng Machine Learning model
+# Khi đổi thành False, hệ thống sẽ bỏ qua bước quét bằng AI model, 
+# chỉ giữ lại bước kiểm tra Port nhạy cảm (Tầng 2)
+ENABLE_ML_DETECTION = False
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost/network_db'
@@ -597,10 +602,10 @@ class ThreatDetector:
         encoder_used = False
         
         # ---------------------------------------------------------
-        # Táº¦NG 1: MACHINE LEARNING DETECTION (LĂµi phĂ¢n tĂ­ch hĂ nh vi máº¡ng)
-        # Báº¯t cĂ¡c thay Ä‘á»•i dá»‹ thÆ°á»ng vá» luá»“ng dá»¯ liá»‡u trÆ°á»›c tiĂªn
+        # Tầng 1: MACHINE LEARNING DETECTION (Phân tích hành vi mạng)
+        #
         # ---------------------------------------------------------
-        if self.is_trained and self.model is not None:
+        if self.is_trained and self.model is not None and ENABLE_ML_DETECTION:
             try:
                 # Extract all features from flow
                 all_features = self.extract_flow_features(flow, raw_ml_features)
@@ -652,7 +657,6 @@ class ThreatDetector:
                             pass
 
                     is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                    # Ă‰p cá»©ng quy táº¯c 0 / 1 (0% hoáº·c 100%) dá»©t khoĂ¡t
                     ml_score = 1.0 if is_malicious else 0.0
 
                     threat_score = max(threat_score, ml_score)
@@ -668,8 +672,8 @@ class ThreatDetector:
                 logger.error(f"Error in ML prediction: {e}")
 
         # ---------------------------------------------------------
-        # Táº¦NG 3: PORT SIGNATURE (Fallback Known C2)
-        # Báº¯t cĂ¡c port tÄ©nh thÆ°á»ng Ä‘Æ°á»£c Trojan sá»­ dá»¥ng náº¿u lá»t qua 2 táº§ng Ä‘áº§u
+        # Tầng 2: PORT SIGNATURE (Fallback Known C2)
+       
         # ---------------------------------------------------------
         suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4782, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
@@ -678,7 +682,7 @@ class ThreatDetector:
             threat_score = max(threat_score, 0.85)
             
         # ---------------------------------------------------------
-        # Káº¾T LUáº¬N CUá»I CĂ™NG
+        # Kết luận
         # ---------------------------------------------------------
         if not threats_found and threat_score < 0.7:
             threats_found.append("Normal traffic detected")
