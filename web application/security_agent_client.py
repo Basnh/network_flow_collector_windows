@@ -53,6 +53,13 @@ def request_elevation():
 # UTC+7 timezone
 UTC_PLUS_7 = timezone('Asia/Bangkok')
 
+def get_file_size(size_in_bytes):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_in_bytes < 1024.0:
+            return f"{size_in_bytes:.1f} {unit}"
+        size_in_bytes /= 1024.0
+    return f"{size_in_bytes:.1f} PB"
+
 def get_utc7_now():
     """Get current datetime in UTC+7 timezone"""
     return datetime.now(UTC_PLUS_7).replace(tzinfo=None)
@@ -759,6 +766,8 @@ class SecurityAgentClient:
 
                     # Poll for process-list requests from web UI
                     self.poll_and_send_processes()
+                    self.poll_and_send_files()
+
                 
                 time.sleep(10)  # Check every 10 seconds for fast command delivery
                 
@@ -870,6 +879,64 @@ class SecurityAgentClient:
         except Exception as e:
             self.logger.error(f"Error collecting process list: {e}")
             return []
+
+    def collect_files(self, target_dir='.'):
+        """Collect file list from given directory."""
+        try:
+            files = []
+            if not os.path.exists(target_dir):
+                return []
+            for filename in os.listdir(target_dir):
+                file_path = os.path.join(target_dir, filename)
+                try:
+                    stat = os.stat(file_path)
+                    is_dir = os.path.isdir(file_path)
+                    files.append({
+                        'name': filename,
+                        'is_dir': is_dir,
+                        'size': get_file_size(stat.st_size) if not is_dir else '',
+                        'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                    })
+                except OSError:
+                    continue # Skip if permission denied
+            return files
+        except Exception as e:
+            self.logger.error(f"Error collecting files: {e}")
+            return []
+
+    def poll_and_send_files(self):
+        """Poll server for file requests and submit local file list."""
+        try:
+            response = requests.get(
+                f"{self.server_url}/api/agent/{self.agent_id}/file_request",
+                timeout=8
+            )
+            if response.status_code != 200:
+                return
+            payload = response.json()
+            if not payload.get('has_request'):
+                return
+            request_id = payload.get('request_id')
+            if not request_id:
+                return
+
+            target_path = payload.get('path', 'C:\\')
+            files = self.collect_files(target_path)
+            
+            result = {
+                'request_id': request_id,
+                'success': True,
+                'files': files,
+                'path': target_path,
+                'timestamp': get_utc7_now().isoformat()
+            }
+            requests.post(
+                f"{self.server_url}/api/agent/{self.agent_id}/file_result",
+                json=result,
+                timeout=10
+            )
+        except Exception as e:
+            self.logger.error(f"Error polling files: {e}")
 
     def poll_and_send_processes(self):
         """Poll server for process requests and submit fresh local process list."""

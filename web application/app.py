@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Network Security Management System
 Collects data from agents and detects trojans/malware
 """
 
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from datetime import datetime, timedelta
@@ -47,6 +47,10 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 PROCESS_REQUESTS = {}
 PROCESS_RESULTS = {}
 PROCESS_LOCK = threading.Lock()
+FILE_REQUESTS = {}
+FILE_RESULTS = {}
+FILE_LOCK = threading.Lock()
+
 
 # Utility function to get current time in UTC+7
 def get_utc7_now():
@@ -279,7 +283,7 @@ class ThreatDetector:
 
             self.model_path = model_path
             self.is_trained = True
-            logger.warning(f"✅ Successfully loaded model from {model_path}")
+            logger.warning(f" Đã tải thành công model từ {model_path}")
 
             # Optional scaler for feature preprocessing
             scaler_path, scaler_candidates = self._find_existing_path('scaler.pkl', 'THREAT_SCALER_PATH')
@@ -288,11 +292,11 @@ class ThreatDetector:
                     import joblib
                     self.scaler = joblib.load(scaler_path)
                     self.scaler_path = scaler_path
-                    logger.warning(f"✅ Loaded scaler from {scaler_path}")
+                    logger.warning(f" Đã tải thành công scaler từ {scaler_path}")
                 except Exception as scaler_error:
                     self.scaler = None
                     self.scaler_path = None
-                    logger.error(f"❌ Could not load scaler.pkl: {scaler_error}")
+                    logger.error(f" Không thể tải scaler.pkl: {scaler_error}")
             else:
                 self.scaler = None
                 self.scaler_path = None
@@ -305,11 +309,11 @@ class ThreatDetector:
                     import joblib
                     self.label_encoder = joblib.load(encoder_path)
                     self.label_encoder_path = encoder_path
-                    logger.warning(f"✅ Loaded label encoder from {encoder_path}")
+                    logger.warning(f" Đã tải thành công label encoder từ {encoder_path}")
                 except Exception as encoder_error:
                     self.label_encoder = None
                     self.label_encoder_path = None
-                    logger.error(f"❌ Could not load mahoa_nhan.pkl: {encoder_error}")
+                    logger.error(f" Không thể tải mahoa_nhan.pkl: {encoder_error}")
             else:
                 self.label_encoder = None
                 self.label_encoder_path = None
@@ -323,7 +327,7 @@ class ThreatDetector:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error loading model: {e}")
+            logger.error(f" Không thể tải   model: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             self.model_path = None
@@ -389,7 +393,7 @@ class ThreatDetector:
         - Features 1-68: Match CIC-IDS dataset format for model prediction
         - Features 69-79: Activity statistics for extended analysis
         """
-        # Nếu Agent/Client đã trích xuất sẵn đầy đủ features (80+ parameters) -> Nạp luôn!
+        # Náº¿u Agent/Client Ä‘Ă£ trĂ­ch xuáº¥t sáºµn Ä‘áº§y Ä‘á»§ features (80+ parameters) -> Náº¡p luĂ´n!
         if raw_ml_features and isinstance(raw_ml_features, list) and len(raw_ml_features) > 80:
             try:
                 # 0: flow_id, 1: src_ip, 2: src_port, 3: dst_ip, 4: dst_port, 5: protocol, 6: timestamp
@@ -401,27 +405,27 @@ class ThreatDetector:
                 else:
                     protocol_num = float(protocol_val)
 
-                # Chuyển đổi feature từ array của WindowsNetworkFlowCollector thành mảng float
+                # Chuyá»ƒn Ä‘á»•i feature tá»« array cá»§a WindowsNetworkFlowCollector thĂ nh máº£ng float
                 advanced_features = [
                     float(raw_ml_features[2] or 0),   # Source Port
                     float(raw_ml_features[4] or 0),   # Destination Port
                     float(protocol_num)               # Protocol
                 ]
                 
-                # Từ index 7 trở đi (tức Flow Duration)
-                for val in raw_ml_features[7:83]: # Đảm bảo lấy đủ 76 values kế tiếp
+                # Tá»« index 7 trá»Ÿ Ä‘i (tá»©c Flow Duration)
+                for val in raw_ml_features[7:83]: # Äáº£m báº£o láº¥y Ä‘á»§ 76 values káº¿ tiáº¿p
                     try:
                         advanced_features.append(float(val) if val not in [None, ''] else 0.0)
                     except Exception:
                         advanced_features.append(0.0)
                         
-                # Padding hoặc trim để khớp chính xác 79 features
+                # Padding hoáº·c trim Ä‘á»ƒ khá»›p chĂ­nh xĂ¡c 79 features
                 while len(advanced_features) < 79:
                     advanced_features.append(0.0)
                 return advanced_features[:79]
             except Exception as e:
                 logger.error(f"Error parsing raw_ml_features: {e}")
-                # Fallback xuống dummy features nếu lỗi
+                # Fallback xuá»‘ng dummy features náº¿u lá»—i
 
         payload_length = len(flow.payload_content) if flow.payload_content else 0
         
@@ -583,8 +587,8 @@ class ThreatDetector:
         encoder_used = False
         
         # ---------------------------------------------------------
-        # TẦNG 1: MACHINE LEARNING DETECTION (Lõi phân tích hành vi mạng)
-        # Bắt các thay đổi dị thường về luồng dữ liệu trước tiên
+        # Táº¦NG 1: MACHINE LEARNING DETECTION (LĂµi phĂ¢n tĂ­ch hĂ nh vi máº¡ng)
+        # Báº¯t cĂ¡c thay Ä‘á»•i dá»‹ thÆ°á»ng vá» luá»“ng dá»¯ liá»‡u trÆ°á»›c tiĂªn
         # ---------------------------------------------------------
         if self.is_trained and self.model is not None:
             try:
@@ -630,7 +634,7 @@ class ThreatDetector:
                             pass
 
                     is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                    # Ép cứng quy tắc 0 / 1 (0% hoặc 100%) dứt khoát
+                    # Ă‰p cá»©ng quy táº¯c 0 / 1 (0% hoáº·c 100%) dá»©t khoĂ¡t
                     ml_score = 1.0 if is_malicious else 0.0
 
                     threat_score = max(threat_score, ml_score)
@@ -646,8 +650,8 @@ class ThreatDetector:
                 logger.error(f"Error in ML prediction: {e}")
 
         # ---------------------------------------------------------
-        # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
-        # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
+        # Táº¦NG 3: PORT SIGNATURE (Fallback Known C2)
+        # Báº¯t cĂ¡c port tÄ©nh thÆ°á»ng Ä‘Æ°á»£c Trojan sá»­ dá»¥ng náº¿u lá»t qua 2 táº§ng Ä‘áº§u
         # ---------------------------------------------------------
         suspicious_ports = {2404, 6606, 7707, 8808, 4444, 4782, 4445, 1337, 31337, 5555, 6666, 7777, 8888, 9999, 1177}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
@@ -656,7 +660,7 @@ class ThreatDetector:
             threat_score = max(threat_score, 0.85)
             
         # ---------------------------------------------------------
-        # KẾT LUẬN CUỐI CÙNG
+        # Káº¾T LUáº¬N CUá»I CĂ™NG
         # ---------------------------------------------------------
         if not threats_found and threat_score < 0.7:
             threats_found.append("Normal traffic detected")
@@ -686,10 +690,10 @@ def list_models():
     model_dir = os.path.join(project_dir, 'model') # Point strictly to the 'model' directory
     
     models = set()
-    # Danh sách các file pkl nội bộ/đóng vai trò phụ trợ không được phép chọn
+    # Danh sĂ¡ch cĂ¡c file pkl ná»™i bá»™/Ä‘Ă³ng vai trĂ² phá»¥ trá»£ khĂ´ng Ä‘Æ°á»£c phĂ©p chá»n
     ignore_list = {'scaler.pkl', 'mahoa_nhan.pkl', 'processed_data.pkl'}
     
-    # Chỉ quét bên trong thư mục model
+    # Chá»‰ quĂ©t bĂªn trong thÆ° má»¥c model
     if os.path.exists(model_dir):
         for file in os.listdir(model_dir):
             if file.endswith('.pkl') and file not in ignore_list:
@@ -845,7 +849,7 @@ def submit_flow():
         
         db.session.commit()
         
-        # Tự động cách ly ngay lập tức khi phát hiện bất kỳ mối đe dọa nào >= 0.85 (Trojan)
+        # Tá»± Ä‘á»™ng cĂ¡ch ly ngay láº­p tá»©c khi phĂ¡t hiá»‡n báº¥t ká»³ má»‘i Ä‘e dá»a nĂ o >= 0.85 (Trojan)
         if threats_detected > 0 and agent.threat_level in ['high', 'critical']:
             isolate_agent_network(agent_id, f"Auto-isolation: {threats_detected} threats detected (Score >= 0.85)")
         
@@ -960,13 +964,13 @@ def report_command_result(agent_id):
             
             if action == 'isolate':
                 agent.status = 'isolated'
-                logger.critical(f"✓ Agent {agent_id} SUCCESSFULLY ISOLATED - Network adapter disabled: {adapter_name}")
+                logger.critical(f"âœ“ Agent {agent_id} SUCCESSFULLY ISOLATED - Network adapter disabled: {adapter_name}")
             elif action == 'restore':
                 agent.status = 'active'
-                logger.info(f"✓ Agent {agent_id} SUCCESSFULLY RESTORED - Network adapter enabled: {adapter_name}")
+                logger.info(f"âœ“ Agent {agent_id} SUCCESSFULLY RESTORED - Network adapter enabled: {adapter_name}")
         else:
             # Command failed - keep pending so agent can retry
-            logger.error(f"✗ Agent {agent_id} failed to execute {action} command: {error_msg}")
+            logger.error(f"âœ— Agent {agent_id} failed to execute {action} command: {error_msg}")
         
         db.session.commit()
         
@@ -1007,7 +1011,8 @@ def get_process_request(agent_id):
 
             return jsonify({
                 'has_request': True,
-                'request_id': req['request_id']
+                'request_id': req['request_id'],
+                'path': req.get('path', 'C:\\')
             }), 200
 
     except Exception as e:
@@ -1087,7 +1092,7 @@ def kill_process(agent_id):
         # Check if agent is online
         last_seen_threshold = get_utc7_now() - timedelta(seconds=120)
         if not agent.last_seen or agent.last_seen < last_seen_threshold:
-            return jsonify({'success': False, 'error': 'Agent đang ngoại tuyến.'}), 503
+            return jsonify({'success': False, 'error': 'Agent Ä‘ang ngoáº¡i tuyáº¿n.'}), 503
         
         # Send kill_process command via pending_command
         command = {
@@ -1173,7 +1178,7 @@ def isolate_agent_network(agent_id, reason, duration_minutes=None):
         
         db.session.commit()
         
-        logger.critical(f"✓ Agent {agent_id} ISOLATION COMMAND SENT - {reason}")
+        logger.critical(f"âœ“ Agent {agent_id} ISOLATION COMMAND SENT - {reason}")
         logger.critical(f"  Machine will be isolated on next poll. No repeated commands until system restart.")
         return True
         
@@ -1501,9 +1506,9 @@ def resolve_alert(alert_id):
     db.session.commit()
     
     if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': 'Đã đánh dấu đã giải quyết'})
+        return jsonify({'success': True, 'message': 'ÄĂ£ Ä‘Ă¡nh dáº¥u Ä‘Ă£ giáº£i quyáº¿t'})
         
-    flash('Đã đánh dấu đã giải quyết.', 'success')
+    flash('ÄĂ£ Ä‘Ă¡nh dáº¥u Ä‘Ă£ giáº£i quyáº¿t.', 'success')
     return redirect(url_for('alerts_list'))
 
 @app.route('/resolve_all_alerts', methods=['POST'])
@@ -1517,9 +1522,9 @@ def resolve_all_alerts():
     db.session.commit()
     
     if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
+        return jsonify({'success': True, 'message': f'ÄĂ£ giáº£i quyáº¿t {count} cáº£nh bĂ¡o'})
         
-    flash(f'Đã giải quyết {count} cảnh báo.', 'success')
+    flash(f'ÄĂ£ giáº£i quyáº¿t {count} cáº£nh bĂ¡o.', 'success')
     return redirect(url_for('alerts_list'))
 
 # ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================
@@ -1751,7 +1756,7 @@ def get_agent_processes(agent_id):
         if not agent.is_online:
             return jsonify({
                 'success': False,
-                'message': 'Agent đang ngoại tuyến.'
+                'message': 'Agent Ä‘ang ngoáº¡i tuyáº¿n.'
             }), 503
 
         request_id = uuid.uuid4().hex
@@ -2091,6 +2096,245 @@ def migrate_database():
     except Exception as e:
         logger.error(f"Error during database migration: {e}")
         # Don't raise - migration is optional
+
+import os
+from werkzeug.utils import secure_filename
+import math
+
+FILE_MANAGER_DIR = os.path.join(app.root_path, 'storage')
+os.makedirs(FILE_MANAGER_DIR, exist_ok=True)
+
+def get_file_size(size_in_bytes):
+    if size_in_bytes == 0:
+        return '0B'
+    size_name = ('B', 'KB', 'MB', 'GB', 'TB')
+    i = int(math.floor(math.log(size_in_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_in_bytes / p, 2)
+    return f'{s} {size_name[i]}'
+
+@app.route('/file-manager/api/list', methods=['GET', 'POST'])
+@csrf.exempt
+def dummy_api_list():
+    return jsonify({"success": True, "files": [], "folders": []})
+
+@app.route('/file-manager/api/mkdir', methods=['POST'])
+@csrf.exempt
+def dummy_api_mkdir():
+    return jsonify({"success": True})
+
+@app.route('/file-manager/api/upload', methods=['POST'])
+@csrf.exempt
+def dummy_api_upload():
+    return jsonify({"success": True})
+
+@app.route('/file_manager')
+def file_manager():
+    agents = Agent.query.order_by(Agent.last_seen.desc()).all()
+    return render_template('file_manager.html', agents=agents)
+
+@app.route('/file_manager/snapshot', methods=['POST'])
+@csrf.exempt
+def create_snapshot():
+    snapshot_path = os.path.join(app.instance_path, 'storage_snapshot.json')
+    snapshot_data = {'files': {}, 'timestamp': get_utc7_now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    for filename in os.listdir(FILE_MANAGER_DIR):
+        file_path = os.path.join(FILE_MANAGER_DIR, filename)
+        if os.path.isfile(file_path):
+            stat = os.stat(file_path)
+            snapshot_data['files'][filename] = stat.st_mtime
+            
+    with open(snapshot_path, 'w', encoding='utf-8') as f:
+        json.dump(snapshot_data, f)
+        
+    flash('Đã tạo mốc theo dõi mới. Hệ thống sẽ báo các file được thêm/sửa đổi sau thời điểm này.', 'success')
+    return redirect(url_for('file_manager'))
+
+
+@app.route('/file_manager/upload', methods=['POST'])
+@csrf.exempt
+def upload_file():
+    if 'file' not in request.files:
+        flash('Không tìm thấy tệp đính kèm.', 'danger')
+        return redirect(url_for('file_manager'))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('Chưa chọn tệp nào.', 'danger')
+        return redirect(url_for('file_manager'))
+        
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(FILE_MANAGER_DIR, filename))
+        flash(f'Đã tải lên {filename} thành công!', 'success')
+        
+    return redirect(url_for('file_manager'))
+
+@app.route('/file_manager/delete/<filename>', methods=['POST'])
+@csrf.exempt
+def delete_file(filename):
+    file_path = os.path.join(FILE_MANAGER_DIR, secure_filename(filename))
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f'Đã xoá {filename}.', 'success')
+    else:
+        flash('Tệp không tồn tại.', 'danger')
+    return redirect(url_for('file_manager'))
+
+@app.route('/file_manager/download/<filename>')
+def download_file(filename):
+    return send_from_directory(FILE_MANAGER_DIR, secure_filename(filename), as_attachment=True)
+
+
+@app.route('/api/agent/<agent_id>/file_request', methods=['GET'])
+def get_file_request(agent_id):
+    try:
+        now = get_utc7_now()
+        with FILE_LOCK:
+            req = FILE_REQUESTS.get(agent_id)
+            if not req:
+                return jsonify({'has_request': False}), 200
+            
+            if (now - req['created_at']).total_seconds() > 30:
+                FILE_REQUESTS.pop(agent_id, None)
+                return jsonify({'has_request': False}), 200
+
+            return jsonify({
+                'has_request': True,
+                'request_id': req['request_id'],
+                'path': req.get('path', 'C:\\')
+            }), 200
+    except Exception as e:
+        return jsonify({'has_request': False}), 200
+
+@app.route('/api/agent/<agent_id>/file_result', methods=['POST'])
+@csrf.exempt
+def submit_file_result(agent_id):
+    try:
+        data = request.get_json() or {}
+        request_id = data.get('request_id')
+        success = bool(data.get('success', False))
+        files = data.get('files', [])
+
+        if not request_id:
+            return jsonify({'ok': False, 'error': 'missing request_id'}), 400
+
+        with FILE_LOCK:
+            req = FILE_REQUESTS.get(agent_id)
+            if req and req['request_id'] == request_id:
+                FILE_RESULTS[request_id] = {
+                    'success': success,
+                    'path': data.get('path', ''),
+                    'files': files,
+                    'created_at': get_utc7_now()
+                }
+                FILE_REQUESTS.pop(agent_id, None)
+
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if agent:
+            agent.last_seen = get_utc7_now()
+            db.session.commit()
+
+        return jsonify({'ok': True}), 200
+    except Exception as e:
+        return jsonify({'ok': False, 'error': 'internal error'}), 500
+
+@app.route('/api/get_files/<agent_id>')
+@csrf.exempt
+def get_agent_files(agent_id):
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'success': False, 'message': 'Agent not found'}), 404
+            
+        request_id = uuid.uuid4().hex
+        requested_path = request.args.get('path', 'C:\\')
+        if not requested_path:
+            requested_path = 'C:\\'
+        with FILE_LOCK:
+            FILE_REQUESTS[agent_id] = {
+                'request_id': request_id,
+                'path': requested_path,
+                'created_at': get_utc7_now()
+            }
+            
+        timeout_at = time.time() + 12
+        while time.time() < timeout_at:
+            with FILE_LOCK:
+                result = FILE_RESULTS.pop(request_id, None)
+            if result:
+                files = result.get('files', [])
+                
+                # Apply snapshot logic
+                snapshot_path = os.path.join(app.instance_path, f'storage_snapshot_{agent_id}.json')
+                last_snapshot = None
+                snapshot_data = {}
+                
+                if os.path.exists(snapshot_path):
+                    try:
+                        with open(snapshot_path, 'r', encoding='utf-8') as sf:
+                            data = json.load(sf)
+                            snapshot_data = data.get('files', {})
+                            last_snapshot = data.get('timestamp')
+                    except Exception:
+                        pass
+                
+                for f in files:
+                    is_new = False
+                    if last_snapshot:
+                        if f['name'] not in snapshot_data:
+                            is_new = True
+                        elif f['modified'] > snapshot_data[f['name']]: # Basic string comparison works for YYYY-MM-DD HH:MM:SS
+                            is_new = True
+                    f['is_new'] = is_new
+                
+                files = sorted(files, key=lambda x: (not x['is_new'], x['name']))
+                
+                return jsonify({
+                    'success': True,
+                    'agent_id': agent_id,
+                    'hostname': agent.hostname,
+                    'current_path': result.get('path', requested_path),
+                    'files': files,
+                    'last_snapshot': last_snapshot
+                }), 200
+            time.sleep(0.5)
+            
+        return jsonify({
+            'success': False,
+            'message': 'Timed out waiting for agent file data',
+            'files': []
+        }), 504
+        
+    except Exception as e:
+        logger.error(f"Error fetching files for agent {agent_id}: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/snapshot_files/<agent_id>', methods=['POST'])
+@csrf.exempt
+def snapshot_agent_files(agent_id):
+    try:
+        data = request.get_json() or {}
+        files = data.get('files', [])
+        
+        snapshot_path = os.path.join(app.instance_path, f'storage_snapshot_{agent_id}.json')
+        snapshot_data = {'files': {}, 'timestamp': get_utc7_now().strftime('%Y-%m-%d %H:%M:%S')}
+        
+        for f in files:
+            snapshot_data['files'][f['name']] = f['modified']
+            
+        with open(snapshot_path, 'w', encoding='utf-8') as sf:
+            json.dump(snapshot_data, sf)
+            
+        return jsonify({'success': True, 'message': 'Snapshot created'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/file-manager/api/list', methods=['POST'])
+@csrf.exempt
+def file_manager_list():
+    return jsonify({"success": True, "files": []})
 
 # ==================== APPLICATION STARTUP ====================
 

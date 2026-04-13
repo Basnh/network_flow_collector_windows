@@ -235,13 +235,13 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header border-0 pb-0">
-                    <small class="text-muted fw-bold text-uppercase">Threat Assessment</small>
+                    <small class="text-muted fw-bold text-uppercase">Thông tin mối đe dọa</small>
                 </div>
                 <div class="card-body">
                     <!-- Threat Score -->
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="small text-muted fw-bold">THREAT SCORE</label>
+                            <label class="small text-muted fw-bold">Đánh giá mối đe dọa</label>
                             <span class="badge {% if flow.threat_score > 0.7 %}badge-threat{% elif flow.threat_score > 0.4 %}badge-suspicious{% else %}badge-safe{% endif %}">
                                 {{ (flow.threat_score * 100)|round|int }}%
                             </span>
@@ -253,11 +253,11 @@
                         </div>
                         <small class="text-muted">
                             {% if flow.threat_score > 0.7 %}
-                                <i class="fas fa-virus me-1 text-danger"></i> **HIGH RISK** - Likely threat detected
+                                <i class="fas fa-virus me-1 text-danger"></i> Rủi ro cao - Có khả năng là hoạt động độc hại
                             {% elif flow.threat_score > 0.4 %}
-                                <i class="fas fa-exclamation-triangle me-1 text-warning"></i> **SUSPICIOUS** - Requires investigation
+                                <i class="fas fa-exclamation-triangle me-1 text-warning"></i> Nghi ngờ - Cần phân tích thêm
                             {% else %}
-                                <i class="fas fa-check-circle me-1 text-success"></i> **LOW RISK** - Normal behavior
+                                <i class="fas fa-check-circle me-1 text-success"></i> Không đáng ngại - Hoạt động bình thường
                             {% endif %}
                         </small>
                     </div>
@@ -283,7 +283,7 @@
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header border-0 pb-0">
-                    <small class="text-muted fw-bold text-uppercase">From Agent</small>
+                    <small class="text-muted fw-bold text-uppercase">Từ Agent</small>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -295,7 +295,7 @@
                         <code class="text-primary" style="font-size: 0.85em;">{{ agent.agent_id }}</code>
                     </div>
                     <div class="mb-0">
-                        <label class="small text-muted d-block mb-1">TIMESTAMP</label>
+                        <label class="small text-muted d-block mb-1">Thời gian</label>
                         <div class="small">{{ flow.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC+7') }}</div>
                     </div>
                 </div>
@@ -306,18 +306,18 @@
     <!-- Basic Information -->
     <div class="card mb-4">
         <div class="card-header border-0 pb-0">
-            <small class="text-muted fw-bold text-uppercase">Basic Information</small>
+            <small class="text-muted fw-bold text-uppercase">Thông tin cơ bản</small>
         </div>
         <div class="card-body">
             <div class="row g-3">
                 <!-- Source -->
                 <div class="col-md-6">
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Source IP</div>
+                        <div class="flow-stat-label">IP Nguồn</div>
                         <div class="flow-stat-value">{{ flow.src_ip }}</div>
                     </div>
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Source Port</div>
+                        <div class="flow-stat-label">Cổng Nguồn</div>
                         <div class="flow-stat-value">{{ flow.src_port if flow.src_port is not none else 'N/A' }}</div>
                     </div>
                 </div>
@@ -325,11 +325,11 @@
                 <!-- Destination -->
                 <div class="col-md-6">
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Destination IP</div>
+                        <div class="flow-stat-label">IP Đích</div>
                         <div class="flow-stat-value">{{ flow.dst_ip }}</div>
                     </div>
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Destination Port</div>
+                        <div class="flow-stat-label">Cổng Đích</div>
                         <div class="flow-stat-value">{{ flow.dst_port if flow.dst_port is not none else 'N/A' }}</div>
                     </div>
                 </div>
@@ -366,7 +366,7 @@
     <!-- Anomaly Detection -->
     <div class="card mb-4">
         <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
-            <small class="text-muted fw-bold text-uppercase">Anomaly Detection</small>
+            <small class="text-muted fw-bold text-uppercase">Phát hiện bất thường</small>
             {% if anomalies.reason %}
                 <span class="badge bg-warning text-dark">{{ anomalies.reason|length }} Detected</span>
             {% else %}
@@ -405,7 +405,7 @@
     <!-- Payload Analysis -->
     <div class="card mb-4">
         <div class="card-header border-0 pb-0">
-            <small class="text-muted fw-bold text-uppercase">Payload Analysis</small>
+            <small class="text-muted fw-bold text-uppercase">Phân tích Payload</small>
         </div>
         <div class="card-body">
             {% if flow.payload_content %}
@@ -423,20 +423,20 @@
     <!-- Flow Metadata -->
     <div class="card">
         <div class="card-header border-0 pb-0">
-            <small class="text-muted fw-bold text-uppercase">Metadata</small>
+            <small class="text-muted fw-bold text-uppercase">Thông tin thêm</small>
         </div>
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Created At</div>
+                        <div class="flow-stat-label">Tạo lúc</div>
                         <div class="flow-stat-value" style="font-size: 0.95rem;">{{ flow.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="flow-stat">
-                        <div class="flow-stat-label">Malicious Status</div>
+                        <div class="flow-stat-label">Tình trạng nghi ngờ</div>
                         <div class="flow-stat-value">
                             {% if flow.is_malicious %}
                                 <span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Malicious</span>

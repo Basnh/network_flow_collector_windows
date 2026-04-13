@@ -1,0 +1,287 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Trình Quản Lý Tệp Tác Nhân - Network Security Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+<style>
+    .file-explorer {
+        background-color: var(--card-bg, #1a1f2c);
+        border: 1px solid var(--border-color, #2d3748);
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .path-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+    }
+    
+    .path-nav input {
+        flex: 1;
+        padding: 8px 15px;
+        background: #0f1420;
+        border: 1px solid var(--border-color, #2d3748);
+        border-radius: 4px;
+        color: #fff;
+    }
+    
+    .file-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .file-table th {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid var(--border-color, #2d3748);
+        color: var(--primary-blue, #63b3ed);
+    }
+    
+    .file-table td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(45, 55, 72, 0.5);
+    }
+    
+    .file-table tr:hover {
+        background-color: rgba(45, 55, 72, 0.3);
+        cursor: pointer;
+    }
+    
+    .icon-col {
+        width: 40px;
+        text-align: center;
+        color: var(--primary-blue, #63b3ed);
+    }
+    
+    .icon-col.is-dir {
+        color: #f6ad55;
+    }
+
+    .toolbar {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .agent-select {
+        padding: 8px 15px;
+        background: #0f1420;
+        border: 1px solid var(--border-color, #2d3748);
+        border-radius: 4px;
+        color: #fff;
+        min-width: 250px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cybersec-dashboard">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="text-light"><i class="fas fa-folder-open text-primary mr-2"></i> File Explorer (Tác Nhân)</h2>
+                <p class="text-muted">Xem trực tiếp tệp & thư mục trên máy tác nhân</p>
+            </div>
+        </div>
+
+        <div class="file-explorer shadow-sm">
+            <div class="toolbar">
+                <select id="agentSelect" class="agent-select form-control">
+                    <option value="">-- Chọn máy tác nhân (Agent) --</option>
+                    {% for agent in agents %}
+                        {% if agent.last_seen %}
+                            <!-- Chỉ hiện agent gần đây (trong 2 phút)? Không, cứ hiện hết để user chọn -->
+                            <option value="{{ agent.agent_id }}">{{ agent.hostname }} ({{ agent.ip_address }})</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <button class="btn btn-outline-primary" id="btnRefresh" disabled title="Tải lại thư mục hiện tại">
+                    <i class="fas fa-sync-alt"></i> Làm mới
+                </button>
+            </div>
+
+            <div class="path-nav">
+                <button class="btn btn-outline-secondary" id="btnUpLevel" disabled title="Lên một thư mục">
+                    <i class="fas fa-level-up-alt"></i>
+                </button>
+                <input type="text" id="currentPath" placeholder="Nhập đường dẫn (vd: C:\ hoặc /)" disabled />
+                <button class="btn btn-primary" id="btnGo" disabled>Đi</button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="file-table" id="fileTable">
+                    <thead>
+                        <tr>
+                            <th class="icon-col"></th>
+                            <th>Tên / Name</th>
+                            <th>Kích thước / Size</th>
+                            <th>Sửa đổi cuối / Modified</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileList">
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                    <p class="text-muted">Đang lấy dữ liệu từ tác nhân...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentAgentId = '';
+    
+    const ui = {
+        agentSelect: document.getElementById('agentSelect'),
+        currentPath: document.getElementById('currentPath'),
+        btnRefresh: document.getElementById('btnRefresh'),
+        btnUpLevel: document.getElementById('btnUpLevel'),
+        btnGo: document.getElementById('btnGo'),
+        fileList: document.getElementById('fileList'),
+        loadingIndicator: document.getElementById('loadingIndicator')
+    };
+
+    function toggleControls(enabled) {
+        ui.currentPath.disabled = !enabled;
+        ui.btnRefresh.disabled = !enabled;
+        ui.btnUpLevel.disabled = !enabled;
+        ui.btnGo.disabled = !enabled;
+    }
+
+    function showLoading(show) {
+        ui.loadingIndicator.style.display = show ? 'block' : 'none';
+        ui.fileList.style.display = show ? 'none' : 'table-row-group';
+    }
+
+    function loadFiles(path) {
+        if (!currentAgentId) return;
+
+        showLoading(true);
+        toggleControls(false);
+
+        // Chuẩn hóa path cho url
+        const targetPath = encodeURIComponent(path || 'C:\\');
+        
+        fetch(`/api/get_files/${currentAgentId}?path=${targetPath}`)
+            .then(res => res.json())
+            .then(data => {
+                showLoading(false);
+                toggleControls(true);
+
+                if (!data.success) {
+                    ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Lỗi: ${data.message}</td></tr>`;
+                    return;
+                }
+
+                // Cập nhật đường dẫn hiện tại mà agent trả về
+                ui.currentPath.value = data.current_path;
+
+                renderFileList(data.files);
+            })
+            .catch(err => {
+                showLoading(false);
+                toggleControls(true);
+                ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Lỗi kết nối server</td></tr>`;
+                console.error(err);
+            });
+    }
+
+    function renderFileList(files) {
+        ui.fileList.innerHTML = '';
+        if (!files || files.length === 0) {
+            ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Thư mục trống</td></tr>`;
+            return;
+        }
+
+        // Ưu tiên thư mục xếp trên tệp
+        files.sort((a, b) => {
+            if (a.is_dir && !b.is_dir) return -1;
+            if (!a.is_dir && b.is_dir) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        files.forEach(f => {
+            const tr = document.createElement('tr');
+            const iconClass = f.is_dir ? 'fas fa-folder' : 'fas fa-file-alt';
+            const colClass = f.is_dir ? 'icon-col is-dir' : 'icon-col';
+            
+            tr.innerHTML = `
+                <td class="${colClass}"><i class="${iconClass}"></i></td>
+                <td>${f.name}</td>
+                <td>${f.size || ''}</td>
+                <td>${f.modified || ''}</td>
+            `;
+
+            if (f.is_dir) {
+                tr.addEventListener('dblclick', () => {
+                    const current = ui.currentPath.value;
+                    let sep = current.includes('\\') ? '\\' : '/';
+                    const newPath = current.endsWith(sep) ? current + f.name : current + sep + f.name;
+                    loadFiles(newPath);
+                });
+            }
+            ui.fileList.appendChild(tr);
+        });
+    }
+
+    ui.agentSelect.addEventListener('change', (e) => {
+        currentAgentId = e.target.value;
+        if (currentAgentId) {
+            ui.currentPath.value = 'C:\\'; // Default root for Windows
+            loadFiles(ui.currentPath.value);
+        } else {
+            toggleControls(false);
+            ui.fileList.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Vui lòng chọn tác nhân để bắt đầu</td></tr>`;
+            ui.currentPath.value = '';
+        }
+    });
+
+    ui.btnRefresh.addEventListener('click', () => {
+        loadFiles(ui.currentPath.value);
+    });
+
+    ui.btnGo.addEventListener('click', () => {
+        loadFiles(ui.currentPath.value);
+    });
+
+    ui.currentPath.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            loadFiles(ui.currentPath.value);
+        }
+    });
+
+    ui.btnUpLevel.addEventListener('click', () => {
+        let current = ui.currentPath.value;
+        if (!current) return;
+        
+        let sep = current.includes('/') ? '/' : '\\';
+        
+        // Remove trailing separator if exists (unless it's just "C:\" or "/")
+        if (current.endsWith(sep) && current.length > 3) {
+            current = current.substring(0, current.length - 1);
+        }
+        
+        const lastIndex = current.lastIndexOf(sep);
+        if (lastIndex > 0) {
+            let newPath = current.substring(0, lastIndex);
+            if (newPath.endsWith(':')) {
+                newPath += sep; // Keep "C:\" instead of "C:"
+            }
+            loadFiles(newPath);
+        } else if (lastIndex === 0) {
+            loadFiles('/'); // Root for Linux
+        }
+    });
+</script>
+{% endblock %}
