@@ -396,9 +396,9 @@ class SecurityAgentClient:
             self.execute_restoration()
             subprocess.run('netsh advfirewall set allprofiles state on', shell=True, capture_output=True)
 
-            # 2. SET DEFAULT POLICY TO SOFT ISOLATION: BLOCK INBOUND, ALLOW OUTBOUND
-            result = subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound', shell=True, capture_output=True, text=True)
-            self.logger.info(f"Set firewall policy to blockinbound,allowoutbound for soft isolation: {result.returncode}")
+            # 2. SET DEFAULT POLICY TO BLOCK ALL FIRST (before creating any rules)
+            result = subprocess.run('netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound', shell=True, capture_output=True, text=True)
+            self.logger.info(f"Set firewall policy to blockinbound,blockoutbound: {result.returncode}")
             
             # 3. COMPLETELY CLEAR old isolation rules first
             ps_cmd = """
@@ -411,8 +411,8 @@ class SecurityAgentClient:
             # 3.5. Disable ONLY the 4 File and Printer Sharing Echo Request inbound rules.
             self.set_file_printer_echo_rules(enable=False)
 
-            # 4. CREATE EXPLICIT ALLOW rules for Management Server, AND BLOCK known Trojan ports.
-            self.logger.info("Creating ALLOW/BLOCK rules using PowerShell...")
+            # 4. CREATE EXPLICIT ALLOW rules for Management Server.
+            self.logger.info("Creating ALLOW rules using PowerShell...")
             
             if server_ip:
                 ps_cmd = f"""
@@ -422,33 +422,25 @@ class SecurityAgentClient:
                 # Allow outbound TCP to Management Server port for agent polling/heartbeat
                 New-NetFirewallRule -DisplayName "Manager_Isolation_Allow_Out_Server_TCP" -Direction Outbound -Action Allow -Protocol TCP -RemoteAddress "{server_ip}" -RemotePort {server_port} -ErrorAction SilentlyContinue | Out-Null
                 
-                # BLOCK outbound TCP/UDP to Known Trojan Ports
-                $TrojanPorts = @("2404","6606","7707","8808","4444","4782","4445","1337","31337","5555","6666","7777","8888","9999","1177")
-                New-NetFirewallRule -DisplayName "Manager_Isolation_Block_Out_Trojan_TCP" -Direction Outbound -Action Block -Protocol TCP -RemotePort $TrojanPorts -ErrorAction SilentlyContinue | Out-Null
-                New-NetFirewallRule -DisplayName "Manager_Isolation_Block_Out_Trojan_UDP" -Direction Outbound -Action Block -Protocol UDP -RemotePort $TrojanPorts -ErrorAction SilentlyContinue | Out-Null
-
                 Write-Host "Management server rules created for {server_ip}:{server_port}"
                 """
                 result = subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
-                self.logger.info(f"  ✓ Created Allow and Trojan Block rules for server {server_ip}: {result.returncode}")
+                self.logger.info(f"  ✓ Created Allow rules for server {server_ip}: {result.returncode}")
 
-            # 5. Soft isolation: Terminate existing Trojan connections specifically
-            self.logger.info("Soft isolation: Terminating existing connections for Trojan ports...")
-            ps_cmd_kill = """
-            $TrojanPorts = @("2404","6606","7707","8808","4444","4782","4445","1337","31337","5555","6666","7777","8888","9999","1177")
-            try {
-                Get-NetTCPConnection -State Established -ErrorAction SilentlyContinue | 
-                Where-Object { $TrojanPorts -contains $_.LocalPort -or $TrojanPorts -contains $_.RemotePort } | 
-                ForEach-Object { 
-                    $pidToKill = $_.OwningProcess
-                    if ($pidToKill -and $pidToKill -ne 0 -and $pidToKill -ne 4) {
-                        Stop-Process -Id $pidToKill -Force -ErrorAction SilentlyContinue
-                    }
-                }
-            } catch { }
-            """
-            subprocess.run(['powershell', '-Command', ps_cmd_kill], capture_output=True, text=True)
-            self.logger.info("  ✓ Killed established connections for known Trojan ports.")
+            # 5. Terminate ALL existing connections EXCEPT to Management Server
+            # This ensures immediate isolation
+            if server_ip:
+                subprocess.run(
+                    f'powershell -Command "Get-NetTCPConnection -State Established | Where-Object {{ $_.RemoteAddress -ne \'{server_ip}\' -and $_.RemoteAddress -ne \'127.0.0.1\' }} | Remove-NetTCPConnection -ErrorAction SilentlyContinue"',
+                    shell=True,
+                    capture_output=True
+                )
+            else:
+                subprocess.run(
+                    'powershell -Command "Get-NetTCPConnection -State Established | Remove-NetTCPConnection -ErrorAction SilentlyContinue"',
+                    shell=True,
+                    capture_output=True
+                )
 
             # 6. Verify isolation rules were created using PowerShell
             self.logger.info("Verifying firewall rules...")
@@ -465,12 +457,12 @@ class SecurityAgentClient:
             self.logger.info(f"Rules found: {result.stdout if result.stdout else 'None'}")
 
             server_desc = f"server {server_ip}" if server_ip else "management server"
-            self.logger.critical(f"SOFT NETWORK ISOLATION ENFORCED")
-            self.logger.critical(f"  ✓ Machine can still connect OUTBOUND to internet (Web, etc.)")
-            self.logger.critical(f"  ✓ Other machines CANNOT connect INBOUND to this machine")
-            self.logger.critical(f"  ✓ ICMP Echo Request rules disabled (Ping blocked)")
-            self.logger.critical(f"  ✓ Management control channel remains active on {server_desc}:{server_port}")
-            self.logger.critical(f"  ✓ Firewall policy: Block Inbound, Allow Outbound")
+            self.logger.critical(f"COMPLETE NETWORK ISOLATION ENFORCED")
+            self.logger.critical(f"  ✓ Machine CANNOT connect to any other hosts")
+            self.logger.critical(f"  ✓ Other machines CANNOT ping this machine (ICMP BLOCKED)")
+            self.logger.critical(f"  ✓ ICMP Echo Request rules disabled (4 rules)")
+            self.logger.critical(f"  ✓ Only TCP with {server_desc}:{server_port} is allowed for control channel")
+            self.logger.critical(f"  ✓ Firewall policy: Block Inbound, Block Outbound (except allowed rules)")
             return True
             
         except Exception as e:
