@@ -149,7 +149,8 @@
         }
 
         body[data-theme="light"] .sidebar-nav-link {
-            color: rgba(31, 41, 55, 0.7);
+            color: rgba(31, 41, 55, 0.85); /* Tăng độ tương phản để dễ đọc hơn */
+            font-weight: 500;
         }
 
         .sidebar-nav-link:hover {
@@ -167,6 +168,12 @@
             background-color: var(--accent-primary);
             color: white;
             box-shadow: 0 4px 12px rgba(9, 105, 218, 0.3);
+        }
+
+        /* Đảm bảo chữ màu trắng cho link active trong light mode (tránh bị override) */
+        body[data-theme="light"] .sidebar-nav-link.active {
+            color: white;
+            font-weight: 600;
         }
 
         .sidebar-nav-link i {
@@ -243,10 +250,16 @@
         }
 
         .card-header {
-            background-color: var(--bg-deep) !important;
-            border-bottom: 1px solid var(--border-default) !important;
+            background-color: var(--bg-deep);
+            border-bottom: 1px solid var(--border-default);
             color: var(--text-main);
             font-weight: 600;
+        }
+
+        body[data-theme="dark"] .card-header {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+            color: #f1f5f9;
         }
 
         .card-body {
@@ -488,7 +501,7 @@
     <div class="page-loader" id="pageLoader">
         <div class="d-flex flex-column align-items-center">
             <div class="loading-spinner mb-3" style="width: 40px; height: 40px; border-width: 4px;"></div>
-            <h5 class="gradient-text">Loading Security Dashboard...</h5>
+            <h5 class="gradient-text">Đang tải trang hệ thống...</h5>
         </div>
     </div>
     
@@ -515,7 +528,7 @@
             <nav class="sidebar-nav">
                 <a class="sidebar-nav-link" href="{{ url_for('dashboard') }}">
                     <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
+                    <span>Trang chủ</span>
                 </a>
                 <a class="sidebar-nav-link" href="{{ url_for('agents_list') }}">
                     <i class="fas fa-desktop"></i>
@@ -523,20 +536,20 @@
                 </a>
                 <a class="sidebar-nav-link" href="{{ url_for('process_monitor') }}">
                     <i class="fas fa-window-maximize"></i>
-                    <span>Process Monitor</span>
+                    <span>Tiến trình hoạt động</span>
                 </a>
                 <a class="sidebar-nav-link" href="{{ url_for('alerts_list') }}">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <span>Alerts</span>
+                    <span>Cảnh báo</span>
                 </a>
                 <a class="sidebar-nav-link" href="{{ url_for('file_manager') }}">
                     <i class="fas fa-folder-open"></i>
-                    <span>File Manager</span>
+                    <span>Trình quản lý File</span>
                 </a>
-                <a class="sidebar-nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modelConfigModal" onclick="fetchModelList()">
-                    <i class="fas fa-brain"></i>
-                    <span>Cấu hình Model</span>
-                </a>
+                     <a class="sidebar-nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modelConfigModal" onclick="fetchModelList()"> 
+                         <i class="fas fa-brain"></i> 
+                         <span>Cấu hình Model</span> 
+                     </a> 
             </nav>
         </div>
 

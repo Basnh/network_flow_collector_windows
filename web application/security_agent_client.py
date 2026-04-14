@@ -891,11 +891,15 @@ class SecurityAgentClient:
                 try:
                     stat = os.stat(file_path)
                     is_dir = os.path.isdir(file_path)
+                    # Lấy mtime hoặc ctime cái nào lớn hơn để bắt được file mới copy
+                    mtime = stat.st_mtime
+                    ctime = getattr(stat, 'st_ctime', 0)
+                    latest_time = max(mtime, ctime)
                     files.append({
                         'name': filename,
                         'is_dir': is_dir,
                         'size': get_file_size(stat.st_size) if not is_dir else '',
-                        'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                        'modified': datetime.fromtimestamp(latest_time).strftime('%Y-%m-%d %H:%M:%S')
                     })
                 except OSError:
                     continue # Skip if permission denied

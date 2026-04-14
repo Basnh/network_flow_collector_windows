@@ -202,6 +202,12 @@ body {
     box-shadow: var(--glow-purple);
 }
 
+.pulse-yellow {
+    border-color: var(--threat-high);
+    color: var(--threat-high);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
 @keyframes iconPulse {
     0%, 100% { transform: scale(1); box-shadow: var(--glow-blue); }
     50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(56, 189, 248, 0.4); }
@@ -2594,6 +2600,21 @@ body[data-theme="light"] .pulse-purple {
     color: #7c3aed;
 }
 
+body[data-theme="light"] .pulse-yellow {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+body[data-theme="light"] .pulse-red {
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+body[data-theme="light"] .pulse-gray {
+    border-color: #4b5563;
+    color: #4b5563;
+}
+
 body[data-theme="light"] .flows-panel,
 body[data-theme="light"] .threats-panel,
 body[data-theme="light"] .radar-panel,
@@ -3271,29 +3292,37 @@ body[data-theme="light"] .filter-buttons {
 
 /* Gray pulse for offline status */
 .pulse-gray {
+    border-color: var(--text-muted);
+    color: var(--text-muted);
+    box-shadow: 0 0 10px rgba(100, 116, 139, 0.3);
     animation: pulseGray 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes pulseGray {
     0%, 100% {
         opacity: 0.5;
+        box-shadow: 0 0 10px rgba(100, 116, 139, 0.3);
     }
     50% {
         opacity: 1;
+        box-shadow: 0 0 20px rgba(100, 116, 139, 0.6);
     }
 }
 
 /* Red pulse for isolated/critical status */
 .pulse-red {
+    border-color: var(--threat-critical);
+    color: var(--threat-critical);
+    box-shadow: var(--glow-red);
     animation: pulseRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes pulseRed {
     0%, 100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
     }
     50% {
-        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
     }
 }
 

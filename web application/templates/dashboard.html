@@ -170,28 +170,28 @@
                 </div>
                 <div class="card-body">
                     <div class="primary-metric">
-                        <span class="metric-value">98</span>
+                        <span class="metric-value">{{ sys_health_score | default(98) }}</span>
                         <span class="metric-unit">%</span>
                     </div>
                     <div class="metric-label">System Performance</div>
                     <div class="health-indicators">
                         <div class="health-item">
                             <div class="health-bar cpu">
-                                <div class="health-fill" style="width: 65%"></div>
+                                <div class="health-fill" style="width: {{ sys_cpu | default(65) }}%"></div>
                             </div>
-                            <span class="health-label">CPU</span>
+                            <span class="health-label">CPU ({{ sys_cpu | default(65) }}%)</span>
                         </div>
                         <div class="health-item">
                             <div class="health-bar memory">
-                                <div class="health-fill" style="width: 78%"></div>
+                                <div class="health-fill" style="width: {{ sys_ram | default(78) }}%"></div>
                             </div>
-                            <span class="health-label">RAM</span>
+                            <span class="health-label">RAM ({{ sys_ram | default(78) }}%)</span>
                         </div>
                         <div class="health-item">
                             <div class="health-bar disk">
-                                <div class="health-fill" style="width: 42%"></div>
+                                <div class="health-fill" style="width: {{ sys_disk | default(42) }}%"></div>
                             </div>
-                            <span class="health-label">Disk</span>
+                            <span class="health-label">Disk ({{ sys_disk | default(42) }}%)</span>
                         </div>
                     </div>
                 </div>
@@ -356,12 +356,20 @@
 
                                 <div class="col-source">
                                     <div class="source-info">
-                                        <span class="source-agent">
+                                        <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) if alert.agent_id else '#' }}" class="source-agent" title="Xem chi tiết Agent ({{ alert.agent_id }})" style="display:block; text-decoration:none; font-weight:bold;">
                                             <i class="fas fa-desktop"></i>
-                                            {{ alert.agent_id or 'Unknown' }}
-                                        </span>
+                                            {% if alert.agent and alert.agent.hostname %}
+                                                {{ alert.agent.hostname }}
+                                            {% elif alert.agent_id %}
+                                                {{ alert.agent_id[:8] }}...
+                                            {% else %}
+                                                Unknown
+                                            {% endif %}
+                                        </a>
                                         {% if alert.flow_id %}
-                                        <span class="source-flow">Flow: {{ alert.flow_id[:8] }}</span>
+                                        <a href="{{ url_for('flow_detail_str', flow_id=alert.flow_id) }}" class="source-flow" style="display:inline-block; margin-top:3px; font-size:0.85em; text-decoration:none;" title="Xem bản phân tích Flow">
+                                            <i class="fas fa-network-wired"></i> Flow: <span style="text-decoration:underline;">{{ alert.flow_id[:8] }}</span>
+                                        </a>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -557,8 +565,7 @@
                                 </div>
                                 <div class="source-bar">
                                     {% set source_width_calc = ((count / max_count * 100)|int) %}
-                                    <div class="source-fill risk-low" style="width: {{ source_width_calc }}%;"
-                                        data-progress="{{ source_width_calc }}"></div>
+                                    <div class="source-fill risk-low" style="width: {{ source_width_calc }}%;" data-progress="{{ source_width_calc }}"></div>
                                 </div>
                                 <div class="source-risk">
                                     <span class="risk-badge low">NORM</span>
