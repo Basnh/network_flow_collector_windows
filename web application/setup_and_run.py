@@ -14,6 +14,26 @@ import configparser
 def get_server_url(args_url, config_path='config.ini'):
     """Get server URL from args, config.ini, or default"""
     if args_url:
+        # Tự động cập nhật vào config.ini nếu người dùng nhập IP mới
+        try:
+            config = configparser.ConfigParser()
+            if os.path.exists(config_path):
+                config.read(config_path)
+            
+            if not config.has_section('Server'):
+                config.add_section('Server')
+            config.set('Server', 'server_url', args_url)
+            
+            if not config.has_section('Agent'):
+                config.add_section('Agent')
+            config.set('Agent', 'server_url', args_url)
+            
+            with open(config_path, 'w') as configfile:
+                config.write(configfile)
+            print(f"Da dong bo tu dong server_url={args_url} vao file config.ini")
+        except Exception as e:
+            print(f"Khong the tu dong cap nhat config file: {e}")
+            
         return args_url
         
     try:

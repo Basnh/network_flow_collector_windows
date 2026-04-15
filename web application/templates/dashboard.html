@@ -177,19 +177,19 @@
                     <div class="health-indicators">
                         <div class="health-item">
                             <div class="health-bar cpu">
-                                <div class="health-fill" style="width: {{ sys_cpu | default(65) }}%"></div>
+                                <div class="health-fill" data-width="{{ sys_cpu | default(65) }}"></div>
                             </div>
                             <span class="health-label">CPU ({{ sys_cpu | default(65) }}%)</span>
                         </div>
                         <div class="health-item">
                             <div class="health-bar memory">
-                                <div class="health-fill" style="width: {{ sys_ram | default(78) }}%"></div>
+                                <div class="health-fill" data-width="{{ sys_ram | default(78) }}"></div>
                             </div>
                             <span class="health-label">RAM ({{ sys_ram | default(78) }}%)</span>
                         </div>
                         <div class="health-item">
                             <div class="health-bar disk">
-                                <div class="health-fill" style="width: {{ sys_disk | default(42) }}%"></div>
+                                <div class="health-fill" data-width="{{ sys_disk | default(42) }}"></div>
                             </div>
                             <span class="health-label">Disk ({{ sys_disk | default(42) }}%)</span>
                         </div>
@@ -231,8 +231,8 @@
                         {% for flow in recent_flows %}
                         <div class="flow-row {{ 'malicious' if flow.is_malicious else 'normal' }}"
                              data-flow-id="{{ flow.id }}"
-                             style="cursor: pointer;"
-                             onclick="window.location.href='{{ url_for('flow_detail', flow_id=flow.id) }}'">
+                             data-href="{{ url_for('flow_detail', flow_id=flow.id) }}"
+                             style="cursor: pointer;">
                             <div class="col-src">{{ flow.src_ip[:12] }}</div>
                             <div class="col-dst">{{ flow.dst_ip[:12] }}</div>
                             <div class="col-proto">
@@ -565,7 +565,7 @@
                                 </div>
                                 <div class="source-bar">
                                     {% set source_width_calc = ((count / max_count * 100)|int) %}
-                                    <div class="source-fill risk-low" style="width: {{ source_width_calc }}%;" data-progress="{{ source_width_calc }}"></div>
+                                    <div class="source-fill risk-low" data-width="{{ source_width_calc }}" data-progress="{{ source_width_calc }}"></div>
                                 </div>
                                 <div class="source-risk">
                                     <span class="risk-badge low">NORM</span>
@@ -647,6 +647,19 @@
     // Enhanced dashboard initialization with error protection
     document.addEventListener('DOMContentLoaded', function () {
         loadAvailableModels();
+
+        // Apply data-width attributes as inline styles (avoids Jinja2-in-CSS IDE lint errors)
+        document.querySelectorAll('[data-width]').forEach(function(el) {
+            el.style.width = el.dataset.width + '%';
+        });
+
+        // Apply data-href attributes as click handlers (avoids Jinja2-in-onclick IDE lint errors)
+        document.querySelectorAll('[data-href]').forEach(function(el) {
+            el.addEventListener('click', function() {
+                window.location.href = this.dataset.href;
+            });
+        });
+
         try {
             console.log('📊 Starting dashboard initialization...');
 

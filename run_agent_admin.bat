@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 echo ========================================================
 echo THIET LAP DIA CHI LIEN KET DEN SERVER (DASHBOARD)
 echo ========================================================

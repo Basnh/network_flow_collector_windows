@@ -44,28 +44,31 @@ web application/
 
 ## Cài đặt và chạy
 
-### Bước 1: Setup hệ thống
+### Bước 1: Cài đặt thư viện (Setup)
+**Cách nhanh nhất:** Vào thư mục `web application` và click đúp vào file `install_modules.bat` để script tự động cài đặt toàn bộ thư viện cần thiết.
+
+Hoặc bạ có thể setup thủ công qua lệnh:
 ```powershell
 cd "web application"
 python setup_and_run.py setup
 ```
 
-### Bước 2: Chạy Management Server
+### Bước 2: Chạy Management Server (Trang Dashboard)
+Mở cửa sổ dòng lệnh tại thư mục `web application` và chạy:
 ```powershell
 python setup_and_run.py server
 ```
-Server sẽ chạy tại: http://localhost:5000
+Chương trình sẽ khởi động và cung cấp địa chỉ truy cập web (VD: `http://localhost:5000` hoặc IP LAN thực tế của máy).
 
-### Bước 3: Tích hợp với Network Flow Collector
+### Bước 3: Tích hợp với Network Flow Collector (Chạy Agent)
 
-#### Cách 1: Tích hợp trực tiếp (Khuyến nghị)
+#### Cách 1: Sử dụng Script tự động (Khuyến nghị)
+Về lại thư mục cài đặt gốc `network_flow_collector_windows`, click chuột phải vào file `run_agent_admin.bat` và chọn **Run as administrator**. 
+Khi được hỏi, hãy nhập địa chỉ IP của máy Server (hoặc nhấn Enter để dùng localhost). Chức năng đồng bộ tự động sẽ ghi đè IP này vào `config.ini` để làm mặc định cho các lần sau.
+
+#### Cách 2: Chạy Agent bằng dòng lệnh (Thủ công)
 ```powershell
-python setup_and_run.py integrate --collector-path "../network_flow_collector_windows/network_flow_collector_windows.py" --server-url "http://localhost:5000"
-```
-
-#### Cách 2: Chạy Agent riêng biệt
-```powershell
-python setup_and_run.py agent --server-url "http://localhost:5000"
+python setup_and_run.py integrate --collector-path "../network_flow_collector_windows/network_flow_collector_windows.py" --server-url "http://IP-MAY-SERVER:5000"
 ```
 
 ## Usage trong mã hiện có
