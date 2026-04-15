@@ -404,13 +404,7 @@
         return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    // Auto-refresh every 30 seconds if agent is selected
-    setInterval(function() {
-        const agentId = document.getElementById('agentSelect').value;
-        if (agentId && document.getElementById('processTableContainer').style.display !== 'none') {
-            loadProcesses(agentId);
-        }
-    }, 30000); // 30 seconds
+    // Auto-refresh removed per user request: only manual refresh via button now. // 30 seconds
 
     // Kill process function
     function killProcess(pid, processName) {

@@ -356,10 +356,10 @@
 
                                 <div class="col-source">
                                     <div class="source-info">
-                                        <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) if alert.agent_id else '#' }}" class="source-agent" title="Xem chi tiết Agent ({{ alert.agent_id }})" style="display:block; text-decoration:none; font-weight:bold;">
+                                        <a href="{{ url_for('agent_detail', agent_id=alert.agent_id) if alert.agent_id else '#' }}" class="source-agent" title="Xem chi tiết Agent ({{ alert.agent_id }})" style="display:block; text-decoration:none; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">
                                             <i class="fas fa-desktop"></i>
                                             {% if alert.agent and alert.agent.hostname %}
-                                                {{ alert.agent.hostname }}
+                                                {{ alert.agent.hostname[:15] }}{{ '...' if alert.agent.hostname|length > 15 else '' }}
                                             {% elif alert.agent_id %}
                                                 {{ alert.agent_id[:8] }}...
                                             {% else %}
@@ -553,8 +553,10 @@
                 <div class="panel-body">
                     <div class="sources-list">
                         {% if top_sources %}
-                            {% set max_count = top_sources[0][1] %}
-                            {% for source, count in top_sources %}
+                              {% set max_count = top_sources[0].count %}
+                              {% for item in top_sources %}
+                              {% set source = item.source %}
+                              {% set count = item.count %}
                             <div class="source-item risk-low">
                                 <div class="source-info">
                                     <div class="source-flag">🌐</div>
@@ -563,12 +565,22 @@
                                         <div class="source-packets">{{ count }} flows</div>
                                     </div>
                                 </div>
-                                <div class="source-bar">
+                                <div class="source-bar" style="display: flex; height: 6px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.05); overflow: hidden; max-width: 100%; flex-grow: 1; align-items: stretch; margin-top: 5px;">
                                     {% set source_width_calc = ((count / max_count * 100)|int) %}
-                                    <div class="source-fill risk-low" data-width="{{ source_width_calc }}" data-progress="{{ source_width_calc }}"></div>
+                                    <div style="display: flex; width: {{ source_width_calc }}%; height: 100%; border-radius: 3px; overflow: hidden;">
+                                        {% if item.normal_pct > 0 %}<div data-width="{{ item.normal_pct }}" data-progress="{{ item.normal_pct }}" style="height: 100%; width: {{ item.normal_pct }}%; background-color: var(--success-color);" class="multi-progress"></div>{% endif %}
+                                        {% if item.high_pct > 0 %}<div data-width="{{ item.high_pct }}" data-progress="{{ item.high_pct }}" style="height: 100%; width: {{ item.high_pct }}%; background-color: var(--warning-color);" class="multi-progress"></div>{% endif %}
+                                        {% if item.critical_pct > 0 %}<div data-width="{{ item.critical_pct }}" data-progress="{{ item.critical_pct }}" style="height: 100%; width: {{ item.critical_pct }}%; background-color: var(--danger-color);" class="multi-progress"></div>{% endif %}
+                                    </div>
                                 </div>
                                 <div class="source-risk">
-                                    <span class="risk-badge low">NORM</span>
+                                    {% if item.critical_pct > 0 %}
+                                        <span class="risk-badge critical" style="color:var(--danger-color);border-color:var(--danger-color);">CRI</span>
+                                    {% elif item.high_pct > 0 %}
+                                        <span class="risk-badge warning" style="color:var(--warning-color);border-color:var(--warning-color);">WARN</span>
+                                    {% else %}
+                                        <span class="risk-badge low">NORM</span>
+                                    {% endif %}
                                 </div>
                             </div>
                             {% endfor %}

@@ -356,7 +356,7 @@ class CyberSecDashboard {
 
     initProgressAnimations() {
         document.querySelectorAll('.metric-progress .progress-bar').forEach(bar => {
-            const width = bar.style.width;
+            const width = bar.style.width || (bar.dataset.width ? bar.dataset.width + '%' : null) || (bar.dataset.progress ? bar.dataset.progress + '%' : '100%');
             bar.style.width = '0%';
             
             setTimeout(() => {
@@ -365,7 +365,8 @@ class CyberSecDashboard {
         });
 
         document.querySelectorAll('.health-fill').forEach(fill => {
-            const width = fill.style.width;
+            // Lấy inline width đã set, hoặc lấy từ thuộc tính data-width, mặc định 100%
+            const width = fill.style.width || (fill.dataset.width ? fill.dataset.width + '%' : '100%');
             fill.style.width = '0%';
             
             setTimeout(() => {
@@ -1551,11 +1552,11 @@ function updateAlertsContent(tableBody, alerts) {
                 
                 <div class="col-source">
                     <div class="source-info">
-                        <span class="source-agent">
-                            <i class="fas fa-desktop"></i>
-                            ${alert.agent_id || 'Unknown'}
-                        </span>
-                        ${alert.flow_id ? `<span class="source-flow">Flow: ${alert.flow_id.substring(0, 8)}</span>` : ''}
+                          <span class="source-agent" style="display:block; text-decoration:none; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">
+                              <i class="fas fa-desktop"></i>
+                              ${alert.agent_name ? 
+                                   (alert.agent_name.length > 15 ? alert.agent_name.substring(0, 15) + '...' : alert.agent_name) : 
+                                   (alert.agent_id ? alert.agent_id.substring(0, 8) + '...' : 'Unknown')}
                     </div>
                 </div>
                 
