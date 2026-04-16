@@ -838,6 +838,8 @@ class SecurityAgentClient:
                 'success': result.get('success'),
                 'error': result.get('error', ''),
                 'adapter_name': result.get('adapter_name', ''),
+                'cmd_id': result.get('cmd_id'),
+                'output': result.get('output', ''),
                 'timestamp': result.get('timestamp')
             }
             
