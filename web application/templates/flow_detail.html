@@ -264,13 +264,13 @@
 
                     <!-- Classification -->
                     <div class="mb-2">
-                        <label class="small text-muted fw-bold d-block mb-2">CLASSIFICATION</label>
+                        <label class="small text-muted fw-bold d-block mb-2">KẾT LUẬN</label>
                         {% if flow.classification == 'Trojan' %}
                             <span class="badge bg-danger"><i class="fas fa-virus me-1"></i> Trojan</span>
                         {% elif flow.classification == 'Malware' %}
                             <span class="badge bg-danger"><i class="fas fa-skull me-1"></i> Malware</span>
                         {% elif flow.classification == 'Suspicious' %}
-                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation me-1"></i> Suspicious</span>
+                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation me-1"></i> Đáng nghi</span>
                         {% else %}
                             <span class="badge bg-success"><i class="fas fa-shield-alt me-1"></i> {{ flow.classification }}</span>
                         {% endif %}
@@ -395,7 +395,7 @@
                         <i class="fas fa-check-circle text-success"></i>
                     </div>
                     <div class="threat-indicator-text">
-                        <strong>No anomalies detected</strong> - Flow behavior appears normal
+                        <strong>Không phát hiện bất thường</strong> - Luồng mạng hoạt động ổn định
                     </div>
                 </div>
             {% endif %}

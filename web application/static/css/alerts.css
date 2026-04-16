@@ -1,0 +1,134 @@
+/* CSS for Alerts Page */
+
+/* Panel Layouts */
+.threats-panel.alerts-top-panel {
+    margin-bottom: 2rem;
+}
+
+.alerts-panel-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+}
+
+.alerts-panel-title {
+    margin: 0;
+}
+
+.alerts-panel-body {
+    padding: 20px;
+}
+
+/* Metric Cards */
+.alerts-metric-card {
+    margin: 0; 
+    height: 100%;
+}
+
+.alerts-metric-card-unresolved {
+    margin: 0; 
+    height: 100%;
+    border-top-color: var(--primary-color);
+}
+
+.alerts-card-body {
+    text-align: center; 
+    padding: 1.5rem;
+}
+
+.alerts-metric-primary {
+    justify-content: center;
+}
+
+/* Text Colors */
+.text-danger-custom {
+    color: var(--danger-color);
+}
+
+.text-warning-custom {
+    color: var(--warning-color);
+}
+
+.text-primary-custom {
+    color: var(--primary-color);
+}
+
+.text-success-custom {
+    color: var(--success-color);
+}
+
+/* Icons & Buttons */
+.alerts-icon-primary {
+    color: var(--primary-color);
+}
+
+.alerts-icon-success {
+    color: var(--success-color);
+}
+
+.alerts-form-inline {
+    margin: 0; 
+    display: inline-block;
+}
+
+.alerts-resolve-all-btn {
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    padding: 6px 12px; 
+    font-weight: 500; 
+    letter-spacing: 0.5px;
+}
+
+.alerts-form-margin-0 {
+    margin: 0;
+}
+
+/* Typography */
+.alerts-threat-title {
+    font-size: 0.9rem;
+}
+
+/* Pagination */
+.alerts-pagination-container {
+    display: flex; 
+    justify-content: center; 
+    padding-top: 15px;
+}
+
+.alerts-pagination-list {
+    display: flex; 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+    gap: 5px;
+}
+
+.alerts-page-link,
+.alerts-page-link-dynamic {
+    padding: 8px 12px; 
+    text-decoration: none; 
+    background-color: var(--bg-surface); 
+    border: 1px solid var(--border-default); 
+    color: var(--text-main); 
+    border-radius: 4px; 
+    transition: all 0.3s; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alerts-page-link:hover {
+    background-color: var(--bg-deep);
+}
+
+.alerts-page-link-dynamic {
+    /* Background and border are set via JS based on data-active for dynamic link */
+}
+
+.alerts-page-ellipsis {
+    padding: 8px 12px; 
+    background-color: var(--bg-surface); 
+    border: 1px solid var(--border-default); 
+    color: var(--text-muted); 
+    border-radius: 4px; 
+    cursor: default;
+}

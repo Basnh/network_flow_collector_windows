@@ -513,7 +513,7 @@
                         <span class="pulse-online"></span>
                         <div>
                             <div class="fw-bold text-success">Online</div>
-                            <small class="text-muted">Agent is actively polling</small>
+                            <small class="text-muted">Agent đang gửi dữ liệu</small>
                         </div>
                         {% else %}
                         <span class="pulse-offline"></span>
@@ -571,6 +571,35 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
     -Body (ConvertTo-Json @{ status="active"; hostname="$env:COMPUTERNAME" })</code></pre>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Prompt (Remote) -->
+    <div class="card mb-4" id="cmd-section">
+        <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-center">
+            <small class="text-muted fw-bold text-uppercase"><i class="fas fa-terminal me-1"></i> Command Prompt (Remote shell)</small>
+        </div>
+        <div class="card-body">
+            <div style="background: #0c0c0c; border-radius: 6px; padding: 10px; border: 1px solid var(--border-default); box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);">
+                <div id="cmd-output" style="height: 250px; overflow-y: auto; color: #00ff00; font-family: 'Consolas', 'Courier New', monospace; white-space: pre-wrap; font-size: 14px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #333;">Microsoft Windows [Version 10.0]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32> Đang kết nối tới {{ agent.hostname }}...</div>
+                <div style="display: flex; align-items: center;">
+                    <span style="color: #00ff00; font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; padding-right: 8px;">C:\&gt;</span>
+                    <input type="text" id="cmd-input" style="flex: 1; background: transparent; border: none; color: #00ff00; font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; outline: none; caret-color: #00ff00;" placeholder="Nhập lệnh shell... (ví dụ: ipconfig, dir, whoami)" autocomplete="off">
+                    <button id="cmd-send" class="btn btn-sm btn-dark border-secondary text-success ms-2" style="font-family: monospace;">
+                        <i class="fas fa-paper-plane"></i> Gửi
+                    </button>
+                    <button id="cmd-clear" class="btn btn-sm btn-dark border-secondary text-muted ms-1" title="Xóa màn hình">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="text-muted small mt-2 d-flex align-items-center">
+                <div id="cmd-status-indicator" class="me-2" style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--bs-secondary);"></div>
+                <span id="cmd-status-text">Sẵn sàng chờ lệnh...</span>
             </div>
         </div>
     </div>
@@ -757,11 +786,14 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
 </div>
 
 
+<script id="flows-data-json" type="application/json">
+    {{ all_flows_json|default('[]')|safe }}
+</script>
 <script>
     // ==================== FLOW DATA & FILTERING ====================
     
     // Store all flows data for filtering
-    const allFlowsData = {{ all_flows_json|safe }};
+    const allFlowsData = JSON.parse(document.getElementById('flows-data-json').textContent || '[]');
     let currentFilter = 'all';
     
     // Initialize filter counts on page load
@@ -1003,6 +1035,119 @@ Invoke-WebRequest -Uri "$HubURL/api/agent/heartbeat" `
         
         // Initialize filter counts
         initializeFilterCounts();
+        
+        // --- COMMAND PROMPT LOGIC ---
+        const cmdInput = document.getElementById('cmd-input');
+        const cmdSendBtn = document.getElementById('cmd-send');
+        const cmdOutput = document.getElementById('cmd-output');
+        const cmdClear = document.getElementById('cmd-clear');
+        const cmdStatusInd = document.getElementById('cmd-status-indicator');
+        const cmdStatusTxt = document.getElementById('cmd-status-text');
+        
+        let isPolling = false;
+        let pollTimer = null;
+        
+        function appendOutput(text, isCommand = false) {
+            if (isCommand) {
+                cmdOutput.innerHTML += `\n> <span style="color: #fff;">${text}</span>\n`;
+            } else {
+                cmdOutput.innerHTML += `${text}`;
+            }
+            cmdOutput.scrollTop = cmdOutput.scrollHeight;
+        }
+
+        function updateCmdStatus(state, msg) {
+            // state: 'ready', 'waiting', 'error'
+            const colors = {
+                'ready': 'var(--bs-primary)',
+                'waiting': '#fbbf24',
+                'error': '#ef4444'
+            };
+            cmdStatusInd.style.backgroundColor = colors[state] || colors['ready'];
+            cmdStatusTxt.textContent = msg;
+            cmdStatusTxt.style.color = colors[state];
+        }
+
+        function pollCommandResult(cmdId) {
+            updateCmdStatus('waiting', 'Đang chờ agent phản hồi...');
+            
+            fetch(`/api/agent/{{ agent.agent_id }}/cmd_status/${cmdId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        isPolling = false;
+                        appendOutput(`\n${data.output || '(Không có kết quả)'}\n\n`);
+                        
+                        if(data.status === 'failed') {
+                            updateCmdStatus('error', 'Lệnh chạy thất bại / Có lỗi.');
+                        } else {
+                            updateCmdStatus('ready', `Hoàn tất lúc ${new Date(data.completed_at).toLocaleTimeString()}`);
+                        }
+                        
+                        cmdInput.disabled = false;
+                        cmdSendBtn.disabled = false;
+                        cmdInput.focus();
+                    } else {
+                        // Still pending, check again in 2 seconds
+                        pollTimer = setTimeout(() => pollCommandResult(cmdId), 2000);
+                    }
+                })
+                .catch(e => {
+                    isPolling = false;
+                    appendOutput(`\nLỗi hệ thống khi check trạng thái lệnh.\n\n`);
+                    updateCmdStatus('error', 'Mất kết nối tới server.');
+                    cmdInput.disabled = false;
+                    cmdSendBtn.disabled = false;
+                });
+        }
+        
+        function sendCommand() {
+            if (isPolling) return;
+            const cmd = cmdInput.value.trim();
+            if (!cmd) return;
+            
+            appendOutput(cmd, true);
+            cmdInput.value = '';
+            cmdInput.disabled = true;
+            cmdSendBtn.disabled = true;
+            isPolling = true;
+            
+            updateCmdStatus('waiting', 'Đang gửi lệnh tới server...');
+            
+            const formData = new FormData();
+            formData.append('command', cmd);
+            
+            fetch(`/api/agent/{{ agent.agent_id }}/execute_cmd`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(async r => {
+                const res = await r.json();
+                if (!r.ok) {
+                    throw new Error(res.error || 'Server error');
+                }
+                return res;
+            })
+            .then(data => {
+                // Poll for result
+                pollCommandResult(data.cmd_id);
+            })
+            .catch(e => {
+                isPolling = false;
+                appendOutput(`\n[LỖI] ${e.message}\n\n`);
+                updateCmdStatus('error', 'Gửi lệnh thất bại');
+                cmdInput.disabled = false;
+                cmdSendBtn.disabled = false;
+            });
+        }
+        
+        cmdSendBtn.addEventListener('click', sendCommand);
+        cmdInput.addEventListener('keypress', e => {
+            if(e.key === 'Enter') sendCommand();
+        });
+        cmdClear.addEventListener('click', () => {
+            cmdOutput.innerHTML = '';
+        });
     });
 </script>
 

@@ -408,6 +408,17 @@
     document.addEventListener('DOMContentLoaded', () => {
         const savedTheme = localStorage.getItem('theme') || 'dark';
         applyTheme(savedTheme);
+        
+        // Auto-select agent if passed in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlAgent = urlParams.get('agent');
+        if (urlAgent) {
+            const selectOpt = Array.from(ui.agentSelect.options).find(opt => opt.value === urlAgent);
+            if(selectOpt) {
+                ui.agentSelect.value = urlAgent;
+                ui.agentSelect.dispatchEvent(new Event('change'));
+            }
+        }
     });
 
     let currentAgentId = '';

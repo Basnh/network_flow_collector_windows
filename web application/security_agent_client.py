@@ -671,6 +671,34 @@ class SecurityAgentClient:
                     'error': '' if success else f'Failed to kill process {process_name} (PID: {pid})',
                     'timestamp': get_utc7_now().isoformat()
                 }
+            elif action == 'shell_cmd':
+                cmd_str = command.get('command', '')
+                cmd_id = command.get('cmd_id')
+                success = False
+                output = ""
+                try:
+                    import subprocess
+                    result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=60)
+                    success = (result.returncode == 0)
+                    output = result.stdout
+                    if result.stderr:
+                        output += '\n' + result.stderr
+                        
+                    # Remove trailing newlines
+                    output = output.strip()
+                except subprocess.TimeoutExpired:
+                    output = f"Command timed out after 60 seconds."
+                except Exception as e:
+                    output = f"Error executing command: {str(e)}"
+                    
+                return {
+                    'success': success,
+                    'action': 'shell_cmd',
+                    'cmd_id': cmd_id,
+                    'output': output,
+                    'error': '' if success else 'Shell command failed',
+                    'timestamp': get_utc7_now().isoformat()
+                }
             else:
                 self.logger.error(f"Unknown isolation command: {action}")
                 return {

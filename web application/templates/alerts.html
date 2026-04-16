@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/cybersec-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -13,12 +14,12 @@
     <!-- Alerts Section - Full Width -->
     <div class="alerts-section-full">
         <!-- Threats Panel -->
-        <div class="threats-panel" style="margin-bottom: 2rem;">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h3 class="panel-title" style="margin: 0;">
+        <div class="threats-panel alerts-top-panel">
+            <div class="panel-header alerts-panel-header">
+                <h3 class="panel-title alerts-panel-title">
                     <i class="fas fa-shield-virus"></i>
                     Trung Tâm Cảnh Báo
-                    <span class="alerts-count">{{ alerts|length }}</span>
+                    <span class="alerts-count">{{ all_alerts|length }}</span>
                 </h3>
                 <button class="control-btn" onclick="refreshAlertsData()" title="Refresh Alerts">
                     <i class="fas fa-sync-alt"></i>
@@ -26,48 +27,48 @@
             </div>
             
             <!-- Alert Statistics -->
-            <div class="panel-body" style="padding: 20px;">
+            <div class="panel-body alerts-panel-body">
                 <div class="row g-3">
-                    {% set critical_count = alerts|selectattr('severity', 'equalto', 'critical')|selectattr('is_resolved', 'equalto', False)|list|length %}
-                    {% set high_count = alerts|selectattr('severity', 'equalto', 'high')|selectattr('is_resolved', 'equalto', False)|list|length %}
-                    {% set unresolved_count = alerts|selectattr('is_resolved', 'equalto', False)|list|length %}
-                    {% set resolved_count = alerts|selectattr('is_resolved', 'equalto', True)|list|length %}
+                    {% set critical_count = all_alerts|selectattr('severity', 'equalto', 'critical')|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set high_count = all_alerts|selectattr('severity', 'equalto', 'high')|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set unresolved_count = all_alerts|selectattr('is_resolved', 'equalto', False)|list|length %}
+                    {% set resolved_count = all_alerts|selectattr('is_resolved', 'equalto', True)|list|length %}
 
                     <div class="col-md-3">
-                        <div class="metric-card threat-high" style="margin: 0; height: 100%;">
-                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
-                                <div class="metric-label" style="color: var(--danger-color);">Nghiêm trọng</div>
-                                <div class="primary-metric" style="justify-content: center;">
+                        <div class="metric-card threat-high alerts-metric-card">
+                            <div class="card-body alerts-card-body">
+                                <div class="metric-label text-danger-custom">Nghiêm trọng</div>
+                                <div class="primary-metric alerts-metric-primary">
                                     <span class="metric-value">{{ critical_count }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="metric-card threat-medium" style="margin: 0; height: 100%;">
-                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
-                                <div class="metric-label" style="color: var(--warning-color);">Nguy hiểm</div>
-                                <div class="primary-metric" style="justify-content: center;">
+                        <div class="metric-card threat-medium alerts-metric-card">
+                            <div class="card-body alerts-card-body">
+                                <div class="metric-label text-warning-custom">Nguy hiểm</div>
+                                <div class="primary-metric alerts-metric-primary">
                                     <span class="metric-value">{{ high_count }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="metric-card" style="margin: 0; height: 100%; border-top-color: var(--primary-color);">
-                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
-                                <div class="metric-label" style="color: var(--primary-color);">Chưa giải quyết</div>
-                                <div class="primary-metric" style="justify-content: center;">
+                        <div class="metric-card alerts-metric-card-unresolved">
+                            <div class="card-body alerts-card-body">
+                                <div class="metric-label text-primary-custom">Chưa giải quyết</div>
+                                <div class="primary-metric alerts-metric-primary">
                                     <span class="metric-value">{{ unresolved_count }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="metric-card threat-low" style="margin: 0; height: 100%;">
-                            <div class="card-body" style="text-align: center; padding: 1.5rem;">
-                                <div class="metric-label" style="color: var(--success-color);">Đã giải quyết</div>
-                                <div class="primary-metric" style="justify-content: center;">
+                        <div class="metric-card threat-low alerts-metric-card">
+                            <div class="card-body alerts-card-body">
+                                <div class="metric-label text-success-custom">Đã giải quyết</div>
+                                <div class="primary-metric alerts-metric-primary">
                                     <span class="metric-value">{{ resolved_count }}</span>
                                 </div>
                             </div>
@@ -79,14 +80,14 @@
 
         <!-- Alert List -->
         <div class="threats-panel">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="panel-header alerts-panel-header">
                 <h3 class="panel-title">
-                    <i class="fas fa-terminal" style="color: var(--primary-color);"></i>
+                    <i class="fas fa-terminal alerts-icon-primary"></i>
                     Nhật ký hoạt động
                 </h3>
-                <form method="POST" action="{{ url_for('resolve_all_alerts') }}" style="margin: 0; display: inline-block;">
+                <form method="POST" action="{{ url_for('resolve_all_alerts') }}" class="alerts-form-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('Bạn có chắc chắn muốn giải quyết tất cả cảnh báo hiện tại?');" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-weight: 500; letter-spacing: 0.5px;">
+                    <button type="submit" class="btn btn-outline-success btn-sm alerts-resolve-all-btn" onclick="return confirm('Bạn có chắc chắn muốn giải quyết tất cả cảnh báo hiện tại?');">
                         <i class="fas fa-check-double"></i> Giải quyết tất cả
                     </button>
                 </form>
@@ -115,7 +116,7 @@
                                 </div>
                                 <div class="col-type">
                                     <div class="threat-info">
-                                        <h6 class="mb-1 text-main" style="font-size: 0.9rem;">{{ alert.title }}</h6>
+                                        <h6 class="mb-1 text-main alerts-threat-title">{{ alert.title }}</h6>
                                         <p class="small text-muted mb-0">{{ alert.description }}</p>
                                     </div>
                                 </div>
@@ -140,7 +141,7 @@
                                 <div class="col-actions">
                                     <div class="action-buttons">
                                         {% if not alert.is_resolved %}
-                                        <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}" style="margin: 0;">
+                                        <form method="POST" action="{{ url_for('resolve_alert', alert_id=alert.id) }}" class="alerts-form-margin-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="action-btn success" title="Resolve">
                                                 <i class="fas fa-check"></i>
@@ -153,10 +154,48 @@
                             {% endfor %}
                         </div>
                     </div>
+                    
+                    <!-- Pagination -->
+                    {% if alerts_pagination and alerts_pagination.pages > 1 %}
+                    <div class="pagination-container mt-4 alerts-pagination-container">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination pagination-sm alerts-pagination-list">
+                                {% if alerts_pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link alerts-page-link" href="{{ url_for('alerts_list', page=alerts_pagination.prev_num) }}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for page_num in alerts_pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                    {% if page_num %}
+                                        <li class="page-item {% if page_num == alerts_pagination.page %}active{% endif %}">
+                                            <a class="page-link alerts-page-link-dynamic" href="{{ url_for('alerts_list', page=page_num) }}" data-active="{{ 'true' if page_num == alerts_pagination.page else 'false' }}">
+                                                {{ page_num }}
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled"><span class="page-link alerts-page-ellipsis">...</span></li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if alerts_pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link alerts-page-link" href="{{ url_for('alerts_list', page=alerts_pagination.next_num) }}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                    
                     {% else %}
                     <div class="no-threats">
                         <div class="no-threats-content">
-                            <i class="fas fa-shield-check fa-4x mb-3" style="color: var(--success-color);"></i>
+                            <i class="fas fa-shield-check fa-4x mb-3 alerts-icon-success"></i>
                             <h4>Hệ thống an toàn</h4>
                             <p>Không có cảnh báo nào trong thời gian gần đây</p>
                         </div>
@@ -172,6 +211,21 @@
     function refreshAlertsData() {
         location.reload();
     }
+
+    // Apply pagination link styles based on data-active attribute
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.pagination .page-link[data-active]').forEach(function(link) {
+            if (link.getAttribute('data-active') === 'true') {
+                link.style.backgroundColor = 'var(--primary-color)';
+                link.style.borderColor = 'var(--primary-color)';
+                link.style.color = 'white';
+            } else {
+                link.style.backgroundColor = 'var(--bg-surface)';
+                link.style.border = '1px solid var(--border-default)';
+                link.style.color = 'var(--text-main)';
+            }
+        });
+    });
 </script>
 
 <!-- Theme Toggle Button -->

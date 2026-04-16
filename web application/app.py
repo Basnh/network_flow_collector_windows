@@ -39,7 +39,7 @@ WHITELISTED_IPS = {
 }
 
 # TÙY CHỌN ẨN: Chuyển thành True để TẮT mô hình AI (chỉ báo cáo các Trojan dựa vào Port / Rule-based)
-DISABLE_ML_DETECTION = False
+DISABLE_ML_DETECTION = True
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -199,6 +199,16 @@ class IsolationAction(db.Model):
     reason = db.Column(db.Text)
     executed_at = db.Column(db.DateTime, default=get_utc7_now)
     success = db.Column(db.Boolean, default=False)
+
+class AgentCommand(db.Model):
+    """Lịch sử lệnh gửi tới agent (Remote Command Prompt)"""
+    id = db.Column(db.Integer, primary_key=True)
+    agent_id = db.Column(db.String(100), db.ForeignKey('agent.agent_id'), nullable=False)
+    command = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, completed, failed
+    output = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_utc7_now)
+    completed_at = db.Column(db.DateTime, nullable=True)
 
 # ==================== THREAT DETECTION ENGINE ====================
 
@@ -987,7 +997,19 @@ def report_command_result(agent_id):
         if adapter_name:
             agent.network_adapter_name = adapter_name
         
-        if success:
+        if action == 'shell_cmd':
+            cmd_id = data.get('cmd_id')
+            if cmd_id:
+                cmd = AgentCommand.query.get(cmd_id)
+                if cmd:
+                    cmd.status = 'completed' if success else 'failed'
+                    cmd.output = data.get('output', '')
+                    cmd.completed_at = get_utc7_now()
+            # Clear pending command for shell_cmd regardless of success to avoid loop
+            agent.pending_command = None
+            if not success:
+                logger.error(f"Agent {agent_id} failed to execute shell_cmd: {error_msg}")
+        elif success:
             # Clear pending command only if execution was successful
             agent.pending_command = None
             
@@ -1013,6 +1035,52 @@ def report_command_result(agent_id):
         logger.error(f"Error processing command result for agent {agent_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+
+@app.route('/api/agent/<agent_id>/execute_cmd', methods=['POST'])
+@csrf.exempt
+def execute_cmd(agent_id):
+    """Admin gửi một lệnh shell xuống agent"""
+    agent = Agent.query.filter_by(agent_id=agent_id).first()
+    if not agent:
+        return jsonify({'error': 'Agent not found'}), 404
+        
+    data_json = request.get_json(silent=True) or {}
+    cmd_str = request.form.get('command') or data_json.get('command')
+    if not cmd_str:
+        return jsonify({'error': 'No command provided'}), 400
+        
+    if agent.pending_command:
+        # Nếu đang có lệnh chưa xử lý
+        try:
+            pending = json.loads(agent.pending_command)
+            if pending.get('action') != 'shell_cmd':
+                return jsonify({'error': 'Agent đang bận xử lý một lệnh hệ thống khác'}), 409
+        except:
+            pass
+            
+    new_cmd = AgentCommand(agent_id=agent_id, command=cmd_str, status='pending')
+    db.session.add(new_cmd)
+    db.session.commit()
+    
+    command_msg = {
+        'action': 'shell_cmd',
+        'cmd_id': new_cmd.id,
+        'command': cmd_str
+    }
+    agent.pending_command = json.dumps(command_msg)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'cmd_id': new_cmd.id}), 200
+
+@app.route('/api/agent/<agent_id>/cmd_status/<int:cmd_id>', methods=['GET'])
+def cmd_status(agent_id, cmd_id):
+    """Kiểm tra trạng thái lệnh đã hoàn thành chưa"""
+    cmd = AgentCommand.query.get_or_404(cmd_id)
+    return jsonify({
+        'status': cmd.status,
+        'output': cmd.output,
+        'completed_at': cmd.completed_at.isoformat() if cmd.completed_at else None
+    })
 
 @app.route('/api/agent/<agent_id>/process_request', methods=['GET'])
 @csrf.exempt
@@ -1482,6 +1550,32 @@ def process_monitor():
     agents = Agent.query.order_by(Agent.last_seen.desc()).all()
     return render_template('process.html', agents=agents)
 
+@app.route('/agent/<agent_id>/delete', methods=['POST'])
+@login_required
+@csrf.exempt
+def delete_agent(agent_id):
+    """Xóa agent và các dữ liệu liên quan"""
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
+        # Xóa các dữ liệu phụ thuộc trước
+        NetworkFlow.query.filter_by(agent_id=agent_id).delete()
+        SecurityAlert.query.filter_by(agent_id=agent_id).delete()
+        IsolationAction.query.filter_by(agent_id=agent_id).delete()
+        # Xóa agent
+        db.session.delete(agent)
+        db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return jsonify({'success': True, 'message': 'Đã xóa Agent thành công'})
+        
+        flash('Đã xóa Agent thành công.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting agent: {e}")
+        flash('Đã xảy ra lỗi khi xóa Agent.', 'error')
+        
+    return redirect(url_for('agents_list'))
+
 @app.route('/agent/<agent_id>')
 @login_required
 def agent_detail(agent_id):
@@ -1587,12 +1681,68 @@ def flow_detail(flow_id):
                          agent=agent,
                          anomalies=anomalies)
 
+import math
+class CustomPagination:
+    def __init__(self, page, per_page, total, items):
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.items = items
+        self.pages = math.ceil(total / per_page) if per_page > 0 else 0
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+        self.prev_num = page - 1
+        self.next_num = page + 1
+
+    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or \
+               (self.page - left_current - 1 < num < self.page + right_current) or \
+               num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
+
 @app.route('/alerts')
 @login_required
 def alerts_list():
-    """List all security alerts"""
-    alerts = SecurityAlert.query.order_by(SecurityAlert.created_at.desc()).all()
-    return render_template('alerts.html', alerts=alerts)
+    """List all security alerts with deduplication by source IP and timestamp"""
+    # Bring in all raw alerts
+    raw_alerts = SecurityAlert.query.order_by(SecurityAlert.created_at.desc()).all()
+    
+    unique_alerts = []
+    seen_signatures = set()
+    
+    for alert in raw_alerts:
+        # Group by agent, title (contains source IP), and timestamp (up to second)
+        # For example: Threat detected from 10.0.2.15 | 2026-04-15 15:56:56
+        time_str = alert.created_at.strftime('%Y-%m-%d %H:%M:%S') if alert.created_at else 'unknown'
+        sig = f"{alert.agent_id}_{alert.title}_{time_str}"
+        
+        if sig not in seen_signatures:
+            seen_signatures.add(sig)
+            unique_alerts.append(alert)
+            
+    # For pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    total = len(unique_alerts)
+    
+    # Calculate limits
+    start = (page - 1) * per_page
+    end = start + per_page
+    
+    # Slice for current page
+    paginated_items = unique_alerts[start:end]
+    
+    alerts_pagination = CustomPagination(page=page, per_page=per_page, total=total, items=paginated_items)
+        
+    return render_template('alerts.html', 
+                         alerts=paginated_items,
+                         all_alerts=unique_alerts,
+                         alerts_pagination=alerts_pagination)
 
 @app.route('/isolate_form/<agent_id>', methods=['GET'])
 @login_required
@@ -1662,19 +1812,23 @@ def resolve_alert(alert_id):
     return redirect(url_for('alerts_list'))
 
 @app.route('/resolve_all_alerts', methods=['POST'])
+@login_required
 @csrf.exempt
 def resolve_all_alerts():
     """Mark all active alerts as resolved"""
-    alerts = SecurityAlert.query.filter_by(is_resolved=False).all()
-    count = len(alerts)
-    for alert in alerts:
-        alert.is_resolved = True
-    db.session.commit()
-    
-    if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
+    try:
+        count = SecurityAlert.query.filter_by(is_resolved=False).update(dict(is_resolved=True))
+        db.session.commit()
         
-    flash(f'Đã giải quyết {count} cảnh báo.', 'success')
+        if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
+            
+        flash(f'Đã giải quyết {count} cảnh báo.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error resolving all alerts: {e}")
+        flash('Đã xảy ra lỗi khi giải quyết cảnh báo.', 'error')
+        
     return redirect(url_for('alerts_list'))
 
 # ==================== API ENDPOINTS FOR REAL-TIME FEATURES ====================

@@ -567,10 +567,10 @@
                                 </div>
                                 <div class="source-bar" style="display: flex; height: 6px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.05); overflow: hidden; max-width: 100%; flex-grow: 1; align-items: stretch; margin-top: 5px;">
                                     {% set source_width_calc = ((count / max_count * 100)|int) %}
-                                    <div style="display: flex; width: {{ source_width_calc }}%; height: 100%; border-radius: 3px; overflow: hidden;">
-                                        {% if item.normal_pct > 0 %}<div data-width="{{ item.normal_pct }}" data-progress="{{ item.normal_pct }}" style="height: 100%; width: {{ item.normal_pct }}%; background-color: var(--success-color);" class="multi-progress"></div>{% endif %}
-                                        {% if item.high_pct > 0 %}<div data-width="{{ item.high_pct }}" data-progress="{{ item.high_pct }}" style="height: 100%; width: {{ item.high_pct }}%; background-color: var(--warning-color);" class="multi-progress"></div>{% endif %}
-                                        {% if item.critical_pct > 0 %}<div data-width="{{ item.critical_pct }}" data-progress="{{ item.critical_pct }}" style="height: 100%; width: {{ item.critical_pct }}%; background-color: var(--danger-color);" class="multi-progress"></div>{% endif %}
+                                    <div data-width="{{ source_width_calc }}" style="display: flex; height: 100%; border-radius: 3px; overflow: hidden;">
+                                        {% if item.normal_pct > 0 %}<div data-width="{{ item.normal_pct }}" data-progress="{{ item.normal_pct }}" style="height: 100%; background-color: var(--success-color);" class="multi-progress"></div>{% endif %}
+                                        {% if item.high_pct > 0 %}<div data-width="{{ item.high_pct }}" data-progress="{{ item.high_pct }}" style="height: 100%; background-color: var(--warning-color);" class="multi-progress"></div>{% endif %}
+                                        {% if item.critical_pct > 0 %}<div data-width="{{ item.critical_pct }}" data-progress="{{ item.critical_pct }}" style="height: 100%; background-color: var(--danger-color);" class="multi-progress"></div>{% endif %}
                                     </div>
                                 </div>
                                 <div class="source-risk">
