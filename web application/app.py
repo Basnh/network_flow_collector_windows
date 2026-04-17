@@ -162,6 +162,7 @@ class Agent(db.Model):
     # Relationships
     flows = db.relationship('NetworkFlow', backref='agent', lazy=True, cascade='all, delete-orphan')
     alerts = db.relationship('SecurityAlert', backref='agent', lazy=True, cascade='all, delete-orphan')
+    commands = db.relationship('AgentCommand', backref='agent', lazy=True, cascade='all, delete-orphan')
 
 class NetworkFlow(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -204,7 +205,7 @@ class IsolationAction(db.Model):
 class AgentCommand(db.Model):
     """L?ch s? l?nh g?i t?i agent (Remote Command Prompt)"""
     id = db.Column(db.Integer, primary_key=True)
-    agent_id = db.Column(db.String(100), db.ForeignKey('agent.agent_id'), nullable=False)
+    agent_id = db.Column(db.String(100), db.ForeignKey('agent.agent_id', ondelete='CASCADE'), nullable=False)
     command = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, completed, failed
     output = db.Column(db.Text, nullable=True)
@@ -682,17 +683,16 @@ class ThreatDetector:
                 logger.error(f"Error in ML prediction: {e}")
 
         # ---------------------------------------------------------
-        # T?NG 3: PORT SIGNATURE (Fallback Known C2)
-        # B?t c�c port t?nh th�?ng ��?c Trojan s? d?ng n?u l?t qua 2 t?ng �?u
+
         # ---------------------------------------------------------
-        suspicious_ports = {1417, 2404, 4782, 4449, 6606, 7707, 8808, 54984}
+        suspicious_ports = {1417, 2404, 4449, 6606, 7707, 8808, 54984}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
             susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
             threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
             threat_score = max(threat_score, 0.85)
             
         # ---------------------------------------------------------
-        # K?T LU?N CU?I C�NG
+        # 
         # ---------------------------------------------------------
         if not threats_found and threat_score < 0.7:
             threats_found.append("Normal traffic detected")
@@ -1566,18 +1566,19 @@ def delete_agent(agent_id):
         NetworkFlow.query.filter_by(agent_id=agent_id).delete()
         SecurityAlert.query.filter_by(agent_id=agent_id).delete()
         IsolationAction.query.filter_by(agent_id=agent_id).delete()
+        AgentCommand.query.filter_by(agent_id=agent_id).delete()
         # X�a agent
         db.session.delete(agent)
         db.session.commit()
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-            return jsonify({'success': True, 'message': '�? x�a Agent th�nh c�ng'})
+            return jsonify({'success': True, 'message': 'Đã xóa Agent thành công!'})
         
-        flash('�? x�a Agent th�nh c�ng.', 'success')
+        flash('Đã xóa Agent thành công.', 'success')
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting agent: {e}")
-        flash('�? x?y ra l?i khi x�a Agent.', 'error')
+        flash('Đã xảy ra lỗi khi xóa Agent.', 'error')
         
     return redirect(url_for('agents_list'))
 
@@ -2309,6 +2310,7 @@ def delete_all_data():
     """Delete all data from database"""
     try:
         # Delete all records from all tables
+        AgentCommand.query.delete()
         SecurityAlert.query.delete()
         NetworkFlow.query.delete()
         IsolationAction.query.delete()

@@ -238,12 +238,15 @@
             }
         });
 
-        document.getElementById('refreshBtn').addEventListener('click', function() {
-            const agentId = document.getElementById('agentSelect').value;
-            if (agentId) {
-                loadProcesses(agentId);
-            }
-        });
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                const agentId = document.getElementById('agentSelect').value;
+                if (agentId) {
+                    loadProcesses(agentId);
+                }
+            });
+        }
     });
 
     // Load available agents
@@ -291,7 +294,7 @@
         showLoadingState();
         
         const btn = document.getElementById('refreshBtn');
-        btn.classList.add('loading');
+        if (btn) btn.classList.add('loading');
 
         console.log(`Fetching processes for agent: ${agentId}`);
 
@@ -302,7 +305,7 @@
             })
             .then(data => {
                 console.log('Processes response:', data);
-                btn.classList.remove('loading');
+                if (btn) btn.classList.remove('loading');
                 
                 if (data.success && data.processes) {
                     currentProcessData = data.processes;
@@ -319,11 +322,12 @@
                     // Sắp xếp mặc định hoặc để nguyên tùy bạn, ở đây cứ display trước
                     displayProcesses(currentProcessData);
                 } else {
-                    showError(data.message || 'KhĂ´ng thá»ƒ láº¥y dá»¯ liá»‡u tiáº¿n trĂ¬nh');
+                    showError(data.message || 'Không thể lấy dữ liệu tiến trình');
                 }
             })
             .catch(error => {
-                btn.classList.remove('loading');
+                const btn = document.getElementById('refreshBtn');
+                if (btn) btn.classList.remove('loading');
                 console.error('Error loading processes:', error);
                 showError('Lỗi khi kết nối đến server: ' + error.message);
             });
