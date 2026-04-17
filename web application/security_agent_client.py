@@ -387,12 +387,15 @@ class SecurityAgentClient:
             
             server_port = self.server_url.split(':')[-1] if ':' in self.server_url.split('//')[-1] else '5000'
 
-            if not server_ip:
-                server_host = self.server_url.split('//')[-1].split(':')[0]
-                try:
-                    server_ip = socket.gethostbyname(server_host)
-                except:
-                    server_ip = None
+            # Always ensure the actual agent's server url IP is allowed regardless of what server passed
+            server_host = self.server_url.split('//')[-1].split(':')[0]
+            try:
+                actual_server_ip = socket.gethostbyname(server_host)
+            except:
+                actual_server_ip = server_ip
+
+            if actual_server_ip:
+                server_ip = actual_server_ip
 
             # 1. Clean up existing management rules and ensure Firewall is ON
             self.execute_restoration()
