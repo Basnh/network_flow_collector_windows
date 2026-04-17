@@ -13,9 +13,11 @@ import socket
 import platform
 import hashlib
 import subprocess
+import sys
 import uuid
 import ctypes
 import configparser
+import base64
 from datetime import datetime, timedelta
 from pytz import timezone
 from collections import deque
@@ -938,6 +940,20 @@ class SecurityAgentClient:
             self.logger.error(f"Error collecting files: {e}")
             return []
 
+    def get_available_drives(self):
+        """Get list of available drive letters on Windows."""
+        try:
+            import string
+            drives = []
+            for drive_letter in string.ascii_uppercase:
+                drive_path = f"{drive_letter}:\\"
+                if os.path.exists(drive_path):
+                    drives.append(drive_path)
+            return drives
+        except Exception as e:
+            self.logger.error(f"Error getting available drives: {e}")
+            return []
+
     def poll_and_send_files(self):
         """Poll server for file requests (list or delete) and submit local file result."""
         try:
@@ -982,23 +998,88 @@ class SecurityAgentClient:
                     'path': target_path,
                     'timestamp': get_utc7_now().isoformat()
                 }
+                
+                requests.post(
+                    f"{self.server_url}/api/agent/{self.agent_id}/file_result",
+                    json=result,
+                    timeout=10
+                )
+            elif action == 'download':
+                success = False
+                message = ''
+                file_data = None
+                try:
+                    if os.path.isfile(target_path):
+                        with open(target_path, 'rb') as f:
+                            file_data = base64.b64encode(f.read()).decode('utf-8')
+                        success = True
+                        message = "Đọc file thành công"
+                    else:
+                        message = f"File không tồn tại: {target_path}"
+                except Exception as e:
+                    message = f"Lỗi khi đọc file: {str(e)}"
+                
+                result = {
+                    'request_id': request_id,
+                    'success': success,
+                    'message': message,
+                    'action': 'download',
+                    'file_data': file_data,
+                    'path': target_path,
+                    'timestamp': get_utc7_now().isoformat()
+                }
+                requests.post(
+                    f"{self.server_url}/api/agent/{self.agent_id}/file_result",
+                    json=result,
+                    timeout=10
+                )
+            elif action == 'upload':
+                success = False
+                message = ''
+                file_data = payload.get('file_data')
+                try:
+                    if file_data is not None:
+                        with open(target_path, 'wb') as f:
+                            f.write(base64.b64decode(file_data))
+                        success = True
+                        message = "Lưu file thành công"
+                    else:
+                        message = "Không có dữ liệu file"
+                except Exception as e:
+                    message = f"Lỗi khi lưu file: {str(e)}"
+                
+                result = {
+                    'request_id': request_id,
+                    'success': success,
+                    'message': message,
+                    'action': 'upload',
+                    'path': target_path,
+                    'timestamp': get_utc7_now().isoformat()
+                }
+                requests.post(
+                    f"{self.server_url}/api/agent/{self.agent_id}/file_result",
+                    json=result,
+                    timeout=10
+                )
             else:
                 # Default is list
                 files = self.collect_files(target_path)
+                drives = self.get_available_drives()
                 result = {
                     'request_id': request_id,
                     'success': True,
                     'files': files,
+                    'drives': drives,
                     'action': 'list',
                     'path': target_path,
                     'timestamp': get_utc7_now().isoformat()
                 }
                 
-            requests.post(
-                f"{self.server_url}/api/agent/{self.agent_id}/file_result",
-                json=result,
-                timeout=10
-            )
+                requests.post(
+                    f"{self.server_url}/api/agent/{self.agent_id}/file_result",
+                    json=result,
+                    timeout=10
+                )
         except Exception as e:
             self.logger.error(f"Error polling files: {e}")
 

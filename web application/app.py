@@ -18,6 +18,7 @@ import os
 import hashlib
 import socket
 import subprocess
+import base64
 import uuid
 from collections import defaultdict
 import logging
@@ -39,7 +40,7 @@ WHITELISTED_IPS = {
 }
 
 # TÙY CHỌN ẨN: Chuyển thành True để TẮT mô hình AI (chỉ báo cáo các Trojan dựa vào Port / Rule-based)
-DISABLE_ML_DETECTION = False
+DISABLE_ML_DETECTION = True
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -684,7 +685,7 @@ class ThreatDetector:
         # TẦNG 3: PORT SIGNATURE (Fallback Known C2)
         # Bắt các port tĩnh thường được Trojan sử dụng nếu lọt qua 2 tầng đầu
         # ---------------------------------------------------------
-        suspicious_ports = {2404, 6606, 7707, 8808}
+        suspicious_ports = {1417, 2404, 4782, 4449, 6606, 7707, 8808, 54984}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
             susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
             threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
@@ -2524,12 +2525,15 @@ def get_file_request(agent_id):
                 return jsonify({'has_request': False}), 200
 
             action = req.get('action', 'list')
-            return jsonify({
+            response_data = {
                 'has_request': True,
                 'request_id': req['request_id'],
                 'path': req.get('path', 'C:\\'),
                 'action': action
-            }), 200
+            }
+            if action == 'upload':
+                response_data['file_data'] = req.get('file_data')
+            return jsonify(response_data), 200
     except Exception as e:
         return jsonify({'has_request': False}), 200
 
@@ -2552,6 +2556,9 @@ def submit_file_result(agent_id):
                     'success': success,
                     'path': data.get('path', ''),
                     'files': files,
+                    'drives': data.get('drives', []),
+                    'message': data.get('message', ''),
+                    'file_data': data.get('file_data'),
                     'created_at': get_utc7_now()
                 }
                 FILE_REQUESTS.pop(agent_id, None)
@@ -2620,6 +2627,7 @@ def get_agent_files(agent_id):
                     'hostname': agent.hostname,
                     'current_path': result.get('path', requested_path),
                     'files': files,
+                    'drives': result.get('drives', []),
                     'last_snapshot': last_snapshot
                 }), 200
             time.sleep(0.5)
@@ -2632,6 +2640,91 @@ def get_agent_files(agent_id):
         
     except Exception as e:
         logger.error(f"Error fetching files for agent {agent_id}: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/download_from_agent/<agent_id>', methods=['POST'])
+@csrf.exempt
+def download_from_agent(agent_id):
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'success': False, 'message': 'Agent not found'}), 404
+
+        data = request.get_json() or {}
+        target_path = data.get('path')
+        if not target_path:
+            return jsonify({'success': False, 'message': 'Path is required'}), 400
+
+        request_id = uuid.uuid4().hex
+        with FILE_LOCK:
+            FILE_REQUESTS[agent_id] = {
+                'request_id': request_id,
+                'action': 'download',
+                'path': target_path,
+                'created_at': get_utc7_now()
+            }
+
+        timeout_at = time.time() + 30
+        while time.time() < timeout_at:
+            with FILE_LOCK:
+                result = FILE_RESULTS.pop(request_id, None)
+            if result:
+                if result.get('success'):
+                    file_data = result.get('file_data')
+                    if file_data:
+                        # decoded_data = base64.b64decode(file_data)
+                        return jsonify({'success': True, 'file_data': file_data, 'file_name': os.path.basename(target_path)})
+                    else:
+                        return jsonify({'success': False, 'message': 'No data received'})
+                else:
+                    return jsonify({'success': False, 'message': result.get('message', 'Failed to download')})
+            time.sleep(0.5)
+
+        return jsonify({'success': False, 'message': 'Timed out waiting for file data'}), 504
+    except Exception as e:
+        logger.error(f"Error downlaoding from agent: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/upload_to_agent/<agent_id>', methods=['POST'])
+@csrf.exempt
+def upload_to_agent(agent_id):
+    try:
+        agent = Agent.query.filter_by(agent_id=agent_id).first()
+        if not agent:
+            return jsonify({'success': False, 'message': 'Agent not found'}), 404
+
+        file = request.files.get('file')
+        target_path = request.form.get('path')
+
+        if not file or not target_path:
+            return jsonify({'success': False, 'message': 'File and path are required'}), 400
+
+        file_data = base64.b64encode(file.read()).decode('utf-8')
+        request_id = uuid.uuid4().hex
+
+        with FILE_LOCK:
+            FILE_REQUESTS[agent_id] = {
+                'request_id': request_id,
+                'action': 'upload',
+                'path': target_path,
+                'file_data': file_data,
+                'created_at': get_utc7_now()
+            }
+
+        timeout_at = time.time() + 30
+        while time.time() < timeout_at:
+            with FILE_LOCK:
+                result = FILE_RESULTS.pop(request_id, None)
+            if result:
+                if result.get('success'):
+                    return jsonify({'success': True, 'message': 'File uploaded to agent successfully'})
+                else:
+                    return jsonify({'success': False, 'message': result.get('message', 'Failed to upload')})
+            time.sleep(0.5)
+
+        return jsonify({'success': False, 'message': 'Timed out waiting for agent to save file'}), 504
+    except Exception as e:
+        logger.error(f"Error uploading to agent: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/delete_file/<agent_id>', methods=['POST'])

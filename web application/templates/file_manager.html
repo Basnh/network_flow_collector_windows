@@ -338,6 +338,11 @@
                     <button class="btn-action primary" id="btnGo" disabled>
                         <i class="fas fa-arrow-right"></i> Đi
                     </button>
+                    <!-- Upload Group -->
+                    <input type="file" id="uploadInput" style="display: none;" />
+                    <button class="btn-action primary" id="btnUpload" disabled title="Tải tệp lên Agent">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
                 </div>
 
                 <div class="table-responsive" style="margin-top: 15px;">
@@ -440,6 +445,8 @@
         snapshotInfo: document.getElementById('snapshotInfo'),
         btnUpLevel: document.getElementById('btnUpLevel'),
         btnGo: document.getElementById('btnGo'),
+        btnUpload: document.getElementById('btnUpload'),
+        uploadInput: document.getElementById('uploadInput'),
         fileList: document.getElementById('fileList'),
         fileTable: document.getElementById('fileTable'),
         loadingIndicator: document.getElementById('loadingIndicator')
@@ -451,6 +458,7 @@
         ui.btnSnapshot.disabled = !enabled;
         ui.btnUpLevel.disabled = !enabled;
         ui.btnGo.disabled = !enabled;
+        ui.btnUpload.disabled = !enabled;
     }
 
     function showLoading(show) {
@@ -480,27 +488,26 @@
 
                 // Cập nhật đường dẫn hiện tại mà agent trả về
                 ui.currentPath.value = data.current_path;
-                if (data.current_path) {
-                    let drive = data.current_path.substring(0, 3).toUpperCase();
-                    if (data.current_path.length === 3 && data.current_path.endsWith(':\\')) {
-                        ui.driveSelect.style.display = 'inline-block';
-                        let optionExists = false;
-                        for (let i = 0; i < ui.driveSelect.options.length; i++) {
-                            if (ui.driveSelect.options[i].value === drive) {
-                                optionExists = true;
-                                break;
-                            }
+
+                // Populate drive dropdown dynamically from server response
+                if (data.drives && data.drives.length > 0) {
+                    ui.driveSelect.innerHTML = ''; // Clear existing options
+                    data.drives.forEach(drive => {
+                        let option = document.createElement("option");
+                        option.value = drive;
+                        option.text = drive;
+                        ui.driveSelect.appendChild(option);
+                    });
+                    ui.driveSelect.style.display = 'inline-block';
+                    
+                    // Set current drive if path is a drive root
+                    if (data.current_path) {
+                        let drive = data.current_path.substring(0, 3).toUpperCase();
+                        if (data.drives.includes(drive)) {
+                            ui.driveSelect.value = drive;
+                        } else if (ui.driveSelect.options.length > 0) {
+                            ui.driveSelect.value = ui.driveSelect.options[0].value;
                         }
-                        if (!optionExists) {
-                            let option = document.createElement("option");
-                            option.text = drive;
-                            option.value = drive;
-                            ui.driveSelect.add(option);
-                        }
-                        ui.driveSelect.value = drive;
-                    } else {
-                        ui.driveSelect.style.display = 'inline-block';
-                        ui.driveSelect.value = drive;
                     }
                 }
                 
@@ -553,6 +560,10 @@
                 <td>${f.size || ''}</td>
                 <td>${f.modified || ''}</td>
                 <td>
+                    ${f.is_dir ? '' : `
+                    <button class="btn btn-sm btn-outline-primary btn-download" data-filename="${f.name}" title="Tải xuống">
+                        <i class="fas fa-download"></i> Tải xuống
+                    </button>`}
                     <button class="btn btn-sm btn-outline-danger btn-delete" data-filename="${f.name}" title="Xóa">
                         <i class="fas fa-trash-alt"></i> Xóa
                     </button>
@@ -564,6 +575,16 @@
                 e.stopPropagation();
                 deleteFile(f.name);
             });
+
+            if (!f.is_dir) {
+                const btnDownload = tr.querySelector('.btn-download');
+                if (btnDownload) {
+                    btnDownload.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downloadFile(f.name);
+                    });
+                }
+            }
 
             if (f.is_dir) {
                 tr.addEventListener('dblclick', () => {
@@ -609,6 +630,103 @@
         } finally {
             loadFiles(ui.currentPath.value);
         }
+    }
+
+    async function downloadFile(filename) {
+        if (!currentAgentId) return;
+
+        const current = ui.currentPath.value;
+        let sep = current.includes('\\') ? '\\' : '/';
+        const targetPath = current.endsWith(sep) ? current + filename : current + sep + filename;
+
+        try {
+            showLoading(true);
+            toggleControls(false);
+
+            const response = await fetch(`/api/download_from_agent/${currentAgentId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: targetPath })
+            });
+
+            const data = await response.json();
+            if (data.success && data.file_data) {
+                // Decode base64 and trigger download
+                const byteCharacters = atob(data.file_data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray]);
+                
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = data.file_name || filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showLoading(false);
+                toggleControls(true);
+            } else {
+                showLoading(false);
+                toggleControls(true);
+                alert('Lỗi tải xuống: ' + (data.message || 'Không có dữ liệu'));
+            }
+        } catch (err) {
+            showLoading(false);
+            toggleControls(true);
+            alert('Lỗi kết nối server khi tải xuống');
+            console.error(err);
+        }
+    }
+
+    if (ui.btnUpload && ui.uploadInput) {
+        ui.btnUpload.addEventListener('click', () => {
+            if (!currentAgentId) return;
+            ui.uploadInput.value = '';
+            ui.uploadInput.click();
+        });
+
+        ui.uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const current = ui.currentPath.value;
+            let sep = current.includes('\\') ? '\\' : '/';
+            // Ghép đường dẫn hiện tại với tên file
+            const targetPath = current.endsWith(sep) ? current + file.name : current + sep + file.name;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', targetPath);
+
+            try {
+                showLoading(true);
+                toggleControls(false);
+
+                const response = await fetch(`/api/upload_to_agent/${currentAgentId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Đã tải lên tệp thành công!');
+                    loadFiles(current);
+                } else {
+                    showLoading(false);
+                    toggleControls(true);
+                    alert('Lỗi tải lên: ' + data.message);
+                }
+            } catch (err) {
+                showLoading(false);
+                toggleControls(true);
+                alert('Lỗi kết nối server khi tải lên');
+                console.error(err);
+            }
+        });
     }
 
     ui.agentSelect.addEventListener('change', (e) => {

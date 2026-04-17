@@ -45,7 +45,7 @@ except ImportError:
     SECURITY_INTEGRATION_AVAILABLE = False
 
 class WindowsNetworkFlowCollector:
-    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=True, capture_packets=False, hex_payload=True):
+    def __init__(self, output_file="network_flows.csv", interface=None, timeout=300, add_timestamp=True, promiscuous=False, capture_packets=False, hex_payload=True):
         # Add timestamp to output file if requested
         if add_timestamp and output_file:
             self.output_file = self.add_timestamp_to_filename(output_file)
@@ -1117,12 +1117,16 @@ class WindowsNetworkFlowCollector:
         save_thread.start()
         
         try:
+            filter_str = 'not port 5000'
+            if not self.promiscuous:
+                filter_str += ' and not broadcast and not multicast'
+                
             # Configure capture parameters for network-wide monitoring
             capture_params = {
                 'prn': self.process_packet,
                 'store': 0,
                 'stop_filter': lambda x: not self.running,
-                'filter': 'not port 5000' # Bỏ qua hoàn toàn dữ liệu giao tiếp với Server để tránh vòng lặp tự bắt gói tin
+                'filter': filter_str # Bỏ qua dữ liệu Server và gói tin broadcast/multicast nếu không bật promiscuous
             }
             
             # Add promiscuous mode if enabled
@@ -1198,7 +1202,7 @@ def main():
     parser.add_argument('-o', '--output', default='network_flows.csv', help='Output CSV file (timestamp will be added)')
     parser.add_argument('-t', '--timeout', type=int, default=120, help='Flow timeout in seconds')
     parser.add_argument('--no-timestamp', action='store_true', help='Do not add timestamp to output filename')
-    parser.add_argument('--no-promiscuous', action='store_true', help='Disable promiscuous mode (capture only local traffic)')
+    parser.add_argument('--promiscuous', action='store_true', help='Enable promiscuous mode (capture ALL network traffic)')
     parser.add_argument('--list-interfaces', action='store_true', help='List available network interfaces')
     
     args = parser.parse_args()
@@ -1225,7 +1229,7 @@ def main():
         interface=args.interface,
         timeout=args.timeout,
         add_timestamp=not args.no_timestamp,
-        promiscuous=not args.no_promiscuous,
+        promiscuous=args.promiscuous,
         hex_payload=True  # Enable hex payload format for security analysis
     )
     
