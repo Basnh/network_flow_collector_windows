@@ -431,6 +431,22 @@ class CyberSecDashboard {
                     this.expandFlowDetails(flowId);
                 }
             });
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault(); // Ngăn chuột phải mặc định
+                const flowId = e.currentTarget.dataset.flowId;
+                if (flowId) {
+                    window.open(`/flow/${flowId}`, '_blank');
+                }
+            });
+            row.addEventListener('auxclick', (e) => {
+                if (e.button === 1) { // chuột giữa
+                    e.preventDefault();
+                    const flowId = e.currentTarget.dataset.flowId;
+                    if (flowId) {
+                        window.open(`/flow/${flowId}`, '_blank');
+                    }
+                }
+            });
         });
     }
 
@@ -671,9 +687,8 @@ class CyberSecDashboard {
 
     expandFlowDetails(flowId) {
         console.log(`Expanding flow details for: ${flowId}`);
-        this.showNotification(`Analyzing flow #${flowId}`, 'info', '<i class="fas fa-search"></i>');
-        
-        // TODO: Implement flow details modal or navigation
+        // Chuyển hướng đến trang chi tiết gói tin
+        window.location.href = `/flow/${flowId}`;
     }
 
     filterFlowsTable(filter) {

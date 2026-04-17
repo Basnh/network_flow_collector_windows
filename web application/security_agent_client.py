@@ -424,6 +424,9 @@ class SecurityAgentClient:
                 # Allow outbound TCP to Management Server port for agent polling/heartbeat
                 New-NetFirewallRule -DisplayName "Manager_Isolation_Allow_Out_Server_TCP" -Direction Outbound -Action Allow -Protocol TCP -RemoteAddress "{server_ip}" -RemotePort {server_port} -ErrorAction SilentlyContinue | Out-Null
                 
+                # Allow outbound DNS (to resolve server hostnames)
+                New-NetFirewallRule -DisplayName "Manager_Isolation_Allow_Out_DNS" -Direction Outbound -Action Allow -Protocol UDP -RemotePort 53 -ErrorAction SilentlyContinue | Out-Null
+                
                 Write-Host "Management server rules created for {server_ip}:{server_port}"
                 """
                 result = subprocess.run(['powershell', '-Command', ps_cmd], capture_output=True, text=True)
@@ -863,11 +866,13 @@ class SecurityAgentClient:
         """Collect local process and connection list in the UI's expected format."""
         try:
             # Same logic as note.txt, but output JSON instead of Format-Table for server transport.
+            # Tránh lặp Get-Process nhiều lần để tăng tốc độ lấy processes.
             ps_cmd = r'''
+            $procs = @{}
+            Get-Process | ForEach-Object { $procs[$_.Id] = $_.ProcessName }
             Get-NetTCPConnection -ErrorAction SilentlyContinue | ForEach-Object {
-                $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
                 [PSCustomObject]@{
-                    ProcessName   = if ($proc) { $proc.ProcessName } else { "Unknown" }
+                    ProcessName   = if ($procs.ContainsKey([int]$_.OwningProcess)) { $procs[[int]$_.OwningProcess] } else { "Unknown" }
                     PID           = [int]$_.OwningProcess
                     LocalAddress  = [string]$_.LocalAddress
                     LocalPort     = [int]$_.LocalPort

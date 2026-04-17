@@ -919,6 +919,23 @@ C:\Windows\system32> Đang kết nối tới {{ agent.hostname }}...</div>
                         window.location.href = `/flow/${flowId}`;
                     }
                 });
+                row.addEventListener('contextmenu', function(e) {
+                    e.preventDefault(); // Ngăn menu chuột phải mặc định
+                    const flowId = this.getAttribute('data-flow-id');
+                    if (flowId) {
+                        window.open(`/flow/${flowId}`, '_blank');
+                    }
+                });
+                // Optional: support middle-click (auxclick)
+                row.addEventListener('auxclick', function(e) {
+                    if (e.button === 1) { // 1 is middle button
+                        e.preventDefault();
+                        const flowId = this.getAttribute('data-flow-id');
+                        if (flowId) {
+                            window.open(`/flow/${flowId}`, '_blank');
+                        }
+                    }
+                });
             });
         }
         
@@ -990,6 +1007,23 @@ C:\Windows\system32> Đang kết nối tới {{ agent.hostname }}...</div>
                 const flowId = this.getAttribute('data-flow-id');
                 if (flowId) {
                     window.location.href = `/flow/${flowId}`;
+                }
+            });
+            row.addEventListener('contextmenu', function(e) {
+                e.preventDefault(); // Ngăn menu chuột phải mặc định
+                const flowId = this.getAttribute('data-flow-id');
+                if (flowId) {
+                    window.open(`/flow/${flowId}`, '_blank');
+                }
+            });
+            // Optional: support middle-click (auxclick)
+            row.addEventListener('auxclick', function(e) {
+                if (e.button === 1) { // 1 is middle button
+                    e.preventDefault();
+                    const flowId = this.getAttribute('data-flow-id');
+                    if (flowId) {
+                        window.open(`/flow/${flowId}`, '_blank');
+                    }
                 }
             });
         });
