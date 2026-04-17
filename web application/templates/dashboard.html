@@ -83,9 +83,8 @@
                     </div>
                     <div class="metric-label">Agents đang hoạt động</div>
                     <div class="metric-progress">
-                        {% set progress_percentage = ((active_agents / total_agents * 100) if total_agents > 0 else
-                        0)|round|int %}
-                        <div class="progress-bar" style="width: 0%;" data-progress="{{ progress_percentage }}"></div>
+                        {% set progress_percentage = ((active_agents / total_agents * 100) if total_agents > 0 else 0)|round|int %}
+                        <div class="progress-bar" style="{{ 'width: ' ~ progress_percentage ~ '%;' }}" data-progress="{{ progress_percentage }}"></div>
                     </div>
                     <div class="metric-status">
                         {% set online_dots = 5 if active_agents > 5 else active_agents %}

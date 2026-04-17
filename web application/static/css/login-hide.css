@@ -1,0 +1,6 @@
+/* login_hide.css - Hides UI elements on the login screen */
+.sidebar { display: none !important; }
+.main-wrapper { margin-left: 0 !important; width: 100% !important; }
+.top-navbar { display: none !important; }
+.sidebar-container { justify-content: center; align-items: center; background-color: var(--bg-deep); height: 100vh; }
+.main-wrapper main { padding: 0 !important; display: flex; justify-content: center; align-items: center; }

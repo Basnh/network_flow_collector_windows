@@ -39,7 +39,7 @@ WHITELISTED_IPS = {
 }
 
 # TÙY CHỌN ẨN: Chuyển thành True để TẮT mô hình AI (chỉ báo cáo các Trojan dựa vào Port / Rule-based)
-DISABLE_ML_DETECTION = True
+DISABLE_ML_DETECTION = False
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
@@ -1379,8 +1379,12 @@ def logout():
 def dashboard():
     """Main dashboard"""
     # Get statistics
+    now = get_utc7_now()
     total_agents = Agent.query.count()
-    active_agents = Agent.query.filter_by(status='active').count()
+    active_agents = Agent.query.filter(
+        Agent.last_seen >= now - timedelta(minutes=2),
+        Agent.status != 'isolated'
+    ).count()
     isolated_agents = Agent.query.filter_by(status='isolated').count()
     
     # Recent alerts
@@ -2174,8 +2178,10 @@ def api_dashboard_metrics():
         # Calculate comprehensive metrics
         total_agents = Agent.query.count()
         active_agents = Agent.query.filter(
-            Agent.last_seen >= now - timedelta(minutes=2)
+            Agent.last_seen >= now - timedelta(minutes=2),
+            Agent.status != 'isolated'
         ).count()
+        isolated_agents = Agent.query.filter_by(status='isolated').count()
         
         # Alert metrics
         all_alerts = SecurityAlert.query.filter_by(is_resolved=False).count()

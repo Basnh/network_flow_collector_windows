@@ -1,0 +1,202 @@
+/* Card styling */
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+        border-bottom: 1px solid var(--border-default);
+    }
+
+    /* Badge styling */
+    .badge {
+        padding: 0.4em 0.8em;
+        font-weight: 500;
+        border-radius: 4px;
+    }
+
+    .badge.badge-threat {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge.badge-safe {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .badge.badge-suspicious {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* Flow stats */
+    .flow-stat {
+        padding: 1rem;
+        background-color: var(--bg-deep);
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+
+    .flow-stat-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .flow-stat-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text-main);
+        word-break: break-all;
+    }
+
+    /* Threat indicators */
+    .threat-indicator {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        background-color: var(--bg-deep);
+    }
+
+    .threat-indicator.high {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-left: 4px solid #ef4444;
+    }
+
+    .threat-indicator.medium {
+        background-color: rgba(245, 158, 11, 0.1);
+        border-left: 4px solid #f59e0b;
+    }
+
+    .threat-indicator.low {
+        background-color: rgba(34, 197, 94, 0.1);
+        border-left: 4px solid #22c55e;
+    }
+
+    .threat-indicator-icon {
+        margin-right: 0.75rem;
+        font-size: 1.25rem;
+    }
+
+    .threat-indicator-text {
+        flex: 1;
+    }
+
+    /* Progress bar */
+    .threat-progress {
+        width: 100%;
+        height: 8px;
+        background-color: var(--bg-deep);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .threat-progress-bar {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    /* Dark mode */
+    body[data-theme="dark"] .card {
+        background-color: rgba(30, 41, 59, 0.8);
+        border-color: rgba(226, 232, 240, 0.1);
+    }
+
+    body[data-theme="dark"] .card-header {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border-color: rgba(226, 232, 240, 0.1);
+    }
+
+    body[data-theme="dark"] .flow-stat {
+        background-color: rgba(15, 23, 42, 0.6);
+    }
+
+    body[data-theme="dark"] .flow-stat-label {
+        color: #94a3b8;
+    }
+
+    body[data-theme="dark"] .flow-stat-value {
+        color: #f1f5f9;
+    }
+
+    body[data-theme="dark"] .threat-indicator {
+        background-color: rgba(15, 23, 42, 0.6);
+    }
+
+    /* Light mode */
+    body[data-theme="light"] .card {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    body[data-theme="light"] .flow-stat {
+        background-color: rgba(245, 245, 245, 0.5) !important;
+    }
+
+    body[data-theme="light"] .flow-stat-label {
+        color: #6b7280 !important;
+    }
+
+    body[data-theme="light"] .flow-stat-value {
+        color: #1f2937 !important;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--border-default);
+    }
+
+    .nav-link {
+        color: var(--text-muted);
+        border: none;
+        padding: 0.75rem 1rem;
+        margin-bottom: -2px;
+        border-bottom: 3px solid transparent;
+    }
+
+    .nav-link.active {
+        color: var(--accent-primary);
+        border-bottom-color: var(--accent-primary);
+    }
+
+    .nav-link:hover {
+        border-bottom-color: var(--accent-primary);
+        color: var(--accent-primary);
+    }
+
+    /* Payload section */
+    .payload-container {
+        background-color: var(--bg-deep);
+        border-radius: 6px;
+        padding: 1rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        color: #38bdf8;
+        word-break: break-all;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    body[data-theme="dark"] .payload-container {
+        background-color: rgba(15, 23, 42, 0.9);
+    }
+
+    body[data-theme="light"] .payload-container {
+        background-color: rgba(245, 245, 245, 0.85) !important;
+    }

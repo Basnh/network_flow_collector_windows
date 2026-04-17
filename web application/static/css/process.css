@@ -1,0 +1,81 @@
+/* Styling specifically for Process Monitor that might be missing in dashboard css */
+    .agent-selector-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .agent-selector-wrapper select {
+        background: rgba(13, 25, 41, 0.7);
+        border: 1px solid rgba(0, 255, 204, 0.3);
+        color: #e0f2fe;
+        padding: 8px 15px;
+        border-radius: 6px;
+        outline: none;
+        font-size: 0.95rem;
+        min-width: 300px;
+    }
+
+    .agent-selector-wrapper select:focus {
+        border-color: #00ffcc;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+    }
+    
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    .status-badge.established { background: rgba(0, 255, 204, 0.15); color: #00ffcc; border: 1px solid rgba(0, 255, 204, 0.3); }
+    .status-badge.listening { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .status-badge.close_wait, .status-badge.time-wait { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .status-badge.syn_sent, .status-badge.syn_recv { background: rgba(250, 204, 21, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); }
+    .status-badge.bound { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.3); }
+    
+    .btn-kill {
+        background: rgba(255, 71, 87, 0.15);
+        color: #ff4757;
+        border: 1px solid rgba(255, 71, 87, 0.3);
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+    }
+    .btn-kill:hover {
+        background: rgba(255, 71, 87, 0.3);
+        box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
+    }
+    
+    /* Text Color Fixes for Dark and Light Modes */
+    [data-theme="dark"] #processTableContainer .threat-row {
+        color: #e2e8f0;
+    }
+    
+    [data-theme="dark"] #processTableContainer .threat-row * {
+        color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .status-badge {
+        color: #fff !important;
+    }
+
+    [data-theme="light"] .status-badge {
+        font-weight: 700;
+        color: #0f172a !important;
+        border-width: 2px !important;
+    }
+    
+    /* Override grid layout from cybersec-dashboard.css for this specific table */
+    #processTableContainer .table-header,
+    #processTableContainer .threat-row {
+        display: flex;
+        grid-template-columns: none; /* Disable grid */
+        gap: 15px;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    }

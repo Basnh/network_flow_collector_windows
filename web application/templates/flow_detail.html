@@ -18,7 +18,7 @@
 
     .card-header {
         background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-        border-b: 1px solid var(--border-default);
+        border-bottom: 1px solid var(--border-default);
     }
 
     /* Badge styling */
@@ -248,7 +248,7 @@
                         </div>
                         <div class="threat-progress">
                             <div class="threat-progress-bar {% if flow.threat_score > 0.7 %}bg-danger{% elif flow.threat_score > 0.4 %}bg-warning{% else %}bg-success{% endif %}"
-                                style="width: {{ (flow.threat_score * 100)|round|int }}%;">
+                                style="{{ 'width: ' ~ (flow.threat_score * 100)|round|int ~ '%;' }}">
                             </div>
                         </div>
                         <small class="text-muted">
