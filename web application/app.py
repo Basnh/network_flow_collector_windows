@@ -29,7 +29,7 @@ import numpy as np
 # Timezone settings
 UTC_PLUS_7 = timezone('Asia/Bangkok')  # UTC+7
 
-# DANH S�CH WHITELIST IP (K?t n?i �?n c�c IP n�y kh�ng b? coi l� Trojan)
+# Danh sách các IP được phép (whitelist) để tránh cảnh báo giả từ các dịch vụ phổ biến hoặc nội bộ
 WHITELISTED_IPS = {
     '8.8.8.8',    # Google DNS
     '8.8.4.4',    # Google DNS
@@ -39,7 +39,7 @@ WHITELISTED_IPS = {
     '239.255.255.250' # Multicast SSDP
 }
 
-# T�Y CH?N ?N: Chuy?n th�nh True �? T?T m� h?nh AI (ch? b�o c�o c�c Trojan d?a v�o Port / Rule-based)
+# Tuỳ chọn để tắt hoàn toàn phần phát hiện dựa trên ML (chỉ dùng signature và heuristic)
 DISABLE_ML_DETECTION = True
 
 app = Flask(__name__)
@@ -293,11 +293,11 @@ class ThreatDetector:
         try:
             model_path, candidate_paths = self._find_existing_path(self.model_filename, 'THREAT_MODEL_PATH')
             if not model_path:
-                logger.error(f"Model file {self.model_filename} not found. Checked paths: %s", candidate_paths)
+                logger.error(f"Model file {self.model_filename} không tìm thấy. Kiểm tra đường dẫn: %s", candidate_paths)
                 self.model_path = None
                 self.is_trained = False
                 self.model = None
-                self.last_error = f"{self.model_filename} not found"
+                self.last_error = f"{self.model_filename} không tìm thấy"
                 return False
 
             with open(model_path, 'rb') as f:
@@ -309,7 +309,7 @@ class ThreatDetector:
 
             self.model_path = model_path
             self.is_trained = True
-            logger.warning(f" �? t?i th�nh c�ng model t? {model_path}")
+            logger.warning(f" Đã tải thành công model {model_path}")
 
             # Optional scaler for feature preprocessing
             scaler_path, scaler_candidates = self._find_existing_path('scaler.pkl', 'THREAT_SCALER_PATH')
@@ -318,15 +318,15 @@ class ThreatDetector:
                     import joblib
                     self.scaler = joblib.load(scaler_path)
                     self.scaler_path = scaler_path
-                    logger.warning(f" �? t?i th�nh c�ng scaler t? {scaler_path}")
+                    logger.warning(f" Đã tải thành công scaler tại {scaler_path}")
                 except Exception as scaler_error:
                     self.scaler = None
                     self.scaler_path = None
-                    logger.error(f" Kh�ng th? t?i scaler.pkl: {scaler_error}")
+                    logger.error(f" Không thể tải scaler.pkl: {scaler_error}")
             else:
                 self.scaler = None
                 self.scaler_path = None
-                logger.warning("scaler.pkl not found. Checked paths: %s", scaler_candidates)
+                logger.warning("scaler.pkl không tìm thấy. Kiểm tra đường dẫn: %s", scaler_candidates)
 
             # Optional label encoder for class decoding
             encoder_path, encoder_candidates = self._find_existing_path('mahoa_nhan.pkl', 'THREAT_LABEL_ENCODER_PATH')
@@ -335,15 +335,15 @@ class ThreatDetector:
                     import joblib
                     self.label_encoder = joblib.load(encoder_path)
                     self.label_encoder_path = encoder_path
-                    logger.warning(f" �? t?i th�nh c�ng label encoder t? {encoder_path}")
+                    logger.warning(f" Đã tải thành công file encoder tại {encoder_path}")
                 except Exception as encoder_error:
                     self.label_encoder = None
                     self.label_encoder_path = None
-                    logger.error(f" Kh�ng th? t?i mahoa_nhan.pkl: {encoder_error}")
+                    logger.error(f" Không thể tải file mahoa_nhan.pkl: {encoder_error}")
             else:
                 self.label_encoder = None
                 self.label_encoder_path = None
-                logger.warning("mahoa_nhan.pkl not found. Checked paths: %s", encoder_candidates)
+                logger.warning("mahoa_nhan.pkl không tìm thấy. Kiểm tra đường dẫn: %s", encoder_candidates)
 
             # Optional processed_data.pkl path for traceability/consistency checks
             processed_path, _ = self._find_existing_path('processed_data.pkl', 'THREAT_PROCESSED_DATA_PATH')
@@ -353,7 +353,7 @@ class ThreatDetector:
             return True
             
         except Exception as e:
-            logger.error(f" Kh�ng th? t?i   model: {e}")
+            logger.error(f" Không thể tải model: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             self.model_path = None
@@ -431,27 +431,27 @@ class ThreatDetector:
                 else:
                     protocol_num = float(protocol_val)
 
-                # Chuy?n �?i feature t? array c?a WindowsNetworkFlowCollector th�nh m?ng float
+                # Chuyển các giá trị cơ bản sang float, sử dụng 0 nếu thiếu hoặc không hợp lệ
                 advanced_features = [
                     float(raw_ml_features[2] or 0),   # Source Port
                     float(raw_ml_features[4] or 0),   # Destination Port
                     float(protocol_num)               # Protocol
                 ]
                 
-                # T? index 7 tr? �i (t?c Flow Duration)
-                for val in raw_ml_features[7:83]: # �?m b?o l?y �? 76 values k? ti?p
+                
+                for val in raw_ml_features[7:83]: 
                     try:
                         advanced_features.append(float(val) if val not in [None, ''] else 0.0)
                     except Exception:
                         advanced_features.append(0.0)
                         
-                # Padding ho?c trim �? kh?p ch�nh x�c 79 features
+                
                 while len(advanced_features) < 79:
                     advanced_features.append(0.0)
                 return advanced_features[:79]
             except Exception as e:
                 logger.error(f"Error parsing raw_ml_features: {e}")
-                # Fallback xu?ng dummy features n?u l?i
+
 
         payload_length = len(flow.payload_content) if flow.payload_content else 0
         
@@ -613,7 +613,7 @@ class ThreatDetector:
         encoder_used = False
         
         # ---------------------------------------------------------
-        # T?NG 1: MACHINE LEARNING DETECTION (L?i ph�n t�ch h�nh vi m?ng)
+        # T?NG 1: MACHINE LEARNING DETECTION (Lõi phân tích hành vi mạng bằng máy học)
         # ---------------------------------------------------------
         if not DISABLE_ML_DETECTION and self.is_trained and self.model is not None:
             try:
@@ -631,8 +631,6 @@ class ThreatDetector:
                     X_scaled = None
                     if self.scaler is not None and hasattr(self.scaler, 'transform'):
                         try:
-                            # Try to transform with DataFrame
-                            # Wait, the warning might still appear if we fall back to X_np
                             if hasattr(self.scaler, 'feature_names_in_'):
                                 X_df = pd.DataFrame([model_features], columns=self.scaler.feature_names_in_)
                             X_scaled = self.scaler.transform(X_df)
@@ -667,7 +665,6 @@ class ThreatDetector:
                             pass
 
                     is_malicious = self._is_malicious_label(decoded_label) or self._is_malicious_label(pred_label)
-                    # �p c?ng quy t?c 0/1 (0% ho?c 100%) d?t kho�t
                     ml_score = 1.0 if is_malicious else 0.0
 
                     threat_score = max(threat_score, ml_score)
@@ -688,14 +685,14 @@ class ThreatDetector:
         suspicious_ports = {1417, 2404, 4449, 6606, 7707, 8808, 54984}
         if flow.src_port in suspicious_ports or flow.dst_port in suspicious_ports:
             susp_port = flow.dst_port if flow.dst_port in suspicious_ports else flow.src_port
-            threats_found.append(f"Suspicious Port {susp_port} (Known C2 Indicator)")
+            threats_found.append(f"Cổng thường sử dụng của tấn công {susp_port} (Known C2 Indicator)")
             threat_score = max(threat_score, 0.85)
             
         # ---------------------------------------------------------
         # 
         # ---------------------------------------------------------
         if not threats_found and threat_score < 0.7:
-            threats_found.append("Normal traffic detected")
+            threats_found.append("Lưu lượng bình thường được phát hiện")
 
         self.last_threat_score = float(threat_score)
         return threat_score, threats_found
@@ -722,10 +719,10 @@ def list_models():
     model_dir = os.path.join(project_dir, 'model') # Point strictly to the 'model' directory
     
     models = set()
-    # Danh s�ch c�c file pkl n?i b?/��ng vai tr? ph? tr? kh�ng ��?c ph�p ch?n
+    # Danh sách các file cố định, không phải model
     ignore_list = {'scaler.pkl', 'mahoa_nhan.pkl', 'processed_data.pkl'}
     
-    # Ch? qu�t b�n trong th� m?c model
+    # Điều này giúp tránh nhầm lẫn với các file PKL khác nằm rải rác trong project
     if os.path.exists(model_dir):
         for file in os.listdir(model_dir):
             if file.endswith('.pkl') and file not in ignore_list:
@@ -749,7 +746,7 @@ def select_model():
         
     success = threat_detector.change_model(model_name)
     if success:
-        return jsonify({'message': f'Successfully switched to {model_name}', 'current_model': model_name})
+        return jsonify({'message': f'Đã chuyển sang model {model_name}', 'current_model': model_name})
     else:
         return jsonify({'error': f'Failed to load {model_name}. Check logs.'}), 500
 
@@ -840,7 +837,6 @@ def submit_flow():
                 raw_ml_features = flow_data.get('ml_features', None)
                 threat_score, payload_threats = threat_detector.predict_threat(flow, raw_ml_features)
                 
-                # B? qua ICMP ping echo ho?c c�c k?t n?i n?m trong Whitelist
                 is_whitelisted = (flow.dst_ip in WHITELISTED_IPS or flow.src_ip in WHITELISTED_IPS)
                 
                 if is_whitelisted:
@@ -889,7 +885,7 @@ def submit_flow():
         
         db.session.commit()
         
-        # T? �?ng c�ch ly ngay l?p t?c khi ph�t hi?n b?t k? m?i �e d?a n�o >= 0.85 (Trojan)
+        # Tự động cách ly khi phát hiện 1 hoặc nhiều mối đe dọa có điểm số cao, đặc biệt nếu agent đã ở mức độ đe dọa cao hoặc nghiêm trọng
         if threats_detected > 0 and agent.threat_level in ['high', 'critical']:
             isolate_agent_network(agent_id, f"Auto-isolation: {threats_detected} threats detected (Score >= 0.85)")
         
@@ -1051,11 +1047,11 @@ def execute_cmd(agent_id):
         return jsonify({'error': 'No command provided'}), 400
         
     if agent.pending_command:
-        # N?u �ang c� l?nh ch�a x? l?
+        # Nếu đang có command đang xử lý
         try:
             pending = json.loads(agent.pending_command)
             if pending.get('action') != 'shell_cmd':
-                return jsonify({'error': 'Agent �ang b?n x? l? m?t l?nh h? th?ng kh�c'}), 409
+                return jsonify({'error': 'Agent đang bận xử lý một lệnh khác'}), 409
         except:
             pass
             
@@ -1075,7 +1071,7 @@ def execute_cmd(agent_id):
 
 @app.route('/api/agent/<agent_id>/cmd_status/<int:cmd_id>', methods=['GET'])
 def cmd_status(agent_id, cmd_id):
-    """Ki?m tra tr?ng th�i l?nh �? ho�n th�nh ch�a"""
+    """Kiểm tra trạng thái lệnh đã hoàn thành chưa"""
     cmd = AgentCommand.query.get_or_404(cmd_id)
     return jsonify({
         'status': cmd.status,
@@ -1190,7 +1186,7 @@ def kill_process(agent_id):
         # Check if agent is online
         last_seen_threshold = get_utc7_now() - timedelta(seconds=120)
         if not agent.last_seen or agent.last_seen < last_seen_threshold:
-            return jsonify({'success': False, 'error': 'Agent �ang ngo?i tuy?n.'}), 503
+            return jsonify({'success': False, 'error': 'Agent đang ngoại tuyến.'}), 503
         
         # Send kill_process command via pending_command
         command = {
@@ -1362,17 +1358,17 @@ def login():
         password = request.form.get('password')
         if username == 'admin' and password == 'admin':
             session['logged_in'] = True
-            flash('��ng nh?p th�nh c�ng', 'success')
+            flash('Đăng nhập thành công', 'success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('dashboard'))
         else:
-            flash('Sai t�n ��ng nh?p ho?c m?t kh?u', 'danger')
+            flash('Sai tên đăng nhập hoặc mật khẩu', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
-    flash('B?n �? ��ng xu?t', 'info')
+    flash('Bạn đã đăng xuất', 'info')
     return redirect(url_for('login'))
 
 @app.route('/')
@@ -1458,8 +1454,7 @@ def dashboard():
             critical_c = malicious_c
         normal_c = total - critical_c - high_c
         
-        # NOTE: Hi?n th? demo UI c?t m�u �? ng�?i d�ng d? quan s�t tr?c quan
-        # Gi? l?p traffic risk n?u hi?n t?i h? th?ng ch? c� lu?ng NORM (An to�n)
+
         if total > 0 and critical_c == 0 and high_c == 0 and malicious_c == 0:
             if ip.endswith('.5'):
                 normal_c = int(total * 0.8)
@@ -1559,15 +1554,15 @@ def process_monitor():
 @login_required
 @csrf.exempt
 def delete_agent(agent_id):
-    """X�a agent v� c�c d? li?u li�n quan"""
+    """Xoá các dữ liệu và agent có liên quan"""
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first_or_404()
-        # X�a c�c d? li?u ph? thu?c tr�?c
+        # Xoá các dữ liệu phụ thuộc
         NetworkFlow.query.filter_by(agent_id=agent_id).delete()
         SecurityAlert.query.filter_by(agent_id=agent_id).delete()
         IsolationAction.query.filter_by(agent_id=agent_id).delete()
         AgentCommand.query.filter_by(agent_id=agent_id).delete()
-        # X�a agent
+        # Xoá agent
         db.session.delete(agent)
         db.session.commit()
         
@@ -1812,9 +1807,9 @@ def resolve_alert(alert_id):
     db.session.commit()
     
     if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return jsonify({'success': True, 'message': '�? ��nh d?u �? gi?i quy?t'})
+        return jsonify({'success': True, 'message': 'Đã đánh dấu được giải quyết'})
         
-    flash('�? ��nh d?u �? gi?i quy?t.', 'success')
+    flash('Đã đánh dấu được giải quyết.', 'success')
     return redirect(url_for('alerts_list'))
 
 @app.route('/resolve_all_alerts', methods=['POST'])
@@ -1827,13 +1822,13 @@ def resolve_all_alerts():
         db.session.commit()
         
         if request.is_json or request.headers.get('Accept', '').find('application/json') != -1 or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-            return jsonify({'success': True, 'message': f'�? gi?i quy?t {count} c?nh b�o'})
+            return jsonify({'success': True, 'message': f'Đã giải quyết {count} cảnh báo'})
             
-        flash(f'�? gi?i quy?t {count} c?nh b�o.', 'success')
+        flash(f'Đã giải quyết {count} cảnh báo.', 'success')
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error resolving all alerts: {e}")
-        flash('�? x?y ra l?i khi gi?i quy?t c?nh b�o.', 'error')
+        flash('Đã xảy ra lỗi khi giải quyết cảnh báo.', 'error')
         
     return redirect(url_for('alerts_list'))
 
@@ -2474,7 +2469,7 @@ def create_snapshot():
     with open(snapshot_path, 'w', encoding='utf-8') as f:
         json.dump(snapshot_data, f)
         
-    flash('�? t?o m?c theo d?i m?i. H? th?ng s? b�o c�c file ��?c th�m/s?a �?i sau th?i �i?m n�y.', 'success')
+    flash('Đã tạo snapshot theo dõi mới. Hệ thống sẽ báo cáo các file được thêm/sửa sau thời điểm này.', 'success')
     return redirect(url_for('file_manager'))
 
 
@@ -2482,18 +2477,18 @@ def create_snapshot():
 @csrf.exempt
 def upload_file():
     if 'file' not in request.files:
-        flash('Kh�ng t?m th?y t?p ��nh k�m.', 'danger')
+        flash('Không tìm thấy tệp đính kèm.', 'danger')
         return redirect(url_for('file_manager'))
     
     file = request.files['file']
     if file.filename == '':
-        flash('Ch�a ch?n t?p n�o.', 'danger')
+        flash('Chưa chọn tệp nào.', 'danger')
         return redirect(url_for('file_manager'))
         
     if file:
         filename = secure_filename(file.filename)
         file.save(os.path.join(FILE_MANAGER_DIR, filename))
-        flash(f'�? t?i l�n {filename} th�nh c�ng!', 'success')
+        flash(f'Đã tải lên {filename} thành công!', 'success')
         
     return redirect(url_for('file_manager'))
 
@@ -2503,9 +2498,9 @@ def delete_file(filename):
     file_path = os.path.join(FILE_MANAGER_DIR, secure_filename(filename))
     if os.path.exists(file_path):
         os.remove(file_path)
-        flash(f'�? xo� {filename}.', 'success')
+        flash(f'Đã xóa {filename}.', 'success')
     else:
-        flash('T?p kh�ng t?n t?i.', 'danger')
+        flash('Tệp không tồn tại.', 'danger')
     return redirect(url_for('file_manager'))
 
 @app.route('/file_manager/download/<filename>')
@@ -2615,12 +2610,10 @@ def get_agent_files(agent_id):
                 for f in files:
                     is_new = False
                     if last_snapshot:
-                        # Ch? c?n th?i gian ch?nh s?a m?i h�n m?c t?o snapshot to�n c?c
                         if f.get('modified', '') > last_snapshot:
                             is_new = True
                     f['is_new'] = is_new
                 
-                # S?p x?p �? file m?i n?i l�n �?u m?c
                 files = sorted(files, key=lambda x: (not x['is_new'], x['name']))
                 
                 return jsonify({
@@ -2719,12 +2712,12 @@ def upload_to_agent(agent_id):
                 result = FILE_RESULTS.pop(request_id, None)
             if result:
                 if result.get('success'):
-                    return jsonify({'success': True, 'message': 'File uploaded to agent successfully'})
+                    return jsonify({'success': True, 'message': 'File đã được fulload thành công đến agent.'})
                 else:
-                    return jsonify({'success': False, 'message': result.get('message', 'Failed to upload')})
+                    return jsonify({'success': False, 'message': result.get('message', 'Upload không thành công')})
             time.sleep(0.5)
 
-        return jsonify({'success': False, 'message': 'Timed out waiting for agent to save file'}), 504
+        return jsonify({'success': False, 'message': 'Hết thời gian để Agent xử lý'}), 504
     except Exception as e:
         logger.error(f"Error uploading to agent: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -2735,12 +2728,12 @@ def delete_agent_file(agent_id):
     try:
         agent = Agent.query.filter_by(agent_id=agent_id).first()
         if not agent:
-            return jsonify({'success': False, 'message': 'Agent not found'}), 404
+            return jsonify({'success': False, 'message': 'Không tìm thấy Agent'}), 404
             
         data = request.get_json() or {}
         target_path = data.get('path')
         if not target_path:
-            return jsonify({'success': False, 'message': 'Path is required'}), 400
+            return jsonify({'success': False, 'message': 'Yêu cầu đường dẫn'}), 400
 
         request_id = uuid.uuid4().hex
         with FILE_LOCK:
@@ -2757,14 +2750,14 @@ def delete_agent_file(agent_id):
                 result = FILE_RESULTS.pop(request_id, None)
             if result:
                 if result.get('success'):
-                    return jsonify({'success': True, 'message': result.get('message', '�? xo� t?p th�nh c�ng.')})
+                    return jsonify({'success': True, 'message': result.get('message', 'Đã xóa tệp thành công.')})
                 else:
-                    return jsonify({'success': False, 'message': result.get('message', 'L?i khi xo�.')})
+                    return jsonify({'success': False, 'message': result.get('message', 'Lỗi khi xóa.')})
             time.sleep(0.5)
             
         return jsonify({
             'success': False,
-            'message': 'Timed out waiting for agent to delete file'
+            'message': 'Hết thời gian để Agent xử lý'
         }), 504
         
     except Exception as e:
@@ -2776,14 +2769,13 @@ def delete_agent_file(agent_id):
 def snapshot_agent_files(agent_id):
     try:
         snapshot_path = os.path.join(app.instance_path, f'storage_snapshot_{agent_id}.json')
-        # L?y m?c th?i gian hi?n t?i l�m m?c theo d?i to�n c?c (Global Snapshot)
         timestamp = get_utc7_now().strftime('%Y-%m-%d %H:%M:%S')
         snapshot_data = {'timestamp': timestamp}
         
         with open(snapshot_path, 'w', encoding='utf-8') as sf:
             json.dump(snapshot_data, sf)
             
-        return jsonify({'success': True, 'message': f'�? c?p nh?t m?c th?i gian to�n c?c ({timestamp}).'})
+        return jsonify({'success': True, 'message': f'Đã tạo snapshot toàn cục ({timestamp}).'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 

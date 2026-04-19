@@ -107,10 +107,10 @@
             <main>
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            <div id="flash-messages-container" style="position: absolute; top: 80px; left: 20px; z-index: 1000; width: calc(100% - 40px); pointer-events: none;">
+            <div id="flash-messages-container" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 1000; width: max-content; max-width: 90%; display: flex; flex-direction: column; align-items: center; pointer-events: none;">
                 {% for category, message in messages %}
                 <div
-                    class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" style="pointer-events: auto;">
+                    class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" style="pointer-events: auto; min-width: 300px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -118,7 +118,7 @@
             </div>
             
             <script>
-                // Tự động thu gọn thanh thông báo sau 10 giây (10000ms)
+                // Tự động thu gọn thanh thông báo sau 5 giây (5000ms)
                 setTimeout(function() {
                     const alerts = document.querySelectorAll('#flash-messages-container .alert');
                     alerts.forEach(function(alertNode) {
@@ -129,7 +129,7 @@
                             alertNode.style.display = 'none'; // Fallback nếu thư viện bootstrap bị chậm
                         }
                     });
-                }, 10000);
+                }, 5000);
             </script>
             {% endif %}
             {% endwith %}
